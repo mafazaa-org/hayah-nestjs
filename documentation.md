@@ -174,7 +174,103 @@ After completing Phase 1, the application has:
 
 ## Phase 2: Project Structure & Module Setup
 
-**Status:** Not Started
+**Status:** Completed  
+**Date Completed:** January 2025
+
+### Overview
+Phase 2 focuses on establishing a clean, scalable project structure based on feature-driven modules. It introduces the `src/features` directory, base feature folders (auth, users, folders, lists, tasks, statuses, tags, comments, attachments, notifications), and placeholder DTOs/entities to be wired to the database schema in later phases.
+
+### Objectives Completed
+
+#### 1. Create Base Folder Structure ✅
+
+- **Status:** Completed
+- **Description:** Core top-level folders were created to separate concerns and prepare for future work.
+
+**Folders Created:**
+- `src/features` — Feature-based modules (auth, users, folders, lists, tasks, statuses, tags, comments, attachments, notifications)
+- `src/common` — Shared utilities, filters, guards, decorators, etc.
+- `src/config` — Configuration-related files (to be filled later)
+- `src/database` — Database-related files (Prisma schema, migrations, etc.)
+
+#### 2. Create Feature Folders & Base Files ✅
+
+- **Status:** Completed
+- **Description:** Each core feature now has its own folder with module, controller, and service files, along with DTO and entity subfolders.
+
+**Features Implemented:**
+- `src/features/auth`
+- `src/features/users`
+- `src/features/folders`
+- `src/features/lists`
+- `src/features/tasks`
+- `src/features/statuses`
+- `src/features/tags`
+- `src/features/comments`
+- `src/features/attachments`
+- `src/features/notifications`
+
+Each feature folder includes:
+- `*.module.ts` — NestJS module definition
+- `*.controller.ts` — HTTP route handling
+- `*.service.ts` — Business logic layer
+- `dto/` — Placeholder DTOs for create, update, and response shapes
+- `entities/` — Placeholder entity interface/type for the feature
+
+**Integration with App Module:**
+- `src/app.module.ts` was updated to import and register all feature modules in the `imports` array so they are part of the main application context.
+
+#### 3. Create Base Entity/DTO Structure (Placeholders) ✅
+
+- **Status:** Completed
+- **Description:** For each feature, basic DTO and entity placeholders were created. These are intentionally minimal and will be fleshed out once the database schema is finalized in later phases.
+
+**Placeholder Structure:**
+- DTOs:
+  - `create-*.dto.ts`
+  - `update-*.dto.ts`
+  - `*-response.dto.ts`
+- Entities:
+  - `*.entity.ts` (interface or type representing the core domain object)
+
+**Notes:**
+- DTO and entity files currently contain simple placeholder classes/interfaces with comments indicating they will be implemented after the database schema is defined.
+- This allows controllers and services to be wired up with types without blocking on database design.
+
+### Directory Structure (High-Level)
+
+```text
+src/
+├── common/
+│   └── filters/
+│       └── all-exceptions.filter.ts
+├── config/
+│   └── .gitkeep
+├── database/
+│   └── .gitkeep
+├── features/
+│   ├── auth/
+│   ├── users/
+│   ├── folders/
+│   ├── lists/
+│   ├── tasks/
+│   ├── statuses/
+│   ├── tags/
+│   ├── comments/
+│   ├── attachments/
+│   └── notifications/
+├── app.module.ts
+├── main.ts
+├── app.controller.ts
+└── app.service.ts
+```
+
+### Benefits
+
+- Clear, feature-based organization that scales as the project grows
+- Separation of concerns between configuration, database, common utilities, and features
+- All core features are scaffolded and ready for implementation once the database layer is in place
+- Reduces friction for future phases (database setup, auth, business logic) by having modules/controllers/services already wired
 
 ---
 

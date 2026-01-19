@@ -29,6 +29,7 @@
     "class-validator": "^0.14.3",
     "glob": "^13.0.0",
     "lru-cache": "^11.2.4",
+    "pg": "^8.17.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.28"
