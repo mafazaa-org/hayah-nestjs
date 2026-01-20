@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AttachmentsModule } from './features/attachments/attachments.module';
@@ -12,6 +13,7 @@ import { StatusesModule } from './features/statuses/statuses.module';
 import { TasksModule } from './features/tasks/tasks.module';
 import { TagsModule } from './features/tags/tags.module';
 import { UsersModule } from './features/users/users.module';
+import databaseConfig from './config/database.config';
 
 @Module({
   imports: [
@@ -19,6 +21,13 @@ import { UsersModule } from './features/users/users.module';
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
       cache: true,
+      load: [databaseConfig],
+    }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) =>
+        configService.get('database') as ReturnType<typeof databaseConfig>,
+      inject: [ConfigService],
     }),
     AttachmentsModule,
     AuthModule,

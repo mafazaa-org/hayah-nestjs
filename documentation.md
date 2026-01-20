@@ -276,7 +276,86 @@ src/
 
 ## Phase 3: Database Connection & Setup
 
-**Status:** Not Started
+**Status:** Completed  
+**Date Completed:** January 2026
+
+### Overview
+Phase 3 configures the database connection using TypeORM for development, wires it into the NestJS application via `ConfigModule` and `TypeOrmModule`, and introduces a configurable schema with sensible fallbacks.
+
+### Objectives Completed
+
+#### 1. Install and Configure TypeORM for PostgreSQL ✅
+
+**Files Modified:**
+- `package.json`
+- `src/app.module.ts`
+
+**Files Created/Updated:**
+- `src/config/database.config.ts`
+- `src/database/README.md`
+
+**Implementation Details:**
+- Added TypeORM and NestJS integration packages (`typeorm`, `@nestjs/typeorm`).
+- Registered `databaseConfig` with `ConfigModule.forRoot({ load: [databaseConfig], ... })` so database options are managed via the configuration system.
+- Configured PostgreSQL as the database driver with environment-driven connection settings.
+
+**Key Configuration (`database.config.ts`):**
+- `type: 'postgres'` — Uses PostgreSQL as the primary database.
+- `host`, `port`, `username`, `password`, `database` are read from environment variables with local development defaults:
+  - `DB_HOST || 'localhost'`
+  - `DB_PORT || '5432'`
+  - `DB_USERNAME || 'postgres'`
+  - `DB_PASSWORD || 'postgres'`
+  - `DB_NAME || 'mydb'`
+- `entities: [join(__dirname, '..', '**', '*.entity{.ts,.js}')]` — Automatically discovers all entity files across the `src` tree.
+- `schema: process.env.DB_SCHEMA || 'hayah_db' || 'public'`
+  - Primary schema is provided via `DB_SCHEMA`.
+  - If `DB_SCHEMA` is not set, it falls back to the project-specific schema (`hayah_db`), and from there to the default `public` schema when needed.
+- `synchronize: process.env.NODE_ENV !== 'production'`
+  - Enables automatic schema synchronization for development.
+  - Disabled in production to prevent destructive schema changes.
+- `logging: process.env.NODE_ENV === 'development'`
+  - Enables SQL logging only in development for easier debugging.
+- `ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false`
+  - Allows toggling SSL for hosted PostgreSQL instances (e.g., cloud providers) while remaining disabled locally.
+
+#### 2. Integrate TypeORM via `AppModule` ✅
+
+**Files Modified:**
+- `src/app.module.ts`
+
+**Implementation Details:**
+- `ConfigModule.forRoot` is configured as:
+  - `isGlobal: true` — Makes configuration available across the entire app.
+  - `envFilePath: ['.env.local', '.env']` — Loads environment variables with `.env.local` taking precedence.
+  - `cache: true` — Caches configuration lookups for performance.
+  - `load: [databaseConfig]` — Registers the `database` configuration namespace.
+- `TypeOrmModule.forRootAsync` is used to bootstrap the TypeORM connection using `ConfigService`:
+  - Injects `ConfigService`.
+  - Uses `configService.get('database')` to retrieve the full `TypeOrmModuleOptions` from `database.config.ts`.
+  - Keeps all connection details centralized in the configuration layer.
+
+#### 3. Environment Variables and Local Setup ✅
+
+**Files Modified:**
+- `src/database/README.md`
+
+**Implementation Details:**
+- Documented required environment variables for local development:
+  - `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL`
+  - `PORT`, `NODE_ENV`
+- Described how to:
+  - Start the application (`npm run start:dev`) and verify TypeORM connection logs.
+  - Create the development database (`hayah_db`) via SQL or `createdb`.
+- Clarified TypeORM behavior in development:
+  - Auto-synchronization of entities to the database schema.
+  - Auto-discovery of entities and SQL logging.
+
+### Benefits
+
+- **Config-driven database setup:** All connection options (including schema and SSL) are managed centrally via `ConfigModule` and environment variables.
+- **Safe development workflow:** Automatic schema synchronization and query logging are enabled only for non-production environments.
+- **Schema flexibility:** Supports a dedicated application schema (`hayah_db`) with fallback behavior when a custom schema is not defined, making it easier to adapt to different database setups (local vs. shared instances).
 
 ---
 
