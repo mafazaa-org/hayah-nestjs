@@ -8,24 +8,24 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ListEntity } from '../../lists/entities/list.entity';
-import { TaskEntity } from '../../tasks/entities/task.entity';
+import { ChecklistItemEntity } from './checklist-item.entity';
+import { TaskEntity } from './task.entity';
 
 /**
- * StatusEntity / Column
+ * ChecklistEntity
  *
- * Represents a status/column in a Kanban board (e.g., "Todo", "In Progress", "Done").
- * Each list has multiple statuses that define the workflow columns.
+ * Represents a checklist within a task (separate from subtasks).
+ * A task can have multiple checklists, each with multiple items.
  */
-@Entity('statuses')
-export class StatusEntity {
+@Entity('task_checklists')
+export class ChecklistEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({
     type: 'text',
   })
-  name: string;
+  title: string;
 
   @Column({
     type: 'integer',
@@ -34,11 +34,11 @@ export class StatusEntity {
   })
   orderIndex: number;
 
-  @ManyToOne('ListEntity', {
+  @ManyToOne(() => TaskEntity, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'list_id' })
-  list: ListEntity;
+  @JoinColumn({ name: 'task_id' })
+  task: TaskEntity;
 
   @CreateDateColumn({
     type: 'timestamp',
@@ -53,6 +53,6 @@ export class StatusEntity {
   updatedAt: Date;
 
   // One-To-Many relationships
-  @OneToMany(() => TaskEntity, (task) => task.status)
-  tasks: TaskEntity[];
+  @OneToMany(() => ChecklistItemEntity, (checklistItem) => checklistItem.checklist)
+  checklistItems: ChecklistItemEntity[];
 }

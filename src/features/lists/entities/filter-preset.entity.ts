@@ -4,21 +4,20 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ListEntity } from '../../lists/entities/list.entity';
-import { TaskEntity } from '../../tasks/entities/task.entity';
+import { UserEntity } from '../../users/entities/user.entity';
+import { ListEntity } from './list.entity';
 
 /**
- * StatusEntity / Column
+ * FilterPresetEntity
  *
- * Represents a status/column in a Kanban board (e.g., "Todo", "In Progress", "Done").
- * Each list has multiple statuses that define the workflow columns.
+ * Represents a saved filter preset for a list, created by a user.
+ * Stores filter configuration as JSON to allow flexible filtering criteria.
  */
-@Entity('statuses')
-export class StatusEntity {
+@Entity('filter_presets')
+export class FilterPresetEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -28,11 +27,16 @@ export class StatusEntity {
   name: string;
 
   @Column({
-    type: 'integer',
-    name: 'order_index',
-    default: 0,
+    type: 'jsonb',
+    name: 'filter_config',
   })
-  orderIndex: number;
+  filterConfig: Record<string, any>;
+
+  @ManyToOne(() => UserEntity, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
 
   @ManyToOne('ListEntity', {
     onDelete: 'CASCADE',
@@ -51,8 +55,4 @@ export class StatusEntity {
     name: 'updated_at',
   })
   updatedAt: Date;
-
-  // One-To-Many relationships
-  @OneToMany(() => TaskEntity, (task) => task.status)
-  tasks: TaskEntity[];
 }

@@ -5,26 +5,40 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
-import { TaskEntity } from '../../tasks/entities/task.entity';
+import { TaskEntity } from './task.entity';
 
 /**
- * CommentEntity
+ * ActivityEntity / History
  *
- * Represents a comment on a task.
- * Links a user (author) to a task with content and timestamps.
+ * Represents an activity/history entry for a task.
+ * Tracks changes made to tasks with old and new values for audit purposes.
  */
-@Entity('comments')
-export class CommentEntity {
+@Entity('activities')
+export class ActivityEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({
     type: 'text',
+    name: 'action_type',
   })
-  content: string;
+  actionType: string;
+
+  @Column({
+    type: 'jsonb',
+    name: 'old_value',
+    nullable: true,
+  })
+  oldValue: any | null;
+
+  @Column({
+    type: 'jsonb',
+    name: 'new_value',
+    nullable: true,
+  })
+  newValue: any | null;
 
   @ManyToOne(() => TaskEntity, {
     onDelete: 'CASCADE',
@@ -43,11 +57,4 @@ export class CommentEntity {
     name: 'created_at',
   })
   createdAt: Date;
-
-  @UpdateDateColumn({
-    type: 'timestamp',
-    name: 'updated_at',
-  })
-  updatedAt: Date;
 }
-

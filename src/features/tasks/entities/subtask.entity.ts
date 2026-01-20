@@ -7,36 +7,43 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { UserEntity } from '../../users/entities/user.entity';
-import { TaskEntity } from '../../tasks/entities/task.entity';
+import { TaskEntity } from './task.entity';
 
 /**
- * CommentEntity
+ * SubtaskEntity
  *
- * Represents a comment on a task.
- * Links a user (author) to a task with content and timestamps.
+ * Represents a subtask within a parent task.
+ * Allows breaking down tasks into smaller, trackable components.
  */
-@Entity('comments')
-export class CommentEntity {
+@Entity('subtasks')
+export class SubtaskEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({
     type: 'text',
   })
-  content: string;
+  title: string;
+
+  @Column({
+    type: 'boolean',
+    name: 'is_completed',
+    default: false,
+  })
+  isCompleted: boolean;
+
+  @Column({
+    type: 'integer',
+    name: 'order_index',
+    default: 0,
+  })
+  orderIndex: number;
 
   @ManyToOne(() => TaskEntity, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'task_id' })
   task: TaskEntity;
-
-  @ManyToOne(() => UserEntity, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'user_id' })
-  user: UserEntity;
 
   @CreateDateColumn({
     type: 'timestamp',
@@ -50,4 +57,3 @@ export class CommentEntity {
   })
   updatedAt: Date;
 }
-

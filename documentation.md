@@ -361,7 +361,695 @@ Phase 3 configures the database connection using TypeORM for development, wires 
 
 ## Phase 4: Database Schema Design (ERD Implementation)
 
-**Status:** Not Started
+**Status:** Completed  
+**Date Completed:** January 2026
+
+### Overview
+
+Phase 4 implements the complete Entity-Relationship Diagram (ERD) for the Hayah application using TypeORM. All database entities have been created with their columns, relationships, constraints, and cascade behaviors. This phase establishes the foundation for all data persistence in the application, supporting features like user management, workspace organization, task management, collaboration, and activity tracking.
+
+### Objectives Completed
+
+#### 1. Complete Entity Implementation ✅
+
+**Total Entities Created:** 27 TypeORM entities across all feature modules
+
+**Implementation Approach:**
+- All entities use TypeORM decorators (`@Entity`, `@Column`, `@PrimaryGeneratedColumn`, etc.)
+- PostgreSQL-compatible column types (`text`, `uuid`, `timestamp`, `jsonb`, `integer`, `boolean`, `bigint`, `date`)
+- Consistent naming conventions: snake_case for database columns, camelCase for TypeScript properties
+- Automatic timestamp management via `@CreateDateColumn` and `@UpdateDateColumn`
+- UUID primary keys for all entities using `@PrimaryGeneratedColumn('uuid')`
+
+#### 2. Relationship Implementation ✅
+
+All relationship types have been implemented:
+- **One-To-One:** `User` ↔ `UserSettings`
+- **One-To-Many:** Numerous parent-child relationships (e.g., `User` → `Comment[]`, `List` → `Task[]`, `Task` → `Subtask[]`)
+- **Many-To-One:** Foreign key relationships throughout the schema
+- **Many-To-Many:** Implemented via explicit join tables (e.g., `Assignment` for `User` ↔ `Task`, `TaskTag` for `Task` ↔ `Tag`, `ListMember` for `User` ↔ `List`)
+
+**Cascade Behaviors:**
+- `CASCADE`: Automatically deletes related entities when parent is deleted (e.g., deleting a `Task` deletes all `Comment`s, `Attachment`s, `Subtask`s)
+- `SET NULL`: Sets foreign key to null when parent is deleted (e.g., deleting a `Status` sets `status_id` to null on related `Task`s)
+- Proper handling of optional relationships with `nullable: true`
+
+### Entities Created
+
+#### Core User & Authentication Entities
+
+**1. UserEntity** (`users`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `email` (text, unique)
+  - `password_hash` (text)
+  - `name` (text, nullable)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - One-To-One: `settings` → `UserSettingsEntity`
+  - One-To-Many: `filterPresets` → `FilterPresetEntity[]`
+  - One-To-Many: `comments` → `CommentEntity[]`
+  - One-To-Many: `attachments` → `AttachmentEntity[]`
+  - One-To-Many: `notifications` → `NotificationEntity[]`
+  - One-To-Many: `assignments` → `AssignmentEntity[]`
+  - One-To-Many: `listMemberships` → `ListMemberEntity[]`
+  - One-To-Many: `activities` → `ActivityEntity[]`
+  - One-To-Many: `views` → `ViewEntity[]`
+- **File:** `src/features/users/entities/user.entity.ts`
+
+**2. UserSettingsEntity** (`user_settings`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `user_id` (UUID, Foreign Key, unique index)
+  - `timezone` (text, nullable)
+  - `language` (text, nullable)
+  - `notification_preferences` (jsonb, nullable)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - One-To-One: `user` ↔ `UserEntity` (unique constraint on `user_id`)
+- **File:** `src/features/users/entities/user-settings.entity.ts`
+
+**3. AuthEntity** (`auth`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `user_id` (UUID, Foreign Key)
+  - `refresh_token` (text, unique)
+  - `expires_at` (timestamp)
+  - `revoked` (boolean)
+  - `revoked_at` (timestamp, nullable)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `user` → `UserEntity`
+- **File:** `src/features/auth/entities/auth.entity.ts`
+
+#### Workspace & Organization Entities
+
+**4. WorkspaceEntity** (`workspaces`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `owner_id` (UUID, Foreign Key)
+  - `name` (text)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `owner` → `UserEntity` (CASCADE delete)
+  - One-To-Many: `folders` → `FolderEntity[]`
+  - One-To-Many: `lists` → `ListEntity[]`
+  - One-To-Many: `tags` → `TagEntity[]`
+- **File:** `src/features/workspaces/entities/workspace.entity.ts`
+
+**5. FolderEntity** (`folders`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `workspace_id` (UUID, Foreign Key)
+  - `parent_folder_id` (UUID, Foreign Key, nullable) - Self-referencing for nested folders
+  - `name` (text)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `workspace` → `WorkspaceEntity` (CASCADE delete)
+  - Many-To-One: `parent` → `FolderEntity` (self-referencing, CASCADE delete, nullable)
+  - One-To-Many: `children` → `FolderEntity[]` (self-referencing, supports 100+ nesting levels)
+  - One-To-Many: `lists` → `ListEntity[]`
+- **Special Features:**
+  - Self-referencing relationship enables infinite nesting depth (practically limited to 100+ levels)
+- **File:** `src/features/folders/entities/folder.entity.ts`
+
+**6. ListEntity** (`lists`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `folder_id` (UUID, Foreign Key, nullable)
+  - `workspace_id` (UUID, Foreign Key)
+  - `name` (text)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `folder` → `FolderEntity` (CASCADE delete, nullable)
+  - Many-To-One: `workspace` → `WorkspaceEntity` (CASCADE delete)
+  - One-To-Many: `statuses` → `StatusEntity[]`
+  - One-To-Many: `tasks` → `TaskEntity[]`
+  - One-To-Many: `iterations` → `IterationEntity[]`
+  - One-To-Many: `customFields` → `CustomFieldEntity[]`
+  - One-To-Many: `views` → `ViewEntity[]`
+  - One-To-Many: `filterPresets` → `FilterPresetEntity[]`
+  - One-To-Many: `listMembers` → `ListMemberEntity[]`
+- **File:** `src/features/lists/entities/list.entity.ts`
+
+**7. ListMemberEntity** (`list_members`) - Join Table for Many-To-Many
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `user_id` (UUID, Foreign Key)
+  - `list_id` (UUID, Foreign Key)
+  - `role` (text enum: 'owner' | 'editor' | 'viewer')
+  - `created_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `user` → `UserEntity` (CASCADE delete)
+  - Many-To-One: `list` → `ListEntity` (CASCADE delete)
+  - Realizes Many-To-Many: `User` ↔ `List` (shared lists with permissions)
+- **File:** `src/features/lists/entities/list-member.entity.ts`
+
+#### Task Management Entities
+
+**8. TaskEntity** (`tasks`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `list_id` (UUID, Foreign Key)
+  - `status_id` (UUID, Foreign Key, nullable)
+  - `priority_id` (UUID, Foreign Key, nullable)
+  - `title` (text)
+  - `description` (text, nullable)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `list` → `ListEntity` (CASCADE delete)
+  - Many-To-One: `status` → `StatusEntity` (SET NULL on delete, nullable)
+  - Many-To-One: `priority` → `TaskPriorityEntity` (nullable)
+  - One-To-Many: `assignments` → `AssignmentEntity[]`
+  - One-To-Many: `subtasks` → `SubtaskEntity[]`
+  - One-To-Many: `comments` → `CommentEntity[]`
+  - One-To-Many: `attachments` → `AttachmentEntity[]`
+  - One-To-Many: `taskTags` → `TaskTagEntity[]`
+  - One-To-Many: `taskIterations` → `TaskIterationEntity[]`
+  - One-To-Many: `taskDependencies` → `TaskDependencyEntity[]`
+  - One-To-Many: `checklists` → `ChecklistEntity[]`
+  - One-To-Many: `taskCustomFieldValues` → `TaskCustomFieldValueEntity[]`
+  - One-To-Many: `activities` → `ActivityEntity[]`
+- **File:** `src/features/tasks/entities/task.entity.ts`
+
+**9. StatusEntity** (`statuses`) - Kanban Board Columns
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `list_id` (UUID, Foreign Key)
+  - `name` (text)
+  - `order_index` (integer, default: 0)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `list` → `ListEntity` (CASCADE delete)
+  - One-To-Many: `tasks` → `TaskEntity[]`
+- **File:** `src/features/statuses/entities/status.entity.ts`
+
+**10. TaskPriorityEntity** (`task_priorities`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `name` (text)
+  - `color` (text, nullable)
+  - `order_index` (integer, default: 0)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - One-To-Many: `tasks` → `TaskEntity[]`
+- **File:** `src/features/tasks/entities/task-priority.entity.ts`
+
+**11. AssignmentEntity** (`assignments`) - Join Table for Many-To-Many
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `user_id` (UUID, Foreign Key)
+  - `task_id` (UUID, Foreign Key)
+  - `assigned_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `user` → `UserEntity` (CASCADE delete)
+  - Many-To-One: `task` → `TaskEntity` (CASCADE delete)
+  - Realizes Many-To-Many: `User` ↔ `Task` (task assignments)
+- **File:** `src/features/tasks/entities/assignment.entity.ts`
+
+**12. SubtaskEntity** (`subtasks`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `title` (text)
+  - `is_completed` (boolean)
+  - `order_index` (integer)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (parent task, CASCADE delete)
+- **File:** `src/features/tasks/entities/subtask.entity.ts`
+
+**13. TaskDependencyEntity** (`task_dependencies`) - Directed Graph
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `depends_on_task_id` (UUID, Foreign Key)
+  - `type` (text enum: 'blocks' | 'blocked_by')
+  - `created_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (dependent task, CASCADE delete)
+  - Many-To-One: `dependsOnTask` → `TaskEntity` (dependency target, CASCADE delete)
+  - Represents directed Many-To-Many between tasks (task dependencies graph)
+- **File:** `src/features/tasks/entities/task-dependency.entity.ts`
+
+#### Tags & Labels
+
+**14. TagEntity** (`tags`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `workspace_id` (UUID, Foreign Key)
+  - `name` (text)
+  - `color` (text, nullable)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `workspace` → `WorkspaceEntity` (CASCADE delete)
+  - One-To-Many: `taskTags` → `TaskTagEntity[]`
+- **File:** `src/features/tags/entities/tag.entity.ts`
+
+**15. TaskTagEntity** (`task_tags`) - Join Table for Many-To-Many
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `tag_id` (UUID, Foreign Key)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (CASCADE delete)
+  - Many-To-One: `tag` → `TagEntity` (CASCADE delete)
+  - Realizes Many-To-Many: `Task` ↔ `Tag` (task labeling)
+- **File:** `src/features/tasks/entities/task-tag.entity.ts`
+
+#### Iterations & Sprints
+
+**16. IterationEntity** (`iterations`) - Optional Feature
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `list_id` (UUID, Foreign Key)
+  - `name` (text)
+  - `start_date` (date, nullable)
+  - `end_date` (date, nullable)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `list` → `ListEntity` (CASCADE delete)
+  - One-To-Many: `taskIterations` → `TaskIterationEntity[]`
+- **File:** `src/features/lists/entities/iteration.entity.ts`
+
+**17. TaskIterationEntity** (`task_iterations`) - Join Table for Many-To-Many (Optional)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `iteration_id` (UUID, Foreign Key)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (CASCADE delete)
+  - Many-To-One: `iteration` → `IterationEntity` (CASCADE delete)
+  - Realizes Many-To-Many: `Task` ↔ `Iteration` (sprint planning)
+- **File:** `src/features/tasks/entities/task-iteration.entity.ts`
+
+#### Checklists
+
+**18. ChecklistEntity** (`task_checklists`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `title` (text)
+  - `order_index` (integer)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (CASCADE delete)
+  - One-To-Many: `checklistItems` → `ChecklistItemEntity[]`
+- **File:** `src/features/tasks/entities/checklist.entity.ts`
+
+**19. ChecklistItemEntity** (`checklist_items`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `checklist_id` (UUID, Foreign Key)
+  - `title` (text)
+  - `is_completed` (boolean)
+  - `order_index` (integer)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `checklist` → `ChecklistEntity` (CASCADE delete)
+- **File:** `src/features/tasks/entities/checklist-item.entity.ts`
+
+#### Custom Fields
+
+**20. CustomFieldEntity** (`custom_fields`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `list_id` (UUID, Foreign Key)
+  - `name` (text)
+  - `type` (text - enum: text/number/date/dropdown)
+  - `config` (jsonb, nullable) - Stores field configuration
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `list` → `ListEntity` (CASCADE delete)
+  - One-To-Many: `taskCustomFieldValues` → `TaskCustomFieldValueEntity[]`
+- **File:** `src/features/lists/entities/custom-field.entity.ts`
+
+**21. TaskCustomFieldValueEntity** (`task_custom_field_values`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `custom_field_id` (UUID, Foreign Key)
+  - `value` (jsonb) - Flexible storage for different field types
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (CASCADE delete)
+  - Many-To-One: `customField` → `CustomFieldEntity` (CASCADE delete)
+- **File:** `src/features/tasks/entities/task-custom-field-value.entity.ts`
+
+#### Collaboration & Activity
+
+**22. CommentEntity** (`comments`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `user_id` (UUID, Foreign Key)
+  - `content` (text)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (CASCADE delete)
+  - Many-To-One: `user` → `UserEntity` (author, CASCADE delete)
+- **File:** `src/features/comments/entities/comment.entity.ts`
+
+**23. AttachmentEntity** (`attachments`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `user_id` (UUID, Foreign Key)
+  - `filename` (text)
+  - `url` (text)
+  - `mime_type` (text, nullable)
+  - `size` (bigint)
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (CASCADE delete)
+  - Many-To-One: `user` → `UserEntity` (uploader, CASCADE delete)
+- **File:** `src/features/attachments/entities/attachment.entity.ts`
+
+**24. ActivityEntity** (`activities`) - History/Tracking
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `task_id` (UUID, Foreign Key)
+  - `user_id` (UUID, Foreign Key)
+  - `action_type` (text)
+  - `old_value` (jsonb, nullable)
+  - `new_value` (jsonb, nullable)
+  - `created_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `task` → `TaskEntity` (CASCADE delete)
+  - Many-To-One: `user` → `UserEntity` (actor, CASCADE delete)
+- **File:** `src/features/tasks/entities/activity.entity.ts`
+
+**25. NotificationEntity** (`notifications`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `user_id` (UUID, Foreign Key)
+  - `type` (text)
+  - `title` (text)
+  - `message` (text)
+  - `related_id` (text, nullable) - Reference to related entity
+  - `is_read` (boolean)
+  - `created_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `user` → `UserEntity` (CASCADE delete)
+- **File:** `src/features/notifications/entities/notification.entity.ts`
+
+#### Views & Filters
+
+**26. ViewEntity** (`views`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `list_id` (UUID, Foreign Key)
+  - `user_id` (UUID, Foreign Key)
+  - `name` (text)
+  - `type` (text enum: 'kanban' | 'table' | 'calendar')
+  - `config` (jsonb, nullable) - Stores view configuration
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `list` → `ListEntity` (CASCADE delete)
+  - Many-To-One: `user` → `UserEntity` (owner, CASCADE delete)
+- **File:** `src/features/lists/entities/view.entity.ts`
+
+**27. FilterPresetEntity** (`filter_presets`)
+- **Columns:**
+  - `id` (UUID, Primary Key)
+  - `user_id` (UUID, Foreign Key)
+  - `list_id` (UUID, Foreign Key)
+  - `name` (text)
+  - `filter_config` (jsonb) - Stores filter configuration
+  - `created_at` (timestamp)
+  - `updated_at` (timestamp)
+- **Relationships:**
+  - Many-To-One: `user` → `UserEntity` (CASCADE delete)
+  - Many-To-One: `list` → `ListEntity` (CASCADE delete)
+- **File:** `src/features/lists/entities/filter-preset.entity.ts`
+
+### Key Implementation Details
+
+#### 1. Primary Keys & Identifiers
+- All entities use UUID primary keys via `@PrimaryGeneratedColumn('uuid')`
+- Provides globally unique identifiers, beneficial for distributed systems
+- Prevents sequential ID enumeration attacks
+
+#### 2. Timestamps
+- Automatic `created_at` via `@CreateDateColumn`
+- Automatic `updated_at` via `@UpdateDateColumn`
+- Consistent timestamp management across all entities
+
+#### 3. Foreign Key Constraints
+- All relationships use `@JoinColumn` to specify foreign key column names
+- Consistent naming: `{entity}_id` format (e.g., `user_id`, `task_id`, `list_id`)
+- Cascade behaviors properly configured:
+  - `onDelete: 'CASCADE'` for dependent entities (deleting parent removes children)
+  - `onDelete: 'SET NULL'` for optional relationships (deleting status doesn't delete tasks)
+
+#### 4. Relationship Patterns
+
+**One-To-One:**
+- `User` ↔ `UserSettings`: Unique constraint on `user_id` ensures one-to-one mapping
+- Implemented with `@OneToOne` decorator and `@Index` for uniqueness
+
+**One-To-Many / Many-To-One:**
+- Standard parent-child relationships throughout
+- Bidirectional relationships with inverse side defined via function references
+
+**Many-To-Many:**
+- Implemented via explicit join table entities (not TypeORM's implicit `@ManyToMany`)
+- Provides full control over join table columns and additional metadata
+- Examples: `AssignmentEntity`, `TaskTagEntity`, `TaskIterationEntity`, `ListMemberEntity`
+
+**Self-Referencing:**
+- `FolderEntity` supports nested folder hierarchies via self-referencing `parent` relationship
+- Enables infinite nesting depth (practically 100+ levels)
+
+**Directed Graph:**
+- `TaskDependencyEntity` creates a directed graph of task dependencies
+- Uses two Many-To-One relationships to the same entity (`TaskEntity`)
+
+#### 5. Data Types & PostgreSQL Features
+
+**Column Types:**
+- `text`: For all string columns (PostgreSQL text type, no length limit)
+- `uuid`: For all primary and foreign keys
+- `timestamp`: For date/time columns
+- `date`: For date-only columns (used in `IterationEntity`)
+- `integer`: For numeric values (order_index, etc.)
+- `bigint`: For large numeric values (file size in `AttachmentEntity`)
+- `boolean`: For true/false flags
+- `jsonb`: For flexible JSON storage (configs, preferences, values)
+
+**PostgreSQL-Specific Features:**
+- `jsonb` columns used for flexible data storage (view configs, filter configs, custom field values)
+- UUID extension implicitly used for primary keys
+- Indexes: Unique index on `user_settings.user_id` for one-to-one relationship
+
+#### 6. Nullability & Optional Relationships
+- Careful use of `nullable: true` for optional fields and relationships
+- Examples:
+  - `Task.status` is nullable (SET NULL on status deletion)
+  - `Task.priority` is nullable (optional priority)
+  - `List.folder` is nullable (lists can exist without folders)
+  - `Folder.parent` is nullable (root folders have no parent)
+
+### Directory Structure
+
+```
+src/features/
+├── users/
+│   └── entities/
+│       ├── user.entity.ts
+│       └── user-settings.entity.ts
+├── auth/
+│   └── entities/
+│       └── auth.entity.ts
+├── workspaces/
+│   └── entities/
+│       └── workspace.entity.ts
+├── folders/
+│   └── entities/
+│       └── folder.entity.ts
+├── lists/
+│   └── entities/
+│       ├── list.entity.ts
+│       ├── list-member.entity.ts
+│       ├── iteration.entity.ts
+│       ├── custom-field.entity.ts
+│       ├── view.entity.ts
+│       └── filter-preset.entity.ts
+├── statuses/
+│   └── entities/
+│       └── status.entity.ts
+├── tasks/
+│   └── entities/
+│       ├── task.entity.ts
+│       ├── task-priority.entity.ts
+│       ├── assignment.entity.ts
+│       ├── subtask.entity.ts
+│       ├── task-tag.entity.ts
+│       ├── task-iteration.entity.ts
+│       ├── task-dependency.entity.ts
+│       ├── checklist.entity.ts
+│       ├── checklist-item.entity.ts
+│       ├── task-custom-field-value.entity.ts
+│       └── activity.entity.ts
+├── tags/
+│   └── entities/
+│       └── tag.entity.ts
+├── comments/
+│   └── entities/
+│       └── comment.entity.ts
+├── attachments/
+│   └── entities/
+│       └── attachment.entity.ts
+└── notifications/
+    └── entities/
+        └── notification.entity.ts
+```
+
+### Benefits
+
+**1. Type Safety:**
+- Full TypeScript type safety across all entities
+- IntelliSense support for all properties and relationships
+- Compile-time checking of relationship definitions
+
+**2. Developer Experience:**
+- Auto-discovery of entities via TypeORM's glob pattern
+- Automatic schema synchronization in development
+- SQL logging enabled in development for debugging
+
+**3. Data Integrity:**
+- Foreign key constraints enforced at database level
+- Cascade delete behaviors prevent orphaned records
+- Unique constraints prevent duplicate data
+
+**4. Flexibility:**
+- JSONB columns allow flexible configuration storage
+- Self-referencing relationships support complex hierarchies
+- Optional relationships enable flexible data models
+
+**5. Scalability:**
+- UUID primary keys support distributed systems
+- Proper indexing strategy (via TypeORM decorators)
+- Efficient relationship loading with TypeORM query builder
+
+### Production Phase Recommendations
+
+#### TypeORM vs Prisma: Analysis and Recommendation
+
+**Current Implementation (TypeORM):**
+- ✅ Fully implemented and working
+- ✅ Deep NestJS integration via `@nestjs/typeorm`
+- ✅ Mature and stable (years in production)
+- ✅ Active Record and Data Mapper patterns supported
+- ✅ Powerful query builder
+- ✅ Migration support via TypeORM CLI
+- ⚠️ Less type-safe than Prisma (though still good with TypeScript)
+- ⚠️ More boilerplate for complex queries
+- ⚠️ Manual migration file generation
+
+**Prisma Alternative:**
+- ✅ Excellent type safety and developer experience
+- ✅ Auto-generated migrations
+- ✅ Superior Prisma Studio (database GUI)
+- ✅ Better performance (query engine)
+- ✅ Excellent documentation and tooling
+- ❌ Requires migration from TypeORM entities to Prisma schema
+- ❌ Different query API (requires adaptation)
+- ❌ Additional dependency and learning curve
+
+#### Recommendation: **Continue with TypeORM for Production**
+
+**Rationale:**
+
+1. **Already Fully Implemented:**
+   - All 27 entities are implemented and working
+   - Relationships are correctly defined and tested
+   - No breaking changes needed
+
+2. **Production-Ready:**
+   - TypeORM is battle-tested in production environments
+   - Excellent NestJS integration
+   - Active community and maintenance
+
+3. **Migration to Prisma Would Require:**
+   - Rewriting all entities as Prisma schema definitions
+   - Converting all service layer queries to Prisma Client API
+   - Generating and testing new migrations
+   - Potential downtime during migration
+   - Learning curve for the team
+
+4. **TypeORM is Sufficient:**
+   - Provides all needed features (relationships, migrations, query building)
+   - TypeScript support is good (not perfect, but adequate)
+   - Performance is acceptable for most use cases
+   - Can be optimized with proper indexing and query optimization
+
+**However, if Migration to Prisma is Desired:**
+
+**Scenario:** You want to migrate to Prisma for better type safety and developer experience.
+
+**Approach:**
+1. **Keep TypeORM in Development:** Continue using TypeORM for active development
+2. **Parallel Prisma Setup:** Introduce Prisma alongside TypeORM
+3. **Gradual Migration:** 
+   - Start with new features using Prisma
+   - Migrate existing entities incrementally
+   - Use both ORMs during transition period
+4. **Full Migration:** Once all entities are migrated, remove TypeORM
+
+**Prisma Setup Steps (if chosen):**
+1. Install Prisma: `npm install prisma @prisma/client`
+2. Initialize Prisma: `npx prisma init`
+3. Define schema: Convert TypeORM entities to Prisma schema format
+4. Generate migrations: `npx prisma migrate dev`
+5. Generate client: `npx prisma generate`
+6. Create Prisma service: NestJS module for Prisma Client
+7. Update services: Convert queries from TypeORM to Prisma Client
+
+**Best Practice for Production:**
+1. **Disable `synchronize`:** Already configured (`NODE_ENV !== 'production'`)
+2. **Use Migrations:** Generate TypeORM migrations for all schema changes
+3. **Add Indexes:** Review query patterns and add appropriate indexes
+4. **Connection Pooling:** Configure connection pool limits for production
+5. **Query Optimization:** Use TypeORM query builder for complex queries
+6. **Monitoring:** Add database query logging and performance monitoring
+
+**Future Considerations:**
+- If the application grows significantly and requires more advanced type safety
+- If the team prefers Prisma's developer experience
+- If performance becomes a bottleneck (Prisma's query engine can be faster)
+
+**Conclusion:**
+TypeORM is a solid choice for production. The current implementation is complete, well-structured, and production-ready. While Prisma offers some advantages, the migration cost and risk outweigh the benefits at this stage. Focus on optimizing the TypeORM implementation (migrations, indexes, query optimization) rather than migrating to a new ORM.
+
+### Next Steps
+
+After completing Phase 4, the application has:
+- ✅ Complete database schema with 27 entities
+- ✅ All relationships properly defined (One-To-One, One-To-Many, Many-To-One, Many-To-Many)
+- ✅ Cascade behaviors configured for data integrity
+- ✅ Ready for Phase 5 (Authorization & Authentication) implementation
+
+**Ready for:** Phase 5 - Authorization & Authentication
 
 ---
 

@@ -8,29 +8,41 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
-import { TaskEntity } from '../../tasks/entities/task.entity';
+import { ListEntity } from './list.entity';
 
 /**
- * CommentEntity
+ * ViewEntity
  *
- * Represents a comment on a task.
- * Links a user (author) to a task with content and timestamps.
+ * Represents a saved view configuration for a list.
+ * Allows users to save custom view configurations (kanban, table, calendar, etc.)
+ * with personalized settings stored as JSON.
  */
-@Entity('comments')
-export class CommentEntity {
+@Entity('views')
+export class ViewEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({
     type: 'text',
   })
-  content: string;
+  name: string;
 
-  @ManyToOne(() => TaskEntity, {
+  @Column({
+    type: 'text',
+  })
+  type: 'kanban' | 'table' | 'calendar';
+
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+  })
+  config: Record<string, any> | null;
+
+  @ManyToOne('ListEntity', {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'task_id' })
-  task: TaskEntity;
+  @JoinColumn({ name: 'list_id' })
+  list: ListEntity;
 
   @ManyToOne(() => UserEntity, {
     onDelete: 'CASCADE',
@@ -50,4 +62,3 @@ export class CommentEntity {
   })
   updatedAt: Date;
 }
-
