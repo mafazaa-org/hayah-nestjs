@@ -14,6 +14,11 @@ import { ListTemplateEntity } from './entities/list-template.entity';
 import { CreateListTemplateDto } from './dto/create-list-template.dto';
 import { CreateListFromTemplateDto } from './dto/create-list-from-template.dto';
 import { CustomFieldEntity } from './entities/custom-field.entity';
+import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
+import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
+import { FilterPresetEntity } from './entities/filter-preset.entity';
+import { CreateFilterPresetDto } from './dto/create-filter-preset.dto';
+import { UpdateFilterPresetDto } from './dto/update-filter-preset.dto';
 
 @Injectable()
 export class ListsService {
@@ -26,6 +31,8 @@ export class ListsService {
     private readonly listTemplateRepository: Repository<ListTemplateEntity>,
     @InjectRepository(CustomFieldEntity)
     private readonly customFieldRepository: Repository<CustomFieldEntity>,
+    @InjectRepository(FilterPresetEntity)
+    private readonly filterPresetRepository: Repository<FilterPresetEntity>,
   ) {}
 
   async create(createListDto: CreateListDto): Promise<ListEntity> {
@@ -401,5 +408,182 @@ export class ListsService {
 
     // Reload with relationships
     return this.findOne(savedList.id);
+  }
+
+  // Custom Field methods
+  async createCustomField(
+    createCustomFieldDto: CreateCustomFieldDto,
+  ): Promise<CustomFieldEntity> {
+    const { name, type, listId, config } = createCustomFieldDto;
+
+    // Verify list exists
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    const customField = this.customFieldRepository.create({
+      name,
+      type,
+      config: config || null,
+      list: { id: listId } as any,
+    });
+
+    return this.customFieldRepository.save(customField);
+  }
+
+  async findAllCustomFields(listId: string): Promise<CustomFieldEntity[]> {
+    // Verify list exists
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    return this.customFieldRepository.find({
+      where: { list: { id: listId } },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async findOneCustomField(id: string): Promise<CustomFieldEntity> {
+    const customField = await this.customFieldRepository.findOne({
+      where: { id },
+      relations: ['list'],
+    });
+
+    if (!customField) {
+      throw new NotFoundException('Custom field not found');
+    }
+
+    return customField;
+  }
+
+  async updateCustomField(
+    id: string,
+    updateCustomFieldDto: UpdateCustomFieldDto,
+  ): Promise<CustomFieldEntity> {
+    const customField = await this.customFieldRepository.findOne({
+      where: { id },
+    });
+
+    if (!customField) {
+      throw new NotFoundException('Custom field not found');
+    }
+
+    Object.assign(customField, updateCustomFieldDto);
+
+    return this.customFieldRepository.save(customField);
+  }
+
+  async removeCustomField(id: string): Promise<void> {
+    const customField = await this.customFieldRepository.findOne({
+      where: { id },
+    });
+
+    if (!customField) {
+      throw new NotFoundException('Custom field not found');
+    }
+
+    await this.customFieldRepository.remove(customField);
+  }
+
+  // Filter Preset methods
+  async createFilterPreset(
+    userId: string,
+    createFilterPresetDto: CreateFilterPresetDto,
+  ): Promise<FilterPresetEntity> {
+    const { name, listId, filterConfig, includeArchived } = createFilterPresetDto;
+
+    // Verify list exists
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    // Store filterConfig as JSON along with includeArchived
+    const presetConfig = {
+      filters: filterConfig,
+      includeArchived: includeArchived ?? false,
+    };
+
+    const filterPreset = this.filterPresetRepository.create({
+      name,
+      filterConfig: presetConfig,
+      user: { id: userId } as any,
+      list: { id: listId } as any,
+    });
+
+    return this.filterPresetRepository.save(filterPreset);
+  }
+
+  async findAllFilterPresets(
+    userId: string,
+    listId?: string,
+  ): Promise<FilterPresetEntity[]> {
+    const where: any = { user: { id: userId } };
+    if (listId) {
+      where.list = { id: listId };
+    }
+
+    return this.filterPresetRepository.find({
+      where,
+      relations: ['list'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOneFilterPreset(id: string, userId: string): Promise<FilterPresetEntity> {
+    const filterPreset = await this.filterPresetRepository.findOne({
+      where: { id, user: { id: userId } },
+      relations: ['list', 'user'],
+    });
+
+    if (!filterPreset) {
+      throw new NotFoundException('Filter preset not found');
+    }
+
+    return filterPreset;
+  }
+
+  async updateFilterPreset(
+    id: string,
+    userId: string,
+    updateFilterPresetDto: UpdateFilterPresetDto,
+  ): Promise<FilterPresetEntity> {
+    const filterPreset = await this.filterPresetRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+
+    if (!filterPreset) {
+      throw new NotFoundException('Filter preset not found');
+    }
+
+    // Update filter config if provided
+    if (updateFilterPresetDto.filterConfig !== undefined || updateFilterPresetDto.includeArchived !== undefined) {
+      const currentConfig = filterPreset.filterConfig as any;
+      const updatedConfig = {
+        filters: updateFilterPresetDto.filterConfig ?? currentConfig.filters,
+        includeArchived: updateFilterPresetDto.includeArchived ?? currentConfig.includeArchived ?? false,
+      };
+      filterPreset.filterConfig = updatedConfig;
+    }
+
+    if (updateFilterPresetDto.name !== undefined) {
+      filterPreset.name = updateFilterPresetDto.name;
+    }
+
+    return this.filterPresetRepository.save(filterPreset);
+  }
+
+  async removeFilterPreset(id: string, userId: string): Promise<void> {
+    const filterPreset = await this.filterPresetRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+
+    if (!filterPreset) {
+      throw new NotFoundException('Filter preset not found');
+    }
+
+    await this.filterPresetRepository.remove(filterPreset);
   }
 }

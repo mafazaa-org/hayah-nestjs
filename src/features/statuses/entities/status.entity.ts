@@ -34,6 +34,12 @@ export class StatusEntity {
   })
   orderIndex: number;
 
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  color: string | null;
+
   @ManyToOne('ListEntity', {
     onDelete: 'CASCADE',
   })

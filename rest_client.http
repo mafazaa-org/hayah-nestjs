@@ -248,3 +248,710 @@ Content-Type: application/json
   "workspaceId": "workspace-uuid-here",
   "folderId": "folder-uuid-here"
 }
+
+### Statuses - Create Status
+POST http://localhost:3000/statuses
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "In Review",
+  "listId": "list-uuid-here",
+  "orderIndex": 2,
+  "color": "#FF5733"
+}
+
+### Statuses - Get All Statuses for List
+GET http://localhost:3000/statuses?listId=list-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Statuses - Get Status
+GET http://localhost:3000/statuses/status-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Statuses - Update Status
+PUT http://localhost:3000/statuses/status-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated Status Name",
+  "color": "#00FF00"
+}
+
+### Statuses - Delete Status
+DELETE http://localhost:3000/statuses/status-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Statuses - Reorder Statuses
+PUT http://localhost:3000/statuses/reorder?listId=list-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "statusOrders": [
+    { "statusId": "status-uuid-1", "orderIndex": 0 },
+    { "statusId": "status-uuid-2", "orderIndex": 1 },
+    { "statusId": "status-uuid-3", "orderIndex": 2 }
+  ]
+}
+
+### Tasks - Create Task
+POST http://localhost:3000/tasks
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "My Task",
+  "description": "Task description",
+  "listId": "list-uuid-here",
+  "statusId": "status-uuid-here",
+  "priorityId": "priority-uuid-here",
+  "dueDate": "2026-01-31",
+  "orderPosition": 0
+}
+
+### Tasks - Get All Tasks
+GET http://localhost:3000/tasks?listId=list-uuid-here&statusId=status-uuid-here&includeArchived=false
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Get Task
+GET http://localhost:3000/tasks/task-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Update Task
+PUT http://localhost:3000/tasks/task-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Updated Task Title",
+  "description": "Updated description",
+  "statusId": "new-status-uuid-here",
+  "priorityId": "priority-uuid-here",
+  "dueDate": "2026-02-15",
+  "orderPosition": 1
+}
+
+### Tasks - Delete Task
+DELETE http://localhost:3000/tasks/task-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Move Task
+PUT http://localhost:3000/tasks/task-uuid-here/move
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "statusId": "new-status-uuid-here",
+  "orderPosition": 2
+}
+
+### Tasks - Archive Task
+POST http://localhost:3000/tasks/task-uuid-here/archive
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Unarchive Task
+POST http://localhost:3000/tasks/task-uuid-here/unarchive
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Assign User to Task
+POST http://localhost:3000/tasks/task-uuid-here/assign
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "userId": "user-uuid-here"
+}
+
+### Tasks - Unassign User from Task
+DELETE http://localhost:3000/tasks/task-uuid-here/assign/user-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Add Tag to Task
+POST http://localhost:3000/tasks/task-uuid-here/tags
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "tagId": "tag-uuid-here"
+}
+
+### Tasks - Remove Tag from Task
+DELETE http://localhost:3000/tasks/task-uuid-here/tags/tag-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Subtasks - Create Subtask
+POST http://localhost:3000/tasks/subtasks
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Subtask Title",
+  "taskId": "task-uuid-here",
+  "orderIndex": 0
+}
+
+### Subtasks - Get All Subtasks for Task
+GET http://localhost:3000/tasks/task-uuid-here/subtasks
+Authorization: Bearer {{accessToken}}
+
+### Subtasks - Get Subtask
+GET http://localhost:3000/tasks/subtasks/subtask-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Subtasks - Update Subtask
+PUT http://localhost:3000/tasks/subtasks/subtask-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Updated Subtask Title",
+  "isCompleted": true,
+  "orderIndex": 1
+}
+
+### Subtasks - Delete Subtask
+DELETE http://localhost:3000/tasks/subtasks/subtask-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Subtasks - Move Subtask to Another Task
+PUT http://localhost:3000/tasks/subtasks/subtask-uuid-here/move
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "targetTaskId": "target-task-uuid-here",
+  "orderIndex": 0
+}
+
+### Checklists - Create Checklist
+POST http://localhost:3000/tasks/checklists
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "My Checklist",
+  "taskId": "task-uuid-here",
+  "orderIndex": 0
+}
+
+### Checklists - Get All Checklists for Task
+GET http://localhost:3000/tasks/task-uuid-here/checklists
+Authorization: Bearer {{accessToken}}
+
+### Checklists - Get Checklist
+GET http://localhost:3000/tasks/checklists/checklist-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Checklists - Update Checklist
+PUT http://localhost:3000/tasks/checklists/checklist-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Updated Checklist Title",
+  "orderIndex": 1
+}
+
+### Checklists - Delete Checklist
+DELETE http://localhost:3000/tasks/checklists/checklist-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Checklist Items - Create Checklist Item
+POST http://localhost:3000/tasks/checklist-items
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Checklist Item",
+  "checklistId": "checklist-uuid-here",
+  "orderIndex": 0
+}
+
+### Checklist Items - Get All Checklist Items for Checklist
+GET http://localhost:3000/tasks/checklist-uuid-here/checklist-items
+Authorization: Bearer {{accessToken}}
+
+### Checklist Items - Get Checklist Item
+GET http://localhost:3000/tasks/checklist-items/checklist-item-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Checklist Items - Update Checklist Item
+PUT http://localhost:3000/tasks/checklist-items/checklist-item-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Updated Checklist Item",
+  "isCompleted": true,
+  "orderIndex": 1
+}
+
+### Checklist Items - Delete Checklist Item
+DELETE http://localhost:3000/tasks/checklist-items/checklist-item-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Checklist Items - Reorder Checklist Items
+PUT http://localhost:3000/tasks/checklists/checklist-uuid-here/reorder-items
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "itemOrders": [
+    { "itemId": "item-uuid-1", "orderIndex": 0 },
+    { "itemId": "item-uuid-2", "orderIndex": 1 },
+    { "itemId": "item-uuid-3", "orderIndex": 2 }
+  ]
+}
+
+### Tasks - Filter Tasks (Simple)
+POST http://localhost:3000/tasks/filter
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "listId": "list-uuid-here",
+  "includeArchived": false,
+  "filters": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "status",
+        "operator": "equals",
+        "value": "status-uuid-here"
+      },
+      {
+        "field": "assignee",
+        "operator": "equals",
+        "value": "user-uuid-here"
+      }
+    ]
+  }
+}
+
+### Tasks - Filter Tasks (Complex with AND/OR)
+POST http://localhost:3000/tasks/filter
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "listId": "list-uuid-here",
+  "includeArchived": false,
+  "filters": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "status",
+        "operator": "in",
+        "value": ["status-uuid-1", "status-uuid-2"]
+      },
+      {
+        "field": "priority",
+        "operator": "not_equals",
+        "value": "priority-uuid-here"
+      },
+      {
+        "field": "dueDate",
+        "operator": "less_than_or_equal",
+        "value": "2026-01-31"
+      },
+      {
+        "conditions": [
+          {
+            "field": "tag",
+            "operator": "equals",
+            "value": "tag-uuid-1"
+          },
+          {
+            "field": "tag",
+            "operator": "equals",
+            "value": "tag-uuid-2"
+          }
+        ],
+        "logic": "or"
+      }
+    ]
+  }
+}
+
+### Tasks - Search Tasks
+POST http://localhost:3000/tasks/search
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "query": "search term",
+  "listId": "list-uuid-here"
+}
+
+### Tasks - Get All Tasks (with sorting by due date)
+GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=dueDate&sortDirection=ASC
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Get All Tasks (with sorting by priority)
+GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=priority&sortDirection=DESC
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Get All Tasks (with sorting by creation date)
+GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=createdAt&sortDirection=DESC
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Get All Tasks (with sorting by title)
+GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=title&sortDirection=ASC
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Get All Tasks (with sorting by assignee)
+GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=assignee&sortDirection=ASC
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Get All Tasks (with sorting by custom field - text)
+GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Get All Tasks (with sorting by custom field - number)
+GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=customField&sortDirection=DESC&customFieldId=custom-field-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Get All Tasks (with sorting by custom field - date)
+GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Filter Tasks (with sorting by due date)
+POST http://localhost:3000/tasks/filter?sortField=dueDate&sortDirection=ASC
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "listId": "list-uuid-here",
+  "filters": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "status",
+        "operator": "equals",
+        "value": "status-uuid-here"
+      }
+    ]
+  }
+}
+
+### Tasks - Search Tasks (with sorting by priority)
+POST http://localhost:3000/tasks/search?sortField=priority&sortDirection=DESC
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "query": "search term",
+  "listId": "list-uuid-here"
+}
+
+### Tasks - Filter Tasks (with sorting by assignee)
+POST http://localhost:3000/tasks/filter?sortField=assignee&sortDirection=ASC
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "listId": "list-uuid-here",
+  "filters": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "status",
+        "operator": "equals",
+        "value": "status-uuid-here"
+      }
+    ]
+  }
+}
+
+### Tasks - Search Tasks (with sorting by assignee)
+POST http://localhost:3000/tasks/search?sortField=assignee&sortDirection=DESC
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "query": "search term",
+  "listId": "list-uuid-here"
+}
+
+### Tasks - Filter Tasks (with sorting by custom field)
+POST http://localhost:3000/tasks/filter?sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "listId": "list-uuid-here",
+  "filters": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "status",
+        "operator": "equals",
+        "value": "status-uuid-here"
+      }
+    ]
+  }
+}
+
+### Tasks - Search Tasks (with sorting by custom field)
+POST http://localhost:3000/tasks/search?sortField=customField&sortDirection=DESC&customFieldId=custom-field-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "query": "search term",
+  "listId": "list-uuid-here"
+}
+
+### Task Dependencies - Create Dependency (blocked_by)
+POST http://localhost:3000/tasks/dependencies
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskId": "task-uuid-here",
+  "dependsOnTaskId": "depends-on-task-uuid-here",
+  "type": "blocked_by"
+}
+
+### Task Dependencies - Create Dependency (blocks)
+POST http://localhost:3000/tasks/dependencies
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskId": "task-uuid-here",
+  "dependsOnTaskId": "depends-on-task-uuid-here",
+  "type": "blocks"
+}
+
+### Task Dependencies - Get All Dependencies for Task
+GET http://localhost:3000/tasks/task-uuid-here/dependencies
+Authorization: Bearer {{accessToken}}
+
+### Task Dependencies - Get Dependency
+GET http://localhost:3000/tasks/dependencies/dependency-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Task Dependencies - Delete Dependency
+DELETE http://localhost:3000/tasks/dependencies/dependency-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Custom Fields - Create Custom Field (Text)
+POST http://localhost:3000/lists/custom-fields
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Story Points",
+  "type": "number",
+  "listId": "list-uuid-here",
+  "config": null
+}
+
+### Custom Fields - Create Custom Field (Dropdown)
+POST http://localhost:3000/lists/custom-fields
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Status",
+  "type": "dropdown",
+  "listId": "list-uuid-here",
+  "config": {
+    "options": ["To Do", "In Progress", "Done"]
+  }
+}
+
+### Custom Fields - Get All Custom Fields for List
+GET http://localhost:3000/lists/custom-fields?listId=list-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Custom Fields - Get Custom Field
+GET http://localhost:3000/lists/custom-fields/custom-field-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Custom Fields - Update Custom Field
+PUT http://localhost:3000/lists/custom-fields/custom-field-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated Field Name",
+  "config": {
+    "options": ["Option 1", "Option 2", "Option 3"]
+  }
+}
+
+### Custom Fields - Delete Custom Field
+DELETE http://localhost:3000/lists/custom-fields/custom-field-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Task Custom Field Values - Create Custom Field Value (Text)
+POST http://localhost:3000/tasks/custom-field-values
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskId": "task-uuid-here",
+  "customFieldId": "custom-field-uuid-here",
+  "value": "Some text value"
+}
+
+### Task Custom Field Values - Create Custom Field Value (Number)
+POST http://localhost:3000/tasks/custom-field-values
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskId": "task-uuid-here",
+  "customFieldId": "custom-field-uuid-here",
+  "value": 42
+}
+
+### Task Custom Field Values - Create Custom Field Value (Date)
+POST http://localhost:3000/tasks/custom-field-values
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskId": "task-uuid-here",
+  "customFieldId": "custom-field-uuid-here",
+  "value": "2026-01-31"
+}
+
+### Task Custom Field Values - Create Custom Field Value (Dropdown)
+POST http://localhost:3000/tasks/custom-field-values
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskId": "task-uuid-here",
+  "customFieldId": "custom-field-uuid-here",
+  "value": "Option 1"
+}
+
+### Task Custom Field Values - Get All Custom Field Values for Task
+GET http://localhost:3000/tasks/task-uuid-here/custom-field-values
+Authorization: Bearer {{accessToken}}
+
+### Task Custom Field Values - Get Custom Field Value
+GET http://localhost:3000/tasks/custom-field-values/custom-field-value-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Task Custom Field Values - Update Custom Field Value
+PUT http://localhost:3000/tasks/custom-field-values/custom-field-value-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "value": "Updated value"
+}
+
+### Task Custom Field Values - Delete Custom Field Value
+DELETE http://localhost:3000/tasks/custom-field-values/custom-field-value-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Filter Presets - Create Filter Preset
+POST http://localhost:3000/lists/filter-presets
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "My High Priority Tasks",
+  "listId": "list-uuid-here",
+  "filterConfig": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "priority",
+        "operator": "equals",
+        "value": "priority-uuid-here"
+      },
+      {
+        "field": "status",
+        "operator": "not_equals",
+        "value": "status-done-uuid-here"
+      }
+    ]
+  },
+  "includeArchived": false
+}
+
+### Filter Presets - Create Filter Preset (Complex)
+POST http://localhost:3000/lists/filter-presets
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Tasks Due This Week",
+  "listId": "list-uuid-here",
+  "filterConfig": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "dueDate",
+        "operator": "less_than_or_equal",
+        "value": "2026-01-31"
+      },
+      {
+        "field": "assignee",
+        "operator": "equals",
+        "value": "user-uuid-here"
+      },
+      {
+        "conditions": [
+          {
+            "field": "tag",
+            "operator": "equals",
+            "value": "tag-uuid-1"
+          },
+          {
+            "field": "tag",
+            "operator": "equals",
+            "value": "tag-uuid-2"
+          }
+        ],
+        "logic": "or"
+      }
+    ]
+  },
+  "includeArchived": false
+}
+
+### Filter Presets - Get All Filter Presets
+GET http://localhost:3000/lists/filter-presets
+Authorization: Bearer {{accessToken}}
+
+### Filter Presets - Get All Filter Presets for List
+GET http://localhost:3000/lists/filter-presets?listId=list-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Filter Presets - Get Filter Preset
+GET http://localhost:3000/lists/filter-presets/filter-preset-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Filter Presets - Update Filter Preset
+PUT http://localhost:3000/lists/filter-presets/filter-preset-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated Filter Preset Name",
+  "filterConfig": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "status",
+        "operator": "equals",
+        "value": "status-uuid-here"
+      }
+    ]
+  },
+  "includeArchived": true
+}
+
+### Filter Presets - Delete Filter Preset
+DELETE http://localhost:3000/lists/filter-presets/filter-preset-uuid-here
+Authorization: Bearer {{accessToken}}

@@ -2548,11 +2548,1269 @@ After completing Phase 7, the application has:
 
 ---
 
-## Phase 8-16: Feature Implementation Phases
+## Phase 8: Kanban Board Module ✅
 
-**Status:** Not Started
+**Status:** Completed  
+**Date Completed:** January 2026
 
-*Additional phases will be documented as they are completed.*
+### Overview
+
+Phase 8 implements the complete Kanban Board Module, providing a comprehensive task management system with advanced features for organizing, tracking, and managing work items. This phase includes:
+
+- **Columns (Statuses)**: Full CRUD operations with ordering and customization
+- **Tasks**: Complete task management with rich metadata, dependencies, custom fields, and archiving
+- **Subtasks**: Hierarchical task breakdown with completion tracking
+- **Task Checklists**: Separate checklists for task organization
+- **Filtering & Search**: Advanced filtering with AND/OR logic and full-text search
+- **Sorting**: Multi-field sorting including assignee and custom fields
+- **Task Dependencies**: Directed dependency graph with circular dependency prevention
+- **Task Custom Fields**: Flexible custom field system with type-specific validation
+- **Filter Presets**: User-scoped saved filter configurations
+
+### Objectives Completed
+
+#### 1. Columns (Statuses) ✅
+
+**Status:** Completed (Referenced from Phase 7 integration)
+
+**Implementation Details:**
+- Status management was implemented as part of the Lists Module
+- Statuses represent Kanban board columns
+- Full CRUD operations with ordering and color customization
+- Default statuses created on list creation (Todo, Doing, Done)
+
+**Endpoints:**
+- `POST /statuses` - Create status
+- `GET /statuses?listId=...` - Get all statuses for a list
+- `GET /statuses/:id` - Get status by ID
+- `PUT /statuses/:id` - Update status
+- `DELETE /statuses/:id` - Delete status
+- `PUT /statuses/reorder?listId=...` - Reorder statuses
+
+#### 2. Tasks ✅
+
+**Files Created:**
+- `src/features/tasks/dto/create-task.dto.ts`
+- `src/features/tasks/dto/update-task.dto.ts`
+- `src/features/tasks/dto/task-response.dto.ts`
+- `src/features/tasks/dto/move-task.dto.ts`
+- `src/features/tasks/dto/assign-task.dto.ts`
+- `src/features/tasks/dto/add-tag-to-task.dto.ts`
+
+**Files Modified:**
+- `src/features/tasks/entities/task.entity.ts`
+- `src/features/tasks/tasks.service.ts`
+- `src/features/tasks/tasks.controller.ts`
+- `src/features/tasks/tasks.module.ts`
+
+**Implementation Details:**
+
+##### 2.1 Task Entity Extension
+
+**Entity Updates:**
+- Added `dueDate: Date | null` - Task due date (date type, nullable)
+- Added `orderPosition: number` - Position within status column (integer, default: 0)
+- Added `isArchived: boolean` - Archive flag (boolean, default: false)
+- Updated `status` relationship to `StatusEntity | null` to reflect nullable nature
+- Updated `priority` relationship with `nullable: true` option
+
+**Code Implementation:**
+```typescript
+// src/features/tasks/entities/task.entity.ts
+@Column({
+  type: 'date',
+  name: 'due_date',
+  nullable: true,
+})
+dueDate: Date | null;
+
+@Column({
+  type: 'integer',
+  name: 'order_position',
+  default: 0,
+})
+orderPosition: number;
+
+@Column({
+  type: 'boolean',
+  name: 'is_archived',
+  default: false,
+})
+isArchived: boolean;
+```
+
+##### 2.2 Task CRUD Operations
+
+**Create Task (`create`):**
+- Validates list exists
+- Validates status belongs to list (if provided)
+- Validates priority exists (if provided)
+- Auto-calculates `orderPosition` if not provided (increments highest position)
+- Supports: `title`, `description`, `listId`, `statusId`, `priorityId`, `dueDate`, `orderPosition`
+
+**Read Tasks (`findAll`):**
+- Supports filtering by `listId`, `statusId`, `includeArchived`
+- Supports sorting by various fields (see Sorting section)
+- Returns tasks with relations: `list`, `status`, `priority`, `assignments`, `taskTags`
+
+**Read Single Task (`findOne`):**
+- Returns task with all relations loaded
+- Includes: `list`, `status`, `priority`, `assignments`, `assignments.user`, `taskTags`, `taskTags.tag`, `subtasks`, `checklists`, `comments`, `attachments`
+
+**Update Task (`update`):**
+- Updates task properties
+- Validates status belongs to list (if changing)
+- Supports: `title`, `description`, `statusId`, `priorityId`, `dueDate`, `orderPosition`
+
+**Delete Task (`remove`):**
+- Cascade deletes all related entities (assignments, subtasks, checklists, comments, attachments, tags, dependencies, custom field values)
+
+##### 2.3 Task Movement
+
+**Move Task (`move`):**
+- Moves task between statuses (columns)
+- Updates `orderPosition` within new status
+- Validates target status belongs to same list
+- Auto-calculates position if not provided
+
+**Code Implementation:**
+```typescript
+async move(id: string, moveTaskDto: MoveTaskDto): Promise<TaskEntity> {
+  const { statusId, orderPosition } = moveTaskDto;
+  // Validates status, updates task position
+  // Returns updated task
+}
+```
+
+##### 2.4 Task Archiving
+
+**Archive Task (`archive`):**
+- Sets `isArchived = true`
+- Task is excluded from default queries unless `includeArchived = true`
+
+**Unarchive Task (`unarchive`):**
+- Sets `isArchived = false`
+- Task becomes visible in default queries
+
+##### 2.5 Task Assignments
+
+**Assign User (`assignUser`):**
+- Creates assignment relationship between user and task
+- Validates user exists
+- Validates task exists
+- Prevents duplicate assignments
+
+**Unassign User (`unassignUser`):**
+- Removes assignment relationship
+- Validates assignment exists
+
+##### 2.6 Task Tags
+
+**Add Tag (`addTag`):**
+- Adds tag to task via `TaskTag` join entity
+- Validates tag exists
+- Validates tag belongs to same workspace as task's list
+- Prevents duplicate tag assignments
+
+**Remove Tag (`removeTag`):**
+- Removes tag from task
+- Validates `TaskTag` relationship exists
+
+##### 2.7 Task Endpoints
+
+**Controller Endpoints:**
+- `POST /tasks` - Create task
+- `GET /tasks?listId=...&statusId=...&includeArchived=...&sortField=...&sortDirection=...` - Get all tasks
+- `GET /tasks/:id` - Get single task
+- `PUT /tasks/:id` - Update task
+- `DELETE /tasks/:id` - Delete task
+- `PUT /tasks/:id/move` - Move task to different status
+- `POST /tasks/:id/archive` - Archive task
+- `POST /tasks/:id/unarchive` - Unarchive task
+- `POST /tasks/:id/assign` - Assign user to task
+- `DELETE /tasks/:id/assign/:userId` - Unassign user from task
+- `POST /tasks/:id/tags` - Add tag to task
+- `DELETE /tasks/:id/tags/:tagId` - Remove tag from task
+
+#### 3. Subtasks ✅
+
+**Files Created:**
+- `src/features/tasks/dto/create-subtask.dto.ts`
+- `src/features/tasks/dto/update-subtask.dto.ts`
+- `src/features/tasks/dto/subtask-response.dto.ts`
+- `src/features/tasks/dto/move-subtask.dto.ts`
+
+**Files Modified:**
+- `src/features/tasks/entities/subtask.entity.ts` (already existed)
+- `src/features/tasks/tasks.service.ts`
+- `src/features/tasks/tasks.controller.ts`
+- `src/features/tasks/tasks.module.ts`
+
+**Implementation Details:**
+
+##### 3.1 Subtask Entity
+
+**Entity Structure:**
+- `id: string` - UUID primary key
+- `title: string` - Subtask title
+- `isCompleted: boolean` - Completion status (default: false)
+- `orderIndex: number` - Position within task (default: 0)
+- `task: TaskEntity` - Parent task relationship (ManyToOne, CASCADE delete)
+
+##### 3.2 Subtask CRUD Operations
+
+**Create Subtask (`createSubtask`):**
+- Validates parent task exists
+- Auto-calculates `orderIndex` if not provided
+- Supports: `title`, `taskId`, `orderIndex`
+
+**Read Subtasks (`findAllSubtasks`):**
+- Returns all subtasks for a task
+- Ordered by `orderIndex` ascending
+
+**Read Single Subtask (`findOneSubtask`):**
+- Returns subtask with parent task relation
+
+**Update Subtask (`updateSubtask`):**
+- Updates subtask properties
+- Supports: `title`, `isCompleted`, `orderIndex`
+- Used to mark subtasks as complete/incomplete
+
+**Delete Subtask (`removeSubtask`):**
+- Removes subtask from task
+- Validates subtask exists
+
+##### 3.3 Move Subtask Between Tasks
+
+**Move Subtask (`moveSubtask`):**
+- Moves subtask from one task to another
+- Validates both source and target tasks exist
+- Validates tasks are in the same list
+- Updates `orderIndex` within target task
+- Auto-calculates position if not provided
+
+**Code Implementation:**
+```typescript
+async moveSubtask(
+  id: string,
+  moveSubtaskDto: MoveSubtaskDto,
+): Promise<SubtaskEntity> {
+  const { targetTaskId, orderIndex } = moveSubtaskDto;
+  // Validates tasks, updates subtask assignment
+  // Returns updated subtask
+}
+```
+
+##### 3.4 Subtask Endpoints
+
+**Controller Endpoints:**
+- `POST /tasks/subtasks` - Create subtask
+- `GET /tasks/:taskId/subtasks` - Get all subtasks for task
+- `GET /tasks/subtasks/:id` - Get single subtask
+- `PUT /tasks/subtasks/:id` - Update subtask
+- `DELETE /tasks/subtasks/:id` - Delete subtask
+- `PUT /tasks/subtasks/:id/move` - Move subtask to another task
+
+**Route Ordering:**
+- Subtask endpoints must be declared before generic `GET /tasks/:id` route to avoid routing conflicts
+
+#### 4. Task Checklists ✅
+
+**Files Created:**
+- `src/features/tasks/dto/create-checklist.dto.ts`
+- `src/features/tasks/dto/update-checklist.dto.ts`
+- `src/features/tasks/dto/checklist-response.dto.ts`
+- `src/features/tasks/dto/create-checklist-item.dto.ts`
+- `src/features/tasks/dto/update-checklist-item.dto.ts`
+- `src/features/tasks/dto/checklist-item-response.dto.ts`
+- `src/features/tasks/dto/reorder-checklist-items.dto.ts`
+
+**Files Modified:**
+- `src/features/tasks/entities/checklist.entity.ts` (already existed)
+- `src/features/tasks/entities/checklist-item.entity.ts` (already existed)
+- `src/features/tasks/tasks.service.ts`
+- `src/features/tasks/tasks.controller.ts`
+- `src/features/tasks/tasks.module.ts`
+
+**Implementation Details:**
+
+##### 4.1 Checklist Entity
+
+**Entity Structure:**
+- `id: string` - UUID primary key
+- `title: string` - Checklist title
+- `orderIndex: number` - Position within task (default: 0)
+- `task: TaskEntity` - Parent task relationship (ManyToOne, CASCADE delete)
+- `checklistItems: ChecklistItemEntity[]` - One-to-Many relationship
+
+##### 4.2 Checklist CRUD Operations
+
+**Create Checklist (`createChecklist`):**
+- Validates parent task exists
+- Auto-calculates `orderIndex` if not provided
+- Supports: `title`, `taskId`, `orderIndex`
+
+**Read Checklists (`findAllChecklists`):**
+- Returns all checklists for a task
+- Ordered by `orderIndex` ascending
+
+**Read Single Checklist (`findOneChecklist`):**
+- Returns checklist with checklist items relation
+
+**Update Checklist (`updateChecklist`):**
+- Updates checklist properties
+- Supports: `title`, `orderIndex`
+
+**Delete Checklist (`removeChecklist`):**
+- Removes checklist (cascade deletes all checklist items)
+- Validates checklist exists
+
+##### 4.3 Checklist Item Operations
+
+**Create Checklist Item (`createChecklistItem`):**
+- Validates parent checklist exists
+- Auto-calculates `orderIndex` if not provided
+- Supports: `title`, `checklistId`, `orderIndex`
+
+**Read Checklist Items (`findAllChecklistItems`):**
+- Returns all items for a checklist
+- Ordered by `orderIndex` ascending
+
+**Read Single Checklist Item (`findOneChecklistItem`):**
+- Returns checklist item with parent checklist relation
+
+**Update Checklist Item (`updateChecklistItem`):**
+- Updates checklist item properties
+- Supports: `title`, `isCompleted`, `orderIndex`
+- Used to mark items as complete/incomplete
+
+**Delete Checklist Item (`removeChecklistItem`):**
+- Removes checklist item
+- Validates checklist item exists
+
+##### 4.4 Reorder Checklist Items
+
+**Reorder Checklist Items (`reorderChecklistItems`):**
+- Bulk updates order indices for multiple checklist items
+- Validates all items belong to the checklist
+- Prevents duplicate order indices
+- Supports atomic reordering
+
+**DTO Structure:**
+```typescript
+export class ChecklistItemOrderItemDto {
+  @IsUUID()
+  itemId: string;
+  @IsInt()
+  @Min(0)
+  orderIndex: number;
+}
+
+export class ReorderChecklistItemsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChecklistItemOrderItemDto)
+  itemOrders: ChecklistItemOrderItemDto[];
+}
+```
+
+##### 4.5 Checklist Endpoints
+
+**Controller Endpoints:**
+- `POST /tasks/checklists` - Create checklist
+- `GET /tasks/:taskId/checklists` - Get all checklists for task
+- `GET /tasks/checklists/:id` - Get single checklist
+- `PUT /tasks/checklists/:id` - Update checklist
+- `DELETE /tasks/checklists/:id` - Delete checklist
+- `POST /tasks/checklist-items` - Create checklist item
+- `GET /tasks/:checklistId/checklist-items` - Get all items for checklist
+- `GET /tasks/checklist-items/:id` - Get single checklist item
+- `PUT /tasks/checklist-items/:id` - Update checklist item
+- `DELETE /tasks/checklist-items/:id` - Delete checklist item
+- `PUT /tasks/checklists/:checklistId/reorder-items` - Reorder checklist items
+
+**Route Ordering:**
+- Checklist endpoints must be declared before generic `GET /tasks/:id` route to avoid routing conflicts
+
+#### 5. Filtering & Search ✅
+
+**Files Created:**
+- `src/features/tasks/dto/filter-tasks.dto.ts`
+- `src/features/tasks/dto/search-tasks.dto.ts`
+
+**Files Modified:**
+- `src/features/tasks/tasks.service.ts`
+- `src/features/tasks/tasks.controller.ts`
+
+**Implementation Details:**
+
+##### 5.1 Filter DTOs
+
+**FilterConditionDto:**
+- `field: string` - Field to filter by (`assignee`, `status`, `priority`, `tag`, `dueDate`, `list`, `isArchived`)
+- `operator: FilterOperator` - Filter operator (see operators below)
+- `value?: any` - Filter value (type depends on field and operator)
+
+**FilterGroupDto:**
+- `logic: FilterLogic` - Group logic (`and` or `or`)
+- `conditions: FilterConditionDto[]` - Array of filter conditions
+- `groups?: FilterGroupDto[]` - Optional nested filter groups (supports unlimited nesting)
+
+**FilterTasksDto:**
+- `listId?: string` - Optional list filter
+- `filters?: FilterGroupDto` - Optional filter group
+- `includeArchived?: boolean` - Include archived tasks (default: false)
+
+**Filter Operators:**
+```typescript
+export enum FilterOperator {
+  EQUALS = 'equals',
+  NOT_EQUALS = 'not_equals',
+  IN = 'in',
+  NOT_IN = 'not_in',
+  CONTAINS = 'contains',
+  GREATER_THAN = 'greater_than',
+  LESS_THAN = 'less_than',
+  GREATER_THAN_OR_EQUAL = 'greater_than_or_equal',
+  LESS_THAN_OR_EQUAL = 'less_than_or_equal',
+  IS_NULL = 'is_null',
+  IS_NOT_NULL = 'is_not_null',
+}
+```
+
+##### 5.2 Complex Filtering Implementation
+
+**Filter Tasks Method (`filterTasks`):**
+- Uses TypeORM QueryBuilder for dynamic query construction
+- Supports nested AND/OR logic groups
+- Applies filters recursively through nested groups
+
+**Filter Field Handlers:**
+
+**Assignee Filter (`applyAssigneeFilter`):**
+- Joins with `assignments` and `user` tables
+- Supports `equals`, `not_equals`, `in`, `not_in`, `is_null`, `is_not_null`
+- Filters tasks by assigned users
+
+**Status Filter (`applyStatusFilter`):**
+- Joins with `status` table
+- Supports `equals`, `not_equals`, `in`, `not_in`
+- Filters tasks by status/column
+
+**Priority Filter (`applyPriorityFilter`):**
+- Joins with `priority` table
+- Supports `equals`, `not_equals`, `in`, `not_in`, `is_null`, `is_not_null`
+- Filters tasks by priority level
+
+**Tag Filter (`applyTagFilter`):**
+- Joins with `taskTags` and `tag` tables
+- Supports `equals`, `not_equals`, `in`, `not_in`
+- Filters tasks by tags (handles multiple tags per task)
+
+**Due Date Filter (`applyDueDateFilter`):**
+- Filters on `dueDate` column
+- Supports `equals`, `not_equals`, `greater_than`, `less_than`, `greater_than_or_equal`, `less_than_or_equal`, `is_null`, `is_not_null`
+- Handles date comparisons with DATE() function for equality
+
+**List Filter (`applyListFilter`):**
+- Filters on task's list
+- Supports `equals`, `not_equals`, `in`, `not_in`
+
+**Archived Filter (`applyArchivedFilter`):**
+- Filters on `isArchived` boolean field
+- Supports `equals` operator with boolean value
+
+**Code Implementation:**
+```typescript
+private applyFilterGroup(
+  queryBuilder: SelectQueryBuilder<TaskEntity>,
+  filterGroup: FilterGroupDto,
+  defaultLogic: 'and' | 'or',
+): void {
+  const logic = filterGroup.logic || defaultLogic;
+  const method = logic === 'and' ? 'andWhere' : 'orWhere';
+  
+  // Apply conditions
+  // Apply nested groups recursively
+}
+```
+
+##### 5.3 Full-Text Search
+
+**Search Tasks Method (`searchTasks`):**
+- Searches in `title` and `description` fields
+- Uses case-insensitive `LIKE` queries
+- Supports optional `listId` filter
+- Excludes archived tasks by default
+
+**Code Implementation:**
+```typescript
+async searchTasks(
+  searchTasksDto: SearchTasksDto,
+  sortField?: SortField,
+  sortDirection?: SortDirection,
+  customFieldId?: string,
+): Promise<TaskEntity[]> {
+  // Uses QueryBuilder with LIKE for title and description
+  // Supports sorting (see Sorting section)
+}
+```
+
+##### 5.4 Filter & Search Endpoints
+
+**Controller Endpoints:**
+- `POST /tasks/filter?sortField=...&sortDirection=...` - Filter tasks with complex conditions
+- `POST /tasks/search?sortField=...&sortDirection=...` - Search tasks by title/description
+
+**Example Filter Request:**
+```json
+{
+  "listId": "list-uuid-here",
+  "includeArchived": false,
+  "filters": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "status",
+        "operator": "in",
+        "value": ["status-uuid-1", "status-uuid-2"]
+      },
+      {
+        "field": "priority",
+        "operator": "not_equals",
+        "value": "priority-uuid-here"
+      },
+      {
+        "conditions": [
+          {
+            "field": "tag",
+            "operator": "equals",
+            "value": "tag-uuid-1"
+          },
+          {
+            "field": "tag",
+            "operator": "equals",
+            "value": "tag-uuid-2"
+          }
+        ],
+        "logic": "or"
+      }
+    ]
+  }
+}
+```
+
+#### 6. Sorting ✅
+
+**Files Created:**
+- `src/features/tasks/dto/sort-tasks.dto.ts`
+
+**Files Modified:**
+- `src/features/tasks/tasks.service.ts`
+- `src/features/tasks/tasks.controller.ts`
+
+**Implementation Details:**
+
+##### 6.1 Sort DTOs
+
+**SortField Enum:**
+```typescript
+export enum SortField {
+  DUE_DATE = 'dueDate',
+  PRIORITY = 'priority',
+  CREATED_AT = 'createdAt',
+  UPDATED_AT = 'updatedAt',
+  TITLE = 'title',
+  ORDER_POSITION = 'orderPosition',
+  ASSIGNEE = 'assignee',
+  CUSTOM_FIELD = 'customField',
+}
+```
+
+**SortDirection Enum:**
+```typescript
+export enum SortDirection {
+  ASC = 'ASC',
+  DESC = 'DESC',
+}
+```
+
+##### 6.2 Sorting Implementation
+
+**Sorting Strategy:**
+- Primary sort by selected field and direction
+- Secondary sort by `orderPosition` (ASC) for consistent ordering
+- NULL values handled appropriately (tasks without assignees/custom fields appear last)
+
+**Standard Field Sorting:**
+- `dueDate` - Sorts by due date (NULLs last)
+- `priority` - Sorts by priority's `orderIndex` (NULLs last)
+- `createdAt` - Sorts by creation timestamp
+- `updatedAt` - Sorts by last update timestamp
+- `title` - Alphabetical sort
+- `orderPosition` - Sorts by position within status
+
+##### 6.3 Sort by Assignee (Complex)
+
+**Implementation:**
+- Handles tasks with multiple assignees
+- Uses PostgreSQL subquery: `MIN(u.name)` for ASC, `MAX(u.name)` for DESC
+- NULL handling: Tasks without assignees appear last
+- Secondary sort by `orderPosition` for consistency
+
+**Code Implementation:**
+```typescript
+if (sortField === SortField.ASSIGNEE) {
+  const assigneeOrderBy =
+    sortDirection === SortDirection.ASC
+      ? '(SELECT MIN(u.name) FROM assignments a JOIN users u ON a.user_id = u.id WHERE a.task_id = task.id)'
+      : '(SELECT MAX(u.name) FROM assignments a JOIN users u ON a.user_id = u.id WHERE a.task_id = task.id)';
+
+  queryBuilder
+    .orderBy(`CASE WHEN ${assigneeOrderBy} IS NULL THEN 1 ELSE 0 END`, 'ASC')
+    .addOrderBy(assigneeOrderBy, sortDirection);
+}
+```
+
+##### 6.4 Sort by Custom Fields
+
+**Implementation:**
+- Requires `customFieldId` parameter
+- Validates custom field exists and belongs to list
+- Type-specific sorting:
+  - **Text/Dropdown**: Alphabetical (`value::text`)
+  - **Number**: Numerical (`(value::jsonb)::numeric`)
+  - **Date**: Date sorting (`(value::jsonb)::text::date`)
+- NULL handling: Tasks without custom field values appear last
+
+**Code Implementation:**
+```typescript
+if (sortField === SortField.CUSTOM_FIELD) {
+  // Verify custom field exists
+  const customField = await this.customFieldRepository.findOne(...);
+  
+  let valueOrderBy: string;
+  switch (customField.type) {
+    case 'text':
+    case 'dropdown':
+      valueOrderBy = `(SELECT cfv.value::text FROM task_custom_field_values cfv WHERE cfv.task_id = task.id AND cfv.custom_field_id = :customFieldId)`;
+      break;
+    case 'number':
+      valueOrderBy = `(SELECT (cfv.value::jsonb)::numeric FROM task_custom_field_values cfv WHERE cfv.task_id = task.id AND cfv.custom_field_id = :customFieldId)`;
+      break;
+    case 'date':
+      valueOrderBy = `(SELECT (cfv.value::jsonb)::text::date FROM task_custom_field_values cfv WHERE cfv.task_id = task.id AND cfv.custom_field_id = :customFieldId)`;
+      break;
+  }
+  
+  queryBuilder
+    .setParameter('customFieldId', customFieldId)
+    .orderBy(`CASE WHEN ${valueOrderBy} IS NULL THEN 1 ELSE 0 END`, 'ASC')
+    .addOrderBy(valueOrderBy, sortDirection);
+}
+```
+
+##### 6.5 Sorting Integration
+
+**Integrated in Methods:**
+- `findAll` - Supports sorting with all fields
+- `filterTasks` - Supports sorting on filtered results
+- `searchTasks` - Supports sorting on search results
+
+**Query Parameters:**
+- `sortField?: SortField` - Field to sort by
+- `sortDirection?: SortDirection` - Sort direction (default: ASC)
+- `customFieldId?: string` - Required when `sortField = customField`
+
+##### 6.6 Sorting Endpoints
+
+**Controller Endpoints:**
+- All task listing endpoints support sorting:
+  - `GET /tasks?sortField=...&sortDirection=...`
+  - `POST /tasks/filter?sortField=...&sortDirection=...&customFieldId=...`
+  - `POST /tasks/search?sortField=...&sortDirection=...&customFieldId=...`
+
+#### 7. Task Dependencies ✅
+
+**Files Created:**
+- `src/features/tasks/dto/create-task-dependency.dto.ts`
+- `src/features/tasks/dto/task-dependency-response.dto.ts`
+
+**Files Modified:**
+- `src/features/tasks/entities/task-dependency.entity.ts` (already existed)
+- `src/features/tasks/tasks.service.ts`
+- `src/features/tasks/tasks.controller.ts`
+- `src/features/tasks/tasks.module.ts`
+
+**Implementation Details:**
+
+##### 7.1 Dependency Entity
+
+**Entity Structure:**
+- `id: string` - UUID primary key
+- `task: TaskEntity` - Dependent task (ManyToOne, CASCADE delete)
+- `dependsOnTask: TaskEntity` - Task that this task depends on (ManyToOne, CASCADE delete)
+- `type: 'blocks' | 'blocked_by'` - Dependency type
+  - `blocked_by`: Task depends on `dependsOnTask` (task → dependsOnTask)
+  - `blocks`: `dependsOnTask` depends on task (dependsOnTask → task)
+- `createdAt: Date` - Creation timestamp
+
+##### 7.2 Dependency Logic
+
+**Dependency Graph Interpretation:**
+- Directed graph where edges represent dependencies
+- `blocked_by`: If A is blocked by B, then A → B (A depends on B)
+- `blocks`: If A blocks B, then B → A (B depends on A)
+
+##### 7.3 Create Dependency
+
+**Method: `createTaskDependency`**
+- Validates both tasks exist
+- Prevents self-dependency (task cannot depend on itself)
+- Validates tasks are in the same list
+- Checks for duplicate dependencies
+- **Circular Dependency Detection**: Prevents creating cycles in dependency graph
+
+**Circular Dependency Detection:**
+- Uses BFS (Breadth-First Search) to detect cycles
+- Before adding dependency, checks if reverse path exists
+- If path from target to source exists, adding dependency would create cycle
+
+**Code Implementation:**
+```typescript
+private async wouldCreateCircularDependency(
+  taskId: string,
+  dependsOnTaskId: string,
+  type: 'blocks' | 'blocked_by',
+): Promise<boolean> {
+  // Normalizes dependency direction
+  // Checks if reverse path exists using BFS
+  return this.hasPathToTask(targetTaskId, sourceTaskId);
+}
+
+private async hasPathToTask(
+  fromTaskId: string,
+  toTaskId: string,
+): Promise<boolean> {
+  // BFS traversal to find path from fromTaskId to toTaskId
+  // Handles both 'blocked_by' and 'blocks' relationship types
+}
+```
+
+##### 7.4 Find Dependencies
+
+**Method: `findAllTaskDependencies`**
+- Returns dependencies in both directions:
+  - `blocking`: Tasks that depend on this task (this task blocks them)
+  - `blockedBy`: Tasks this task depends on (this task is blocked by them)
+
+**Implementation Logic:**
+- Queries dependencies where task is the dependent (`blocked_by` with task=thisTask)
+- Queries dependencies where task blocks others (`blocks` with dependsOnTask=thisTask)
+- Also handles reverse relationships for complete dependency graph
+
+##### 7.5 Remove Dependency
+
+**Method: `removeTaskDependency`**
+- Removes dependency relationship
+- Validates dependency exists
+- No circular dependency check needed (removal cannot create cycles)
+
+##### 7.6 Dependency Endpoints
+
+**Controller Endpoints:**
+- `POST /tasks/dependencies` - Create dependency
+  - Body: `{ taskId, dependsOnTaskId, type: 'blocks' | 'blocked_by' }`
+- `GET /tasks/:taskId/dependencies` - Get all dependencies for task
+  - Returns: `{ blocking: TaskDependencyEntity[], blockedBy: TaskDependencyEntity[] }`
+- `GET /tasks/dependencies/:id` - Get single dependency
+- `DELETE /tasks/dependencies/:id` - Delete dependency
+
+**Route Ordering:**
+- Dependency endpoints declared before generic `GET /tasks/:id` route to avoid conflicts
+
+#### 8. Task Custom Fields ✅
+
+**Files Created (Lists Module):**
+- `src/features/lists/dto/create-custom-field.dto.ts`
+- `src/features/lists/dto/update-custom-field.dto.ts`
+- `src/features/lists/dto/custom-field-response.dto.ts`
+
+**Files Created (Tasks Module):**
+- `src/features/tasks/dto/create-task-custom-field-value.dto.ts`
+- `src/features/tasks/dto/update-task-custom-field-value.dto.ts`
+- `src/features/tasks/dto/task-custom-field-value-response.dto.ts`
+
+**Files Modified:**
+- `src/features/lists/entities/custom-field.entity.ts` (already existed)
+- `src/features/tasks/entities/task-custom-field-value.entity.ts` (already existed)
+- `src/features/lists/lists.service.ts`
+- `src/features/lists/lists.controller.ts`
+- `src/features/lists/lists.module.ts`
+- `src/features/tasks/tasks.service.ts`
+- `src/features/tasks/tasks.controller.ts`
+- `src/features/tasks/tasks.module.ts`
+
+**Implementation Details:**
+
+##### 8.1 Custom Field Entity
+
+**Entity Structure:**
+- `id: string` - UUID primary key
+- `name: string` - Field name
+- `type: 'text' | 'number' | 'date' | 'dropdown'` - Field type
+- `config: Record<string, any> | null` - Field configuration (JSONB)
+  - For dropdown: `{ options: string[] }`
+- `list: ListEntity` - Parent list (ManyToOne, CASCADE delete)
+- `taskCustomFieldValues: TaskCustomFieldValueEntity[]` - One-to-Many relationship
+
+##### 8.2 Custom Field CRUD (Lists Module)
+
+**Create Custom Field (`createCustomField`):**
+- Validates list exists
+- Supports: `name`, `type`, `listId`, `config` (optional)
+- For dropdown type, `config.options` should contain array of options
+
+**Read Custom Fields (`findAllCustomFields`):**
+- Returns all custom fields for a list
+- Ordered by creation date
+
+**Read Single Custom Field (`findOneCustomField`):**
+- Returns custom field with list relation
+
+**Update Custom Field (`updateCustomField`):**
+- Updates field properties
+- Supports: `name`, `type`, `config`
+
+**Delete Custom Field (`removeCustomField`):**
+- Removes custom field (cascade deletes all task custom field values)
+- Validates custom field exists
+
+##### 8.3 Task Custom Field Value Entity
+
+**Entity Structure:**
+- `id: string` - UUID primary key
+- `value: any` - Field value stored as JSONB (flexible for different types)
+- `task: TaskEntity` - Parent task (ManyToOne, CASCADE delete)
+- `customField: CustomFieldEntity` - Field definition (ManyToOne, CASCADE delete)
+- `createdAt: Date` - Creation timestamp
+- `updatedAt: Date` - Update timestamp
+
+##### 8.4 Task Custom Field Value CRUD
+
+**Create Task Custom Field Value (`createTaskCustomFieldValue`):**
+- Validates task exists
+- Validates custom field exists
+- **List Validation**: Ensures custom field belongs to same list as task
+- **Type Validation**: Validates value matches custom field type
+  - Text: Must be string
+  - Number: Must be number
+  - Date: Must be string or Date object
+  - Dropdown: Must be one of the options in `config.options`
+- Prevents duplicate values (one value per task per custom field)
+
+**Type Validation Logic:**
+```typescript
+private validateCustomFieldValue(
+  value: any,
+  customField: CustomFieldEntity,
+): void {
+  switch (customField.type) {
+    case 'text':
+      if (typeof value !== 'string') {
+        throw new BadRequestException('Value must be a string for text custom field');
+      }
+      break;
+    case 'number':
+      if (typeof value !== 'number') {
+        throw new BadRequestException('Value must be a number for number custom field');
+      }
+      break;
+    case 'date':
+      if (typeof value !== 'string' && !(value instanceof Date)) {
+        throw new BadRequestException('Value must be a date string or Date object for date custom field');
+      }
+      break;
+    case 'dropdown':
+      if (!customField.config?.options) {
+        throw new BadRequestException('Dropdown custom field must have options in config');
+      }
+      if (!customField.config.options.includes(value)) {
+        throw new BadRequestException(`Value must be one of: ${customField.config.options.join(', ')}`);
+      }
+      break;
+  }
+}
+```
+
+**Read Task Custom Field Values (`findAllTaskCustomFieldValues`):**
+- Returns all custom field values for a task
+- Includes custom field relation
+- Ordered by creation date
+
+**Read Single Task Custom Field Value (`findOneTaskCustomFieldValue`):**
+- Returns custom field value with task and custom field relations
+
+**Update Task Custom Field Value (`updateTaskCustomFieldValue`):**
+- Updates value with type validation
+- Supports: `value` (validated based on custom field type)
+
+**Delete Task Custom Field Value (`removeTaskCustomFieldValue`):**
+- Removes custom field value from task
+- Validates value exists
+
+##### 8.5 Custom Field Endpoints
+
+**Lists Controller Endpoints:**
+- `POST /lists/custom-fields` - Create custom field
+- `GET /lists/custom-fields?listId=...` - Get all custom fields for list
+- `GET /lists/custom-fields/:id` - Get single custom field
+- `PUT /lists/custom-fields/:id` - Update custom field
+- `DELETE /lists/custom-fields/:id` - Delete custom field
+
+**Tasks Controller Endpoints:**
+- `POST /tasks/custom-field-values` - Create task custom field value
+- `GET /tasks/:taskId/custom-field-values` - Get all custom field values for task
+- `GET /tasks/custom-field-values/:id` - Get single custom field value
+- `PUT /tasks/custom-field-values/:id` - Update task custom field value
+- `DELETE /tasks/custom-field-values/:id` - Delete task custom field value
+
+**Route Ordering:**
+- Custom field value endpoints declared before generic `GET /tasks/:id` route
+
+#### 9. Save Filter Presets ✅
+
+**Files Created:**
+- `src/features/lists/dto/create-filter-preset.dto.ts`
+- `src/features/lists/dto/update-filter-preset.dto.ts`
+- `src/features/lists/dto/filter-preset-response.dto.ts`
+
+**Files Modified:**
+- `src/features/lists/entities/filter-preset.entity.ts` (already existed)
+- `src/features/lists/lists.service.ts`
+- `src/features/lists/lists.controller.ts`
+- `src/features/lists/lists.module.ts`
+
+**Implementation Details:**
+
+##### 9.1 Filter Preset Entity
+
+**Entity Structure:**
+- `id: string` - UUID primary key
+- `name: string` - Preset name
+- `filterConfig: Record<string, any>` - Filter configuration stored as JSONB
+  - Structure: `{ filters: FilterGroupDto, includeArchived: boolean }`
+- `user: UserEntity` - Owner user (ManyToOne, CASCADE delete)
+- `list: ListEntity` - Associated list (ManyToOne, CASCADE delete, optional)
+- `createdAt: Date` - Creation timestamp
+- `updatedAt: Date` - Update timestamp
+
+##### 9.2 Filter Preset CRUD
+
+**Create Filter Preset (`createFilterPreset`):**
+- Validates list exists
+- Stores filter configuration and `includeArchived` flag as JSON
+- User-scoped (linked to authenticated user via `@CurrentUser`)
+- Supports: `name`, `listId`, `filterConfig` (FilterGroupDto), `includeArchived` (optional)
+
+**Read Filter Presets (`findAllFilterPresets`):**
+- Returns all filter presets for authenticated user
+- Optional `listId` filter to get presets for specific list
+- Ordered by creation date (newest first)
+- Includes list relation
+
+**Read Single Filter Preset (`findOneFilterPreset`):**
+- Returns filter preset with user and list relations
+- **Security**: Only returns preset if it belongs to authenticated user
+
+**Update Filter Preset (`updateFilterPreset`):**
+- Updates preset properties
+- Supports: `name`, `filterConfig`, `includeArchived`
+- Properly merges filter configuration when updating
+- **Security**: Only updates preset if it belongs to authenticated user
+
+**Delete Filter Preset (`removeFilterPreset`):**
+- Removes filter preset
+- **Security**: Only deletes preset if it belongs to authenticated user
+
+##### 9.3 Filter Preset Endpoints
+
+**Controller Endpoints:**
+- `POST /lists/filter-presets` - Create filter preset (requires authentication)
+- `GET /lists/filter-presets?listId=...` - Get all filter presets for user (optionally filtered by list)
+- `GET /lists/filter-presets/:id` - Get single filter preset
+- `PUT /lists/filter-presets/:id` - Update filter preset
+- `DELETE /lists/filter-presets/:id` - Delete filter preset
+
+**Route Ordering:**
+- Filter preset endpoints declared before templates routes to avoid conflicts
+
+**Security:**
+- All endpoints use `JwtAuthGuard`
+- All endpoints use `@CurrentUser` decorator
+- Users can only access/modify their own filter presets
+
+### Directory Structure
+
+```
+src/features/tasks/
+├── dto/
+│   ├── create-task.dto.ts
+│   ├── update-task.dto.ts
+│   ├── task-response.dto.ts
+│   ├── move-task.dto.ts
+│   ├── assign-task.dto.ts
+│   ├── add-tag-to-task.dto.ts
+│   ├── create-subtask.dto.ts
+│   ├── update-subtask.dto.ts
+│   ├── subtask-response.dto.ts
+│   ├── move-subtask.dto.ts
+│   ├── create-checklist.dto.ts
+│   ├── update-checklist.dto.ts
+│   ├── checklist-response.dto.ts
+│   ├── create-checklist-item.dto.ts
+│   ├── update-checklist-item.dto.ts
+│   ├── checklist-item-response.dto.ts
+│   ├── reorder-checklist-items.dto.ts
+│   ├── filter-tasks.dto.ts
+│   ├── search-tasks.dto.ts
+│   ├── sort-tasks.dto.ts
+│   ├── create-task-dependency.dto.ts
+│   ├── task-dependency-response.dto.ts
+│   ├── create-task-custom-field-value.dto.ts
+│   ├── update-task-custom-field-value.dto.ts
+│   └── task-custom-field-value-response.dto.ts
+├── entities/
+│   ├── task.entity.ts (MODIFIED)
+│   ├── subtask.entity.ts
+│   ├── checklist.entity.ts
+│   ├── checklist-item.entity.ts
+│   ├── task-dependency.entity.ts
+│   └── task-custom-field-value.entity.ts
+├── tasks.controller.ts (MODIFIED)
+├── tasks.service.ts (MODIFIED)
+└── tasks.module.ts (MODIFIED)
+
+src/features/lists/
+├── dto/
+│   ├── create-custom-field.dto.ts (NEW)
+│   ├── update-custom-field.dto.ts (NEW)
+│   ├── custom-field-response.dto.ts (NEW)
+│   ├── create-filter-preset.dto.ts (NEW)
+│   ├── update-filter-preset.dto.ts (NEW)
+│   └── filter-preset-response.dto.ts (NEW)
+├── entities/
+│   ├── custom-field.entity.ts
+│   └── filter-preset.entity.ts
+├── lists.controller.ts (MODIFIED)
+├── lists.service.ts (MODIFIED)
+└── lists.module.ts (MODIFIED)
+```
+
+### Module Configuration
+
+**TasksModule:**
+```typescript
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      TaskEntity,
+      ListEntity,
+      StatusEntity,
+      TaskPriorityEntity,
+      AssignmentEntity,
+      TaskTagEntity,
+      TagEntity,
+      SubtaskEntity,
+      ChecklistEntity,
+      ChecklistItemEntity,
+      TaskDependencyEntity,
+      TaskCustomFieldValueEntity,
+      CustomFieldEntity,
+    ]),
+    AuthModule,
+  ],
+  controllers: [TasksController],
+  providers: [TasksService],
+  exports: [TasksService],
+})
+```
+
+**ListsModule:**
+```typescript
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      ListEntity,
+      StatusEntity,
+      ListTemplateEntity,
+      CustomFieldEntity,
+      FilterPresetEntity,
+    ]),
+    AuthModule,
+  ],
+  controllers: [ListsController],
+  providers: [ListsService],
+  exports: [ListsService],
+})
+```
+
+### REST Client Endpoints
+
+**File Modified:**
+- `rest_client.http`
+
+**New/Updated Sections:**
+
+**Tasks – CRUD & Operations:**
+- `POST /tasks` – Create task
+- `GET /tasks?listId=...&statusId=...&includeArchived=...&sortField=...&sortDirection=...&customFieldId=...` – Get tasks
+- `GET /tasks/:id` – Get task by ID
+- `PUT /tasks/:id` – Update task
+- `DELETE /tasks/:id` – Delete task
+- `PUT /tasks/:id/move` – Move task to different status
+- `POST /tasks/:id/archive` – Archive task
+- `POST /tasks/:id/unarchive` – Unarchive task
+- `POST /tasks/:id/assign` – Assign user to task
+- `DELETE /tasks/:id/assign/:userId` – Unassign user from task
+- `POST /tasks/:id/tags` – Add tag to task
+- `DELETE /tasks/:id/tags/:tagId` – Remove tag from task
+
+**Subtasks:**
+- `POST /tasks/subtasks` – Create subtask
+- `GET /tasks/:taskId/subtasks` – Get all subtasks for task
+- `GET /tasks/subtasks/:id` – Get subtask by ID
+- `PUT /tasks/subtasks/:id` – Update subtask
+- `DELETE /tasks/subtasks/:id` – Delete subtask
+- `PUT /tasks/subtasks/:id/move` – Move subtask to another task
+
+**Task Checklists:**
+- `POST /tasks/checklists` – Create checklist
+- `GET /tasks/:taskId/checklists` – Get all checklists for task
+- `GET /tasks/checklists/:id` – Get checklist by ID
+- `PUT /tasks/checklists/:id` – Update checklist
+- `DELETE /tasks/checklists/:id` – Delete checklist
+- `POST /tasks/checklist-items` – Create checklist item
+- `GET /tasks/:checklistId/checklist-items` – Get all items for checklist
+- `GET /tasks/checklist-items/:id` – Get checklist item by ID
+- `PUT /tasks/checklist-items/:id` – Update checklist item
+- `DELETE /tasks/checklist-items/:id` – Delete checklist item
+- `PUT /tasks/checklists/:checklistId/reorder-items` – Reorder checklist items
+
+**Filtering & Search:**
+- `POST /tasks/filter?sortField=...&sortDirection=...&customFieldId=...` – Filter tasks with complex conditions
+- `POST /tasks/search?sortField=...&sortDirection=...&customFieldId=...` – Search tasks by title/description
+
+**Task Dependencies:**
+- `POST /tasks/dependencies` – Create dependency (blocked_by or blocks)
+- `GET /tasks/:taskId/dependencies` – Get all dependencies for task
+- `GET /tasks/dependencies/:id` – Get dependency by ID
+- `DELETE /tasks/dependencies/:id` – Delete dependency
+
+**Custom Fields (Lists):**
+- `POST /lists/custom-fields` – Create custom field
+- `GET /lists/custom-fields?listId=...` – Get all custom fields for list
+- `GET /lists/custom-fields/:id` – Get custom field by ID
+- `PUT /lists/custom-fields/:id` – Update custom field
+- `DELETE /lists/custom-fields/:id` – Delete custom field
+
+**Task Custom Field Values:**
+- `POST /tasks/custom-field-values` – Create task custom field value
+- `GET /tasks/:taskId/custom-field-values` – Get all custom field values for task
+- `GET /tasks/custom-field-values/:id` – Get custom field value by ID
+- `PUT /tasks/custom-field-values/:id` – Update task custom field value
+- `DELETE /tasks/custom-field-values/:id` – Delete task custom field value
+
+**Filter Presets:**
+- `POST /lists/filter-presets` – Create filter preset
+- `GET /lists/filter-presets?listId=...` – Get all filter presets for user
+- `GET /lists/filter-presets/:id` – Get filter preset by ID
+- `PUT /lists/filter-presets/:id` – Update filter preset
+- `DELETE /lists/filter-presets/:id` – Delete filter preset
+
+All examples use `Authorization: Bearer {{accessToken}}` and realistic JSON payloads.
+
+### Key Implementation Highlights
+
+**1. Complex Querying:**
+- TypeORM QueryBuilder for dynamic filtering
+- Recursive filter group processing with AND/OR logic
+- Nested filter groups with unlimited depth
+- Efficient joins for related entity filtering
+
+**2. Circular Dependency Prevention:**
+- BFS algorithm for cycle detection
+- Prevents invalid dependency graphs
+- Handles both `blocks` and `blocked_by` relationship types
+
+**3. Type-Specific Validation:**
+- Custom field values validated based on field type
+- JSONB storage for flexible value types
+- Dropdown option validation
+- Date type handling (string or Date object)
+
+**4. Advanced Sorting:**
+- Subquery-based sorting for complex fields (assignee, custom fields)
+- Type-specific sorting for custom fields (text, number, date)
+- NULL value handling (unassigned tasks/fields appear last)
+- Secondary sorting by `orderPosition` for consistency
+
+**5. Route Ordering:**
+- Specific routes declared before generic parameter routes
+- Prevents routing conflicts (e.g., `subtasks/:id` vs `:id`)
+- Dependency, subtask, and checklist routes properly ordered
+
+**6. Security & Validation:**
+- JWT authentication on all endpoints
+- User-scoped filter presets
+- List validation for custom fields and dependencies
+- Type validation for all custom field values
+
+### Benefits
+
+**1. Feature Completeness:**
+- Complete task management system with rich metadata
+- Hierarchical task breakdown (subtasks)
+- Flexible checklist system
+- Advanced filtering and search capabilities
+- Multi-field sorting with complex field support
+
+**2. Data Integrity:**
+- Circular dependency prevention
+- Type validation for custom fields
+- Cascade delete handling
+- List-level validation for cross-entity operations
+
+**3. User Experience:**
+- Saved filter presets for quick access
+- Flexible custom fields per list
+- Multiple sorting options
+- Comprehensive search capabilities
+
+**4. Extensibility:**
+- Custom field system supports new field types
+- Filter system supports new filter fields
+- Sorting system supports new sort fields
+- Dependency system ready for Gantt chart visualization
+
+**5. Performance:**
+- Efficient querying with TypeORM QueryBuilder
+- Proper indexing on foreign keys (handled by TypeORM)
+- Optimized joins for related entities
+- Secondary sorting for consistent results
+
+### Next Steps
+
+After completing Phase 8, the application has:
+
+- ✅ Complete Kanban board functionality with tasks, statuses, and organization
+- ✅ Advanced task management with subtasks, checklists, and dependencies
+- ✅ Flexible custom field system per list
+- ✅ Powerful filtering and search capabilities
+- ✅ Comprehensive sorting options including assignee and custom fields
+- ✅ User-scoped filter presets for productivity
+
+**Ready for:** Phase 9 - Collaborative Features (Sharing/Teams, Comments, Attachments)
 
 ---
 

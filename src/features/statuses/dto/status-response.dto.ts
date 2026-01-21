@@ -1,2 +1,9 @@
-// Placeholder DTO - To be implemented after database schema
-export class StatusResponseDto {}
+export class StatusResponseDto {
+  id: string;
+  name: string;
+  orderIndex: number;
+  color: string | null;
+  listId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

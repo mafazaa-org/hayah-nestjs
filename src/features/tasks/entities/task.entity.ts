@@ -1,5 +1,5 @@
-import { ListEntity } from 'src/features/lists/entities/list.entity';
-import { StatusEntity } from 'src/features/statuses/entities/status.entity';
+import { ListEntity } from '../../lists/entities/list.entity';
+import { StatusEntity } from '../../statuses/entities/status.entity';
 import {
   Column,
   CreateDateColumn,
@@ -44,6 +44,27 @@ export class TaskEntity {
   })
   description: string | null;
 
+  @Column({
+    type: 'date',
+    name: 'due_date',
+    nullable: true,
+  })
+  dueDate: Date | null;
+
+  @Column({
+    type: 'integer',
+    name: 'order_position',
+    default: 0,
+  })
+  orderPosition: number;
+
+  @Column({
+    type: 'boolean',
+    name: 'is_archived',
+    default: false,
+  })
+  isArchived: boolean;
+
   @ManyToOne('ListEntity', {
     onDelete: 'CASCADE',
   })
@@ -55,7 +76,7 @@ export class TaskEntity {
     nullable: true,
   })
   @JoinColumn({ name: 'status_id' })
-  status: StatusEntity;
+  status: StatusEntity | null;
 
   @CreateDateColumn({
     type: 'timestamp',
@@ -100,7 +121,9 @@ export class TaskEntity {
   @OneToMany(() => ActivityEntity, (activity) => activity.task)
   activities: ActivityEntity[];
 
-  @ManyToOne(() => TaskPriorityEntity, (priority) => priority.id)
+  @ManyToOne(() => TaskPriorityEntity, {
+    nullable: true,
+  })
   @JoinColumn({ name: 'priority_id' })
   priority: TaskPriorityEntity | null;
 }

@@ -5,6 +5,7 @@ import { StatusEntity } from '../statuses/entities/status.entity';
 import { ListEntity } from './entities/list.entity';
 import { ListTemplateEntity } from './entities/list-template.entity';
 import { CustomFieldEntity } from './entities/custom-field.entity';
+import { FilterPresetEntity } from './entities/filter-preset.entity';
 import { ListsController } from './lists.controller';
 import { ListsService } from './lists.service';
 
@@ -15,6 +16,7 @@ import { ListsService } from './lists.service';
       StatusEntity,
       ListTemplateEntity,
       CustomFieldEntity,
+      FilterPresetEntity,
     ]),
     AuthModule,
   ],

@@ -1,19 +1,15 @@
 import { IsInt, IsOptional, IsString, IsUUID, Min, MinLength } from 'class-validator';
 
-export class CreateStatusDto {
+export class CreateChecklistItemDto {
   @IsString()
   @MinLength(1)
-  name: string;
+  title: string;
 
   @IsUUID()
-  listId: string;
+  checklistId: string;
 
   @IsOptional()
   @IsInt()
   @Min(0)
   orderIndex?: number;
-
-  @IsOptional()
-  @IsString()
-  color?: string;
 }
