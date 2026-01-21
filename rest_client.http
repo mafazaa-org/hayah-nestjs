@@ -1,0 +1,89 @@
+### Auth - Register
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+  "email": "test01@example.com",
+  "password": "test123456",
+  "name": "Test User"
+}
+
+### Auth - Login
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "test01@example.com",
+  "password": "test123456"
+}
+
+### Auth - Get Current Auth Payload (JWT)
+GET http://localhost:3000/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3OWUzMjhiNy0xODgyLTQ4ZjItYjk1My05ZmYxMzhiMGQyMzUiLCJlbWFpbCI6InRlc3QwMUBleGFtcGxlLmNvbSIsImlhdCI6MTc2OTAwMDY2MCwiZXhwIjoxNzY5MDA0MjYwfQ._GVmRIq5upALbOv9RogwTaBICRDBukoGVLnashL59UQ
+
+### Auth - Verify Email
+POST http://localhost:3000/auth/verify-email
+Content-Type: application/json
+
+{
+  "token": "4bcf837e8b05669c32ec6a547572fccdf8475bf3ec736193298bdeb4814e61ee"
+}
+
+### Auth - Request Password Reset
+POST http://localhost:3000/auth/request-password-reset
+Content-Type: application/json
+
+{
+  "email": "test01@example.com"
+}
+
+### Auth - Reset Password
+PUT http://localhost:3000/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "0ea6c66f49b41a0e18cd5354fb2fe0ee505bc7868bcece572b8fd634cabb9709",
+  "newPassword": "newPassword123"
+}
+
+### Users - Get Profile
+GET http://localhost:3000/users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
+
+### Users - Update Profile
+PUT http://localhost:3000/users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
+Content-Type: application/json
+
+{
+  "email": "updated@example.com",
+  "name": "Updated Name"
+}
+
+### Users - Change Password
+PUT http://localhost:3000/users/me/password
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
+Content-Type: application/json
+
+{
+  "currentPassword": "test123456",
+  "newPassword": "newPassword123"
+}
+
+### Users - Get Settings
+GET http://localhost:3000/users/me/settings
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
+
+### Users - Update Settings
+PUT http://localhost:3000/users/me/settings
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
+Content-Type: application/json
+
+{
+  "timezone": "America/New_York",
+  "language": "en",
+  "notificationPreferences": {
+    "email": true,
+    "push": false
+  }
+}

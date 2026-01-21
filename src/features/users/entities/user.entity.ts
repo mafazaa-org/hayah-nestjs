@@ -40,6 +40,41 @@ export class UserEntity {
   })
   name: string | null;
 
+  @Column({
+    type: 'boolean',
+    name: 'is_email_verified',
+    default: false,
+  })
+  isEmailVerified: boolean;
+
+  @Column({
+    type: 'text',
+    name: 'email_verification_token',
+    nullable: true,
+  })
+  emailVerificationToken: string | null;
+
+  @Column({
+    type: 'timestamp',
+    name: 'email_verification_token_expires_at',
+    nullable: true,
+  })
+  emailVerificationTokenExpiresAt: Date | null;
+
+  @Column({
+    type: 'text',
+    name: 'password_reset_token',
+    nullable: true,
+  })
+  passwordResetToken: string | null;
+
+  @Column({
+    type: 'timestamp',
+    name: 'password_reset_token_expires_at',
+    nullable: true,
+  })
+  passwordResetTokenExpiresAt: Date | null;
+
   @CreateDateColumn({
     type: 'timestamp',
     name: 'created_at',

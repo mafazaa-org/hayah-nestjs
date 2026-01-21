@@ -1,2 +1,7 @@
-// Placeholder DTO - To be implemented after database schema
-export class UserResponseDto {}
+export class UserResponseDto {
+  id: string;
+  email: string;
+  name: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}

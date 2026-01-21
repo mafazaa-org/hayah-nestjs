@@ -1055,7 +1055,324 @@ After completing Phase 4, the application has:
 
 ## Phase 5: Authorization & Authentication
 
-**Status:** Not Started
+**Status:** Completed  
+**Date Completed:** January 2026
+
+### Overview
+
+Phase 5 introduces a complete authentication and authorization layer on top of the existing TypeORM-based schema. It covers:
+
+- User registration and login with secure password hashing
+- JWT-based authentication (access tokens)
+- Route protection via guards and a reusable `@CurrentUser` decorator
+- User profile management (name, email, avatar placeholder)
+- User settings (timezone, language, notification preferences)
+- Optional flows for email verification and password reset
+
+### Objectives Completed
+
+#### 1. Auth Module (JWT-based Authentication) ✅
+
+**Files Modified/Created:**
+- `src/features/auth/auth.module.ts`
+- `src/features/auth/auth.service.ts`
+- `src/features/auth/auth.controller.ts`
+- `src/features/auth/jwt.strategy.ts`
+- `src/features/auth/jwt-auth.guard.ts`
+- `src/common/decorators/current-user.decorator.ts`
+- `src/features/auth/dto/create-auth.dto.ts`
+- `src/features/auth/dto/auth-response.dto.ts`
+- `src/features/auth/dto/verify-email.dto.ts`
+- `src/features/auth/dto/request-password-reset.dto.ts`
+- `src/features/auth/dto/reset-password.dto.ts`
+- `src/app.module.ts` (AuthModule already imported as part of Phase 2)
+
+**Implementation Details:**
+
+##### 1.1 AuthModule Wiring
+- Imported and configured:
+  - `ConfigModule` for env-driven secrets and expiration
+  - `PassportModule.register({ defaultStrategy: 'jwt' })`
+  - `JwtModule.registerAsync` with `ConfigService`:
+    - `secret` from `JWT_SECRET` (fallback `'dev-change-me'` for development)
+    - `signOptions.expiresIn` from `JWT_EXPIRES_IN` (numeric seconds, default `3600`)
+  - `TypeOrmModule.forFeature([UserEntity, AuthEntity])`
+- Registered providers:
+  - `AuthService`
+  - `JwtStrategy`
+- Exported `AuthService` for use by other modules if needed.
+
+##### 1.2 DTOs & Response Shapes
+- `CreateAuthDto`
+  - `email` (validated as email)
+  - `password` (string, `MinLength(8)`)
+  - `name` (optional string)
+- `AuthResponseDto`
+  - `accessToken` (JWT access token)
+  - `user` (object with `id`, `email`, `name | null`)
+
+##### 1.3 AuthService – Register & Login
+
+**Registration (`POST /auth/register`):**
+- Checks for existing user by email; throws `ConflictException` if found.
+- Hashes passwords using `bcrypt` with a salt (10 rounds).
+- Creates a new `UserEntity` with:
+  - `email`
+  - `passwordHash`
+  - `name` (nullable)
+  - Email verification fields initialized (see below).
+- Persists the user via `userRepository.save`.
+- Generates a JWT access token via `JwtService.sign` with payload:
+  - `sub`: user ID
+  - `email`: user email
+- Returns `AuthResponseDto` with token and basic user info.
+
+**Login (`POST /auth/login`):**
+- Looks up user by email.
+- Validates password using `bcrypt.compare`.
+- On failure, throws `UnauthorizedException` with generic “Invalid credentials”.
+- On success, generates access token using the same signing logic as registration.
+- Returns `AuthResponseDto`.
+
+##### 1.4 JWT Strategy & Guard
+
+- `JwtStrategy` (`src/features/auth/jwt.strategy.ts`):
+  - Extends `PassportStrategy(Strategy)` from `passport-jwt`.
+  - Extracts JWT from `Authorization: Bearer <token>` header.
+  - Validates token with secret from `JWT_SECRET`.
+  - `validate(payload)` returns:
+    - `{ userId: payload.sub, email: payload.email }`, which becomes `request.user`.
+
+- `JwtAuthGuard` (`src/features/auth/jwt-auth.guard.ts`):
+  - Extends `AuthGuard('jwt')` (Passport).
+  - Used with `@UseGuards(JwtAuthGuard)` to protect routes.
+
+##### 1.5 Current User Decorator
+
+- `@CurrentUser()` (`src/common/decorators/current-user.decorator.ts`):
+  - Extracts `request.user` from the `ExecutionContext`.
+  - Provides a convenient way to access the authenticated user payload in controllers.
+
+##### 1.6 AuthController Endpoints
+
+- `POST /auth/register`
+  - Body: `CreateAuthDto`
+  - Returns: `AuthResponseDto`
+
+- `POST /auth/login`
+  - Body: `CreateAuthDto` (email + password used)
+  - Returns: `AuthResponseDto`
+
+- `GET /auth/me`
+  - Protected with `@UseGuards(JwtAuthGuard)`
+  - Uses `@CurrentUser()` to return the JWT payload (`userId`, `email`).
+
+These endpoints are fully integrated, validated via `class-validator`, and protected where appropriate using `JwtAuthGuard`.
+
+#### 2. User Profile & Settings ✅
+
+**Files Modified/Created:**
+- `src/features/users/users.module.ts`
+- `src/features/users/users.service.ts`
+- `src/features/users/users.controller.ts`
+- `src/features/users/entities/user.entity.ts` (extended for auth features)
+- `src/features/users/entities/user-settings.entity.ts` (already present from Phase 4)
+- `src/features/users/dto/update-user.dto.ts`
+- `src/features/users/dto/change-password.dto.ts`
+- `src/features/users/dto/update-user-settings.dto.ts`
+- `src/features/users/dto/user-response.dto.ts`
+- `src/features/users/dto/user-settings-response.dto.ts`
+
+##### 2.1 UsersModule Integration
+
+- Imports:
+  - `TypeOrmModule.forFeature([UserEntity, UserSettingsEntity])`
+  - `AuthModule` (to reuse JWT guard/decorator patterns where needed)
+- Exports:
+  - `UsersService`
+
+##### 2.2 UserEntity Extensions
+
+`UserEntity` (`src/features/users/entities/user.entity.ts`) was extended to support:
+
+- Email verification fields:
+  - `isEmailVerified` (boolean, default `false`)
+  - `emailVerificationToken` (text, nullable)
+  - `emailVerificationTokenExpiresAt` (timestamp, nullable)
+- Password reset fields:
+  - `passwordResetToken` (text, nullable)
+  - `passwordResetTokenExpiresAt` (timestamp, nullable)
+
+These fields are used by the AuthService to handle optional email verification and password reset flows.
+
+##### 2.3 DTOs for Profile & Settings
+
+- `UpdateUserDto`
+  - Optional `email` (validated as email)
+  - Optional `name` (string)
+  - Optional `avatarUrl` (string placeholder for future file-upload integration)
+
+- `ChangePasswordDto`
+  - `currentPassword` (string, `MinLength(8)`)
+  - `newPassword` (string, `MinLength(8)`)
+
+- `UpdateUserSettingsDto`
+  - Optional `timezone` (string)
+  - Optional `language` (string)
+  - Optional `notificationPreferences` (object)
+
+- `UserResponseDto`
+  - `id`, `email`, `name`, `createdAt`, `updatedAt`
+
+- `UserSettingsResponseDto`
+  - `id`, `timezone`, `language`, `notificationPreferences`, `createdAt`, `updatedAt`
+
+##### 2.4 UsersService – Profile Management
+
+Key methods:
+
+- `getProfile(userId: string): Promise<UserResponseDto>`
+  - Looks up user by `id`, throws `NotFoundException` if missing.
+  - Returns DTO with basic profile fields.
+
+- `updateProfile(userId: string, updateUserDto: UpdateUserDto): Promise<UserResponseDto>`
+  - Loads user, throws `NotFoundException` if missing.
+  - If `email` is provided and changed:
+    - Checks for another user with the same email.
+    - Throws `ConflictException` if email is already taken.
+  - Updates `name` if provided.
+  - (Avatar handling left as a placeholder for future file-upload support.)
+  - Saves and returns updated DTO.
+
+- `changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<void>`
+  - Loads user, throws `NotFoundException` if missing.
+  - Verifies `currentPassword` using `bcrypt.compare`.
+  - On mismatch, throws `UnauthorizedException`.
+  - Hashes `newPassword` and updates `passwordHash`.
+  - Saves user.
+
+##### 2.5 UsersService – Settings Management
+
+Key methods:
+
+- `getUserSettings(userId: string): Promise<UserSettingsResponseDto>`
+  - Ensures user exists; throws `NotFoundException` otherwise.
+  - Attempts to load settings by user relation.
+  - If none exist, creates default settings tied to the user.
+  - Returns DTO with timezone, language, and notification preferences.
+
+- `updateUserSettings(userId: string, updateUserSettingsDto: UpdateUserSettingsDto): Promise<UserSettingsResponseDto>`
+  - Ensures user exists.
+  - Loads or creates `UserSettingsEntity` for the user.
+  - Applies partial updates for:
+    - `timezone`
+    - `language`
+    - `notificationPreferences` (object)
+  - Saves and returns updated DTO.
+
+##### 2.6 UsersController Endpoints (Protected by JWT)
+
+Controller-level:
+- `@Controller('users')`
+- `@UseGuards(JwtAuthGuard)` – all routes require authentication.
+
+Endpoints:
+
+- `GET /users/me`
+  - Uses `@CurrentUser()` to obtain `{ userId }` from JWT.
+  - Returns profile via `UsersService.getProfile`.
+
+- `PUT /users/me`
+  - Body: `UpdateUserDto`
+  - Uses `@CurrentUser()` to get `userId`.
+  - Returns updated profile via `UsersService.updateProfile`.
+
+- `PUT /users/me/password`
+  - Body: `ChangePasswordDto`
+  - Returns `204 No Content` on success.
+  - No body returned; errors are raised on invalid current password or missing user.
+
+- `GET /users/me/settings`
+  - Returns user settings via `UsersService.getUserSettings`.
+
+- `PUT /users/me/settings`
+  - Body: `UpdateUserSettingsDto`
+  - Returns updated settings DTO.
+
+#### 3. Optional Email Verification & Password Reset Flows ✅
+
+While full email delivery is not wired yet, the backend data and endpoints are ready for integration with a mail provider (e.g., Nodemailer + SMTP).
+
+**Email Verification:**
+- On registration:
+  - Generates `emailVerificationToken` (random 32-byte hex).
+  - Sets `emailVerificationTokenExpiresAt` to 24 hours in the future.
+  - Stores both on the user.
+  - Placeholder comment for sending verification email.
+
+- `POST /auth/verify-email`
+  - Body: `VerifyEmailDto` (`token` string).
+  - Looks up user by token.
+  - Validates:
+    - Token existence.
+    - Not already verified.
+    - Not expired.
+  - Marks user as verified:
+    - `isEmailVerified = true`
+    - Clears token and expiry fields.
+
+**Password Reset:**
+
+- `POST /auth/request-password-reset`
+  - Body: `RequestPasswordResetDto` (`email`).
+  - Looks up user by email.
+  - If user does not exist, returns silently (does not leak existence).
+  - Generates `passwordResetToken` and `passwordResetTokenExpiresAt` (1 hour).
+  - Saves user.
+  - Placeholder comment for sending reset email.
+
+- `PUT /auth/reset-password`
+  - Body: `ResetPasswordDto` (`token`, `newPassword`).
+  - Looks up user by `passwordResetToken`.
+  - Validates token existence and expiry.
+  - Hashes `newPassword`, updates `passwordHash`.
+  - Clears reset token and expiry fields.
+  - Saves user.
+
+### Benefits
+
+- **Security:**
+  - Passwords are hashed with `bcrypt`.
+  - JWTs provide stateless authentication with configurable expiration.
+  - Email verification and password reset tokens are time-limited and stored server-side.
+  - Errors avoid leaking whether a specific email exists during password reset.
+
+- **Developer Experience:**
+  - Clear separation between Auth and Users modules.
+  - Reusable `JwtAuthGuard` and `@CurrentUser` decorator.
+  - DTOs enforce input validation and provide stable response contracts.
+
+- **Extensibility:**
+  - Email verification and reset flows ready for integration with any email provider.
+  - User settings are flexible via `notificationPreferences` (JSON).
+  - Avatar support can be implemented later via file-upload endpoints referencing `avatarUrl`.
+
+- **Consistency:**
+  - All user-facing auth/profile/settings operations follow the same patterns:
+    - DTO validation
+    - Service-layer business logic
+    - Type-safe response DTOs
+
+### Next Steps
+
+After completing Phase 5, the application has:
+- ✅ Secure registration and login with JWTs
+- ✅ Protected routes via guards and a reusable current-user decorator
+- ✅ User profile endpoints (view & update)
+- ✅ User settings endpoints (view & update)
+- ✅ Optional email verification and password reset flows wired at the backend level
+
+**Ready for:** Phase 6 - Folders & Hierarchy Module
 
 ---
 
