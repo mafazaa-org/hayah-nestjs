@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -38,15 +39,23 @@ import { ChecklistEntity } from './entities/checklist.entity';
 import { ChecklistItemEntity } from './entities/checklist-item.entity';
 import { TaskDependencyEntity } from './entities/task-dependency.entity';
 import { TaskCustomFieldValueEntity } from './entities/task-custom-field-value.entity';
+import { ActivitiesService } from './services/activities.service';
+import { ActivityResponseDto } from './dto/activity-response.dto';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    private readonly tasksService: TasksService,
+    private readonly activitiesService: ActivitiesService,
+  ) {}
 
   @Post()
-  create(@Body() createTaskDto: CreateTaskDto): Promise<TaskEntity> {
-    return this.tasksService.create(createTaskDto);
+  create(
+    @CurrentUser() user: { userId: string },
+    @Body() createTaskDto: CreateTaskDto,
+  ): Promise<TaskEntity> {
+    return this.tasksService.create(createTaskDto, user.userId);
   }
 
   @Get()
@@ -267,63 +276,98 @@ export class TasksController {
   @Put(':id')
   update(
     @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
     @Body() updateTaskDto: UpdateTaskDto,
   ): Promise<TaskEntity> {
-    return this.tasksService.update(id, updateTaskDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string): Promise<void> {
-    return this.tasksService.remove(id);
+    return this.tasksService.update(id, updateTaskDto, user.userId);
   }
 
   @Put(':id/move')
   move(
     @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
     @Body() moveTaskDto: MoveTaskDto,
   ): Promise<TaskEntity> {
-    return this.tasksService.move(id, moveTaskDto);
+    return this.tasksService.move(id, moveTaskDto, user.userId);
+  }
+
+  @Delete(':id')
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+  ): Promise<void> {
+    return this.tasksService.remove(id, user.userId);
   }
 
   @Post(':id/archive')
-  archive(@Param('id') id: string): Promise<TaskEntity> {
-    return this.tasksService.archive(id);
+  archive(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+  ): Promise<TaskEntity> {
+    return this.tasksService.archive(id, user.userId);
   }
 
   @Post(':id/unarchive')
-  unarchive(@Param('id') id: string): Promise<TaskEntity> {
-    return this.tasksService.unarchive(id);
+  unarchive(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+  ): Promise<TaskEntity> {
+    return this.tasksService.unarchive(id, user.userId);
   }
 
   @Post(':id/assign')
   assignUser(
     @Param('id') taskId: string,
+    @CurrentUser() user: { userId: string },
     @Body() assignTaskDto: AssignTaskDto,
   ): Promise<AssignmentEntity> {
-    return this.tasksService.assignUser(taskId, assignTaskDto);
+    return this.tasksService.assignUser(taskId, assignTaskDto, user.userId);
   }
 
   @Delete(':id/assign/:userId')
   unassignUser(
     @Param('id') taskId: string,
     @Param('userId') userId: string,
+    @CurrentUser() user: { userId: string },
   ): Promise<void> {
-    return this.tasksService.unassignUser(taskId, userId);
+    return this.tasksService.unassignUser(taskId, userId, user.userId);
   }
 
   @Post(':id/tags')
   addTag(
     @Param('id') taskId: string,
+    @CurrentUser() user: { userId: string },
     @Body() addTagDto: AddTagToTaskDto,
   ): Promise<TaskTagEntity> {
-    return this.tasksService.addTag(taskId, addTagDto);
+    return this.tasksService.addTag(taskId, addTagDto, user.userId);
   }
 
   @Delete(':id/tags/:tagId')
   removeTag(
     @Param('id') taskId: string,
     @Param('tagId') tagId: string,
+    @CurrentUser() user: { userId: string },
   ): Promise<void> {
-    return this.tasksService.removeTag(taskId, tagId);
+    return this.tasksService.removeTag(taskId, tagId, user.userId);
+  }
+
+  // Activity endpoints - must come before :id route
+
+  @Get(':taskId/activities')
+  async findAllActivities(
+    @Param('taskId') taskId: string,
+  ): Promise<ActivityResponseDto[]> {
+    const activities = await this.activitiesService.findAllByTask(taskId);
+    return activities.map((activity) => ({
+      id: activity.id,
+      taskId: activity.task.id,
+      userId: activity.user.id,
+      userEmail: activity.user.email,
+      userName: activity.user.name,
+      actionType: activity.actionType,
+      oldValue: activity.oldValue,
+      newValue: activity.newValue,
+      createdAt: activity.createdAt,
+    }));
   }
 }

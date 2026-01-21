@@ -38,6 +38,7 @@ import { UpdateTaskCustomFieldValueDto } from './dto/update-task-custom-field-va
 import { TaskCustomFieldValueEntity } from './entities/task-custom-field-value.entity';
 import { CustomFieldEntity } from '../lists/entities/custom-field.entity';
 import { In } from 'typeorm';
+import { ActivitiesService } from './services/activities.service';
 
 @Injectable()
 export class TasksService {
@@ -68,9 +69,13 @@ export class TasksService {
     private readonly taskCustomFieldValueRepository: Repository<TaskCustomFieldValueEntity>,
     @InjectRepository(CustomFieldEntity)
     private readonly customFieldRepository: Repository<CustomFieldEntity>,
+    private readonly activitiesService: ActivitiesService,
   ) {}
 
-  async create(createTaskDto: CreateTaskDto): Promise<TaskEntity> {
+  async create(
+    createTaskDto: CreateTaskDto,
+    userId?: string,
+  ): Promise<TaskEntity> {
     const {
       title,
       description,
@@ -142,7 +147,20 @@ export class TasksService {
       isArchived: false,
     });
 
-    return this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task);
+
+    // Track activity
+    if (userId) {
+      await this.activitiesService.createActivity(
+        savedTask.id,
+        userId,
+        'task_created',
+        null,
+        { title: savedTask.title },
+      );
+    }
+
+    return savedTask;
   }
 
   async findAll(
@@ -380,15 +398,29 @@ export class TasksService {
     return task;
   }
 
-  async update(id: string, updateTaskDto: UpdateTaskDto): Promise<TaskEntity> {
+  async update(
+    id: string,
+    updateTaskDto: UpdateTaskDto,
+    userId?: string,
+  ): Promise<TaskEntity> {
     const task = await this.taskRepository.findOne({
       where: { id },
-      relations: ['list', 'status'],
+      relations: ['list', 'status', 'priority'],
     });
 
     if (!task) {
       throw new NotFoundException('Task not found');
     }
+
+    // Store old values for activity tracking
+    const oldValues: any = {
+      title: task.title,
+      description: task.description,
+      statusId: task.status?.id || null,
+      priorityId: task.priority?.id || null,
+      dueDate: task.dueDate,
+      orderPosition: task.orderPosition,
+    };
 
     if (updateTaskDto.title !== undefined) {
       task.title = updateTaskDto.title;
@@ -441,21 +473,89 @@ export class TasksService {
       task.orderPosition = updateTaskDto.orderPosition;
     }
 
-    return this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task);
+
+    // Track activity - only log changed fields
+    if (userId) {
+      const newValues: any = {};
+      const changedFields: string[] = [];
+
+      if (updateTaskDto.title !== undefined && oldValues.title !== savedTask.title) {
+        changedFields.push('title');
+        newValues.title = savedTask.title;
+      }
+      if (updateTaskDto.description !== undefined && oldValues.description !== savedTask.description) {
+        changedFields.push('description');
+        newValues.description = savedTask.description;
+      }
+      if (updateTaskDto.statusId !== undefined) {
+        const newStatusId = savedTask.status?.id || null;
+        if (oldValues.statusId !== newStatusId) {
+          changedFields.push('status');
+          newValues.statusId = newStatusId;
+        }
+      }
+      if (updateTaskDto.priorityId !== undefined) {
+        const newPriorityId = savedTask.priority?.id || null;
+        if (oldValues.priorityId !== newPriorityId) {
+          changedFields.push('priority');
+          newValues.priorityId = newPriorityId;
+        }
+      }
+      if (updateTaskDto.dueDate !== undefined) {
+        const newDueDate = savedTask.dueDate;
+        if (oldValues.dueDate?.getTime() !== newDueDate?.getTime()) {
+          changedFields.push('dueDate');
+          newValues.dueDate = newDueDate;
+        }
+      }
+      if (updateTaskDto.orderPosition !== undefined && oldValues.orderPosition !== savedTask.orderPosition) {
+        changedFields.push('orderPosition');
+        newValues.orderPosition = savedTask.orderPosition;
+      }
+
+      // Create activity entry for each changed field
+      for (const field of changedFields) {
+        await this.activitiesService.createActivity(
+          savedTask.id,
+          userId,
+          `task_${field}_updated`,
+          { [field]: oldValues[field] },
+          { [field]: newValues[field] },
+        );
+      }
+    }
+
+    return savedTask;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, userId?: string): Promise<void> {
     const task = await this.taskRepository.findOne({ where: { id } });
 
     if (!task) {
       throw new NotFoundException('Task not found');
     }
 
+    // Track activity before deletion
+    if (userId) {
+      await this.activitiesService.createActivity(
+        id,
+        userId,
+        'task_deleted',
+        { title: task.title },
+        null,
+      );
+    }
+
     // Cascade delete will handle related entities (subtasks, comments, attachments, etc.)
     await this.taskRepository.remove(task);
   }
 
-  async move(id: string, moveTaskDto: MoveTaskDto): Promise<TaskEntity> {
+  async move(
+    id: string,
+    moveTaskDto: MoveTaskDto,
+    userId?: string,
+  ): Promise<TaskEntity> {
     const task = await this.taskRepository.findOne({
       where: { id },
       relations: ['list', 'status'],
@@ -464,6 +564,9 @@ export class TasksService {
     if (!task) {
       throw new NotFoundException('Task not found');
     }
+
+    const oldStatusId = task.status?.id || null;
+    const oldOrderPosition = task.orderPosition;
 
     if (moveTaskDto.statusId !== undefined) {
       if (moveTaskDto.statusId === null) {
@@ -500,10 +603,39 @@ export class TasksService {
         existingTasks.length > 0 ? existingTasks[0].orderPosition + 1 : 0;
     }
 
-    return this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task);
+
+    // Track activity
+    if (userId) {
+      if (moveTaskDto.statusId !== undefined) {
+        const newStatusId = savedTask.status?.id || null;
+        if (oldStatusId !== newStatusId) {
+          await this.activitiesService.createActivity(
+            savedTask.id,
+            userId,
+            'task_status_changed',
+            { statusId: oldStatusId },
+            { statusId: newStatusId },
+          );
+        }
+      }
+      if (moveTaskDto.orderPosition !== undefined || (moveTaskDto.statusId !== undefined && oldOrderPosition !== savedTask.orderPosition)) {
+        if (oldOrderPosition !== savedTask.orderPosition) {
+          await this.activitiesService.createActivity(
+            savedTask.id,
+            userId,
+            'task_position_changed',
+            { orderPosition: oldOrderPosition },
+            { orderPosition: savedTask.orderPosition },
+          );
+        }
+      }
+    }
+
+    return savedTask;
   }
 
-  async archive(id: string): Promise<TaskEntity> {
+  async archive(id: string, userId?: string): Promise<TaskEntity> {
     const task = await this.taskRepository.findOne({ where: { id } });
 
     if (!task) {
@@ -515,10 +647,23 @@ export class TasksService {
     }
 
     task.isArchived = true;
-    return this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task);
+
+    // Track activity
+    if (userId) {
+      await this.activitiesService.createActivity(
+        savedTask.id,
+        userId,
+        'task_archived',
+        { isArchived: false },
+        { isArchived: true },
+      );
+    }
+
+    return savedTask;
   }
 
-  async unarchive(id: string): Promise<TaskEntity> {
+  async unarchive(id: string, userId?: string): Promise<TaskEntity> {
     const task = await this.taskRepository.findOne({ where: { id } });
 
     if (!task) {
@@ -530,12 +675,26 @@ export class TasksService {
     }
 
     task.isArchived = false;
-    return this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task);
+
+    // Track activity
+    if (userId) {
+      await this.activitiesService.createActivity(
+        savedTask.id,
+        userId,
+        'task_unarchived',
+        { isArchived: true },
+        { isArchived: false },
+      );
+    }
+
+    return savedTask;
   }
 
   async assignUser(
     taskId: string,
     assignTaskDto: AssignTaskDto,
+    actorUserId?: string,
   ): Promise<AssignmentEntity> {
     const task = await this.taskRepository.findOne({ where: { id: taskId } });
     if (!task) {
@@ -559,10 +718,27 @@ export class TasksService {
       user: { id: assignTaskDto.userId } as any,
     });
 
-    return this.assignmentRepository.save(assignment);
+    const savedAssignment = await this.assignmentRepository.save(assignment);
+
+    // Track activity
+    if (actorUserId) {
+      await this.activitiesService.createActivity(
+        taskId,
+        actorUserId,
+        'task_user_assigned',
+        null,
+        { userId: assignTaskDto.userId },
+      );
+    }
+
+    return savedAssignment;
   }
 
-  async unassignUser(taskId: string, userId: string): Promise<void> {
+  async unassignUser(
+    taskId: string,
+    userId: string,
+    actorUserId?: string,
+  ): Promise<void> {
     const assignment = await this.assignmentRepository.findOne({
       where: {
         task: { id: taskId },
@@ -577,9 +753,24 @@ export class TasksService {
     }
 
     await this.assignmentRepository.remove(assignment);
+
+    // Track activity
+    if (actorUserId) {
+      await this.activitiesService.createActivity(
+        taskId,
+        actorUserId,
+        'task_user_unassigned',
+        { userId },
+        null,
+      );
+    }
   }
 
-  async addTag(taskId: string, addTagDto: AddTagToTaskDto): Promise<TaskTagEntity> {
+  async addTag(
+    taskId: string,
+    addTagDto: AddTagToTaskDto,
+    userId?: string,
+  ): Promise<TaskTagEntity> {
     const task = await this.taskRepository.findOne({ where: { id: taskId } });
     if (!task) {
       throw new NotFoundException('Task not found');
@@ -609,15 +800,33 @@ export class TasksService {
       tag: { id: addTagDto.tagId } as any,
     });
 
-    return this.taskTagRepository.save(taskTag);
+    const savedTaskTag = await this.taskTagRepository.save(taskTag);
+
+    // Track activity
+    if (userId) {
+      await this.activitiesService.createActivity(
+        taskId,
+        userId,
+        'task_tag_added',
+        null,
+        { tagId: addTagDto.tagId, tagName: tag.name },
+      );
+    }
+
+    return savedTaskTag;
   }
 
-  async removeTag(taskId: string, tagId: string): Promise<void> {
+  async removeTag(
+    taskId: string,
+    tagId: string,
+    userId?: string,
+  ): Promise<void> {
     const taskTag = await this.taskTagRepository.findOne({
       where: {
         task: { id: taskId },
         tag: { id: tagId },
       },
+      relations: ['tag'],
     });
 
     if (!taskTag) {
@@ -626,7 +835,20 @@ export class TasksService {
       );
     }
 
+    const tagName = taskTag.tag.name;
+
     await this.taskTagRepository.remove(taskTag);
+
+    // Track activity
+    if (userId) {
+      await this.activitiesService.createActivity(
+        taskId,
+        userId,
+        'task_tag_removed',
+        { tagId, tagName },
+        null,
+      );
+    }
   }
 
   // Subtask methods

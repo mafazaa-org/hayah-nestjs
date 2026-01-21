@@ -3814,6 +3814,1054 @@ After completing Phase 8, the application has:
 
 ---
 
+## Phase 9: Collaborative Features ✅
+
+**Status:** Completed  
+**Date Completed:** January 2026
+
+### Overview
+
+Phase 9 implements comprehensive collaborative features enabling team-based task management. This phase includes:
+
+- **Sharing/Teams Module**: List member management with granular permission system (Owner, Editor, Viewer)
+- **Comments & Activity**: Task commenting with @mentions and comprehensive activity history tracking
+- **File Attachments**: File upload system supporting both task and comment attachments with validation and storage
+
+### Objectives Completed
+
+#### 1. Sharing/Teams Module ✅
+
+**Status:** Completed
+
+**Implementation Details:**
+
+This module enables users to share lists with team members, managing access through a role-based permission system. The implementation includes invite mechanisms, permission checking, and member management.
+
+##### 1.1 List Members Entity
+
+**Files Created:**
+- `src/features/lists/entities/list-member.entity.ts` (Existing entity, reviewed and utilized)
+
+**Entity Structure:**
+```typescript
+@Entity('list_members')
+export class ListMemberEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
+
+  @ManyToOne(() => ListEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'list_id' })
+  list: ListEntity;
+
+  @Column({
+    type: 'text',
+    enum: ['owner', 'editor', 'viewer'],
+  })
+  role: 'owner' | 'editor' | 'viewer';
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+}
+```
+
+**Key Features:**
+- Many-to-Many relationship between Users and Lists
+- Three permission levels: `owner`, `editor`, `viewer`
+- Automatic cascade deletion when user or list is deleted
+
+##### 1.2 Permission System
+
+**Files Created:**
+- `src/features/lists/dto/invite-user-to-list.dto.ts`
+- `src/features/lists/dto/update-list-member-role.dto.ts`
+- `src/features/lists/dto/list-member-response.dto.ts`
+- `src/features/lists/dto/list-permissions-response.dto.ts`
+
+**Permission Levels:**
+- **Owner**: Full access (view, edit, delete, invite, manage members)
+- **Editor**: Can view and edit (cannot delete list or manage member roles to owner)
+- **Viewer**: Read-only access (cannot modify list or tasks)
+
+**Permission Logic:**
+- Workspace owners automatically have full access to all lists in their workspace
+- Permission inheritance: workspace owner > list owner > list editor > list viewer
+- Explicit list membership required for non-workspace-owners
+
+**Code Implementation:**
+```typescript
+// Permission checking logic
+async checkUserPermission(
+  listId: string,
+  userId: string,
+): Promise<ListPermissionsResponseDto> {
+  // Check if user is workspace owner
+  const isWorkspaceOwner = list.workspace.owner.id === userId;
+  
+  if (isWorkspaceOwner) {
+    return { canView: true, canEdit: true, canDelete: true, role: 'owner' };
+  }
+  
+  // Check user's role in list
+  const role = await this.getUserListRole(listId, userId);
+  
+  switch (role) {
+    case 'owner': return { canView: true, canEdit: true, canDelete: true, role: 'owner' };
+    case 'editor': return { canView: true, canEdit: true, canDelete: false, role: 'editor' };
+    case 'viewer': return { canView: true, canEdit: false, canDelete: false, role: 'viewer' };
+    default: return { canView: false, canEdit: false, canDelete: false, role: null };
+  }
+}
+```
+
+##### 1.3 Invite User to List
+
+**Service Method:** `inviteUserToList`
+
+**Files Modified:**
+- `src/features/lists/lists.service.ts`
+- `src/features/lists/lists.controller.ts`
+- `src/features/lists/lists.module.ts`
+
+**Implementation Details:**
+- Invites users by email address
+- Validates inviter has edit permission (owner or editor)
+- Prevents duplicate invitations
+- Validates target user exists
+- Creates `ListMember` record with specified role
+
+**Validation Rules:**
+- Only owners and editors can invite users
+- Cannot invite user who is already a member
+- Email must belong to an existing user account
+
+**Code Implementation:**
+```typescript
+async inviteUserToList(
+  listId: string,
+  inviterUserId: string,
+  inviteUserToListDto: InviteUserToListDto,
+): Promise<ListMemberEntity> {
+  // Check inviter permissions
+  const inviterPermission = await this.checkUserPermission(listId, inviterUserId);
+  if (!inviterPermission.canEdit) {
+    throw new ForbiddenException('You do not have permission to invite users');
+  }
+  
+  // Find user by email
+  const user = await this.userRepository.findOne({ where: { email } });
+  
+  // Check for existing membership
+  const existingMember = await this.listMemberRepository.findOne({
+    where: { list: { id: listId }, user: { id: user.id } },
+  });
+  
+  if (existingMember) {
+    throw new BadRequestException('User is already a member');
+  }
+  
+  // Create membership
+  const listMember = this.listMemberRepository.create({
+    list: { id: listId },
+    user: { id: user.id },
+    role,
+  });
+  
+  return this.listMemberRepository.save(listMember);
+}
+```
+
+##### 1.4 List Member Management
+
+**Service Methods:**
+- `findAllListMembers(listId: string)` - Get all members of a list
+- `findOneListMember(id: string)` - Get single member by ID
+- `updateListMemberRole(id, updaterUserId, role)` - Update member's role
+- `removeListMember(id, removerUserId)` - Remove member from list
+
+**Role Update Rules:**
+- Only owners can assign `owner` role
+- Cannot change own role if you're the only owner
+- Editors can change roles to `editor` or `viewer` (not `owner`)
+- Must have edit permission to update roles
+
+**Removal Rules:**
+- Cannot remove the last owner of a list
+- Cannot remove yourself if you're the only owner
+- Requires edit permission to remove members
+- Self-removal allowed if not the last owner
+
+**Code Implementation:**
+```typescript
+async updateListMemberRole(
+  id: string,
+  updaterUserId: string,
+  updateListMemberRoleDto: UpdateListMemberRoleDto,
+): Promise<ListMemberEntity> {
+  // Check updater permissions
+  const updaterPermission = await this.checkUserPermission(member.list.id, updaterUserId);
+  if (!updaterPermission.canEdit) {
+    throw new ForbiddenException('You do not have permission to update member roles');
+  }
+  
+  // Only owners can assign owner role
+  if (role === 'owner' && updaterPermission.role !== 'owner') {
+    throw new ForbiddenException('Only owners can assign the owner role');
+  }
+  
+  // Prevent removing last owner
+  if (member.user.id === updaterUserId && member.role === 'owner') {
+    const ownerCount = await this.listMemberRepository.count({
+      where: { list: { id: member.list.id }, role: 'owner' },
+    });
+    if (ownerCount === 1 && role !== 'owner') {
+      throw new BadRequestException('Cannot change role: you are the only owner');
+    }
+  }
+  
+  member.role = role;
+  return this.listMemberRepository.save(member);
+}
+```
+
+**Endpoints:**
+- `POST /lists/:id/members/invite` - Invite user to list
+- `GET /lists/:id/members` - Get all list members
+- `GET /lists/members/:id` - Get single list member
+- `PUT /lists/members/:id/role` - Update member role
+- `DELETE /lists/members/:id` - Remove member from list
+- `GET /lists/:id/permissions` - Check user permissions for list
+
+#### 2. Comments & Activity ✅
+
+**Status:** Completed
+
+**Implementation Details:**
+
+This module enables users to comment on tasks, extract @mentions, and track all task-related activities for comprehensive history and audit trails.
+
+##### 2.1 Comments Module
+
+**Files Created:**
+- `src/features/comments/dto/create-comment.dto.ts`
+- `src/features/comments/dto/update-comment.dto.ts`
+- `src/features/comments/dto/comment-response.dto.ts`
+
+**Entity:** `CommentEntity` (existing, reviewed)
+
+**Comment Entity Structure:**
+```typescript
+@Entity('comments')
+export class CommentEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+  
+  @Column({ type: 'text' })
+  content: string;
+  
+  @ManyToOne(() => TaskEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'task_id' })
+  task: TaskEntity;
+  
+  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
+  
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+  
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+}
+```
+
+##### 2.2 Comment CRUD Operations
+
+**Service Methods:**
+
+**Create Comment (`create`):**
+- Validates task exists
+- Validates user exists
+- Creates comment with content
+- Extracts @mentions from content
+- Returns comment with attachments array
+
+**Get Comments (`findAllByTask`):**
+- Retrieves all comments for a task
+- Orders by creation date (ASC)
+- Includes user information
+- Includes extracted mentions
+- Includes attachments array for each comment
+- Uses parallel fetching for attachments (Promise.all)
+
+**Get Single Comment (`findOne`):**
+- Retrieves comment by ID
+- Includes user information
+- Includes extracted mentions
+- Includes attachments array
+
+**Update Comment (`update`):**
+- Validates user can modify comment (author, list owner/editor, or workspace owner)
+- Updates content if provided
+- Re-extracts mentions from updated content
+- Returns updated comment with attachments
+
+**Delete Comment (`remove`):**
+- Validates user can modify comment
+- Deletes comment (cascade deletes attachments)
+
+**Permission Checking:**
+```typescript
+private async canUserModifyComment(
+  commentId: string,
+  userId: string,
+): Promise<boolean> {
+  const comment = await this.commentRepository.findOne({
+    where: { id: commentId },
+    relations: ['task', 'task.list', 'user'],
+  });
+  
+  // Author can always modify
+  if (comment.user.id === userId) return true;
+  
+  // Check if user is list owner or editor
+  const list = await this.listRepository.findOne({
+    where: { id: comment.task.list.id },
+    relations: ['workspace', 'workspace.owner'],
+  });
+  
+  // Workspace owner can modify
+  if (list.workspace.owner.id === userId) return true;
+  
+  // Check list membership
+  const member = await this.listMemberRepository.findOne({
+    where: { list: { id: list.id }, user: { id: userId } },
+  });
+  
+  return member?.role === 'owner' || member?.role === 'editor';
+}
+```
+
+##### 2.3 @Mentions Extraction
+
+**Implementation:**
+- Extracts user mentions from comment content using regex patterns
+- Supports two formats:
+  - `@userId` - UUID format (e.g., `@550e8400-e29b-41d4-a716-446655440000`)
+  - `@email` - Email format (e.g., `@user@example.com`)
+
+**Code Implementation:**
+```typescript
+private extractMentions(content: string): string[] {
+  const mentions: string[] = [];
+  
+  // Match @userId (UUID format)
+  const userIdPattern = /@([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/gi;
+  
+  // Match @email format
+  const emailPattern = /@([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+  
+  let match;
+  while ((match = userIdPattern.exec(content)) !== null) {
+    mentions.push(match[1]);
+  }
+  
+  // Email mentions extracted (can be resolved to userIds in notification system)
+  while ((match = emailPattern.exec(content)) !== null) {
+    mentions.push(match[1]);
+  }
+  
+  return mentions;
+}
+```
+
+**Response Format:**
+Comments include a `mentions` array in the response:
+```typescript
+{
+  id: string;
+  taskId: string;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  content: string;
+  mentions: string[]; // Array of mentioned user IDs/emails
+  attachments: AttachmentResponseDto[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+##### 2.4 Activity Tracking System
+
+**Files Created:**
+- `src/features/tasks/services/activities.service.ts`
+- `src/features/tasks/dto/activity-response.dto.ts`
+
+**Activity Entity Structure:**
+```typescript
+@Entity('activities')
+export class ActivityEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+  
+  @Column({ type: 'text', name: 'action_type' })
+  actionType: string;
+  
+  @Column({ type: 'jsonb', name: 'old_value', nullable: true })
+  oldValue: any | null;
+  
+  @Column({ type: 'jsonb', name: 'new_value', nullable: true })
+  newValue: any | null;
+  
+  @ManyToOne(() => TaskEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'task_id' })
+  task: TaskEntity;
+  
+  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
+  
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+}
+```
+
+**Activities Service:**
+- `createActivity(taskId, userId, actionType, oldValue, newValue)` - Creates activity record
+- `findAllByTask(taskId)` - Retrieves all activities for a task (ordered by creation date DESC)
+
+**Activity Types Tracked:**
+- `task_created` - Task creation
+- `task_updated` - Task updates (granular tracking for title, description, status, priority, dueDate, orderPosition)
+- `task_deleted` - Task deletion
+- `task_status_changed` - Status change
+- `task_position_changed` - Position change
+- `task_archived` - Task archived
+- `task_unarchived` - Task unarchived
+- `task_user_assigned` - User assigned to task
+- `task_user_unassigned` - User unassigned from task
+- `task_tag_added` - Tag added to task
+- `task_tag_removed` - Tag removed from task
+- `task_attachment_uploaded` - File uploaded to task
+- `task_attachment_deleted` - File deleted from task
+- `comment_attachment_uploaded` - File uploaded to comment
+- `comment_attachment_deleted` - File deleted from comment
+
+**Activity Tracking Integration:**
+
+Activity tracking is integrated into `TasksService` methods:
+- All task modification methods accept optional `userId` parameter
+- Activities are created with old and new values for change tracking
+- Granular tracking for individual field changes
+
+**Example Implementation:**
+```typescript
+async update(
+  id: string,
+  updateTaskDto: UpdateTaskDto,
+  userId?: string,
+): Promise<TaskEntity> {
+  const task = await this.taskRepository.findOne({ where: { id } });
+  
+  // Track individual field changes
+  if (updateTaskDto.title !== undefined && updateTaskDto.title !== task.title) {
+    await this.activitiesService.createActivity(
+      id,
+      userId,
+      'task_title_changed',
+      { title: task.title },
+      { title: updateTaskDto.title },
+    );
+  }
+  
+  // ... update logic
+}
+```
+
+**Activity Feed Endpoint:**
+- `GET /tasks/:taskId/activities` - Get activity feed for a task
+
+**Activity Response Format:**
+```typescript
+{
+  id: string;
+  taskId: string;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  actionType: string;
+  oldValue: any | null;
+  newValue: any | null;
+  createdAt: Date;
+}
+```
+
+**Endpoints:**
+- `POST /comments` - Create comment
+- `GET /comments/task/:taskId` - Get all comments for task
+- `GET /comments/:id` - Get single comment
+- `PUT /comments/:id` - Update comment
+- `DELETE /comments/:id` - Delete comment
+- `GET /tasks/:taskId/activities` - Get activity feed
+
+#### 3. File Attachments ✅
+
+**Status:** Completed
+
+**Implementation Details:**
+
+This module provides comprehensive file attachment functionality supporting both task and comment attachments, with file validation, local storage, and preview/download capabilities.
+
+##### 3.1 Attachment Entity
+
+**Files Modified:**
+- `src/features/attachments/entities/attachment.entity.ts`
+
+**Entity Structure:**
+```typescript
+@Entity('attachments')
+export class AttachmentEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+  
+  @Column({ type: 'text', name: 'filename' })
+  filename: string;
+  
+  @Column({ type: 'text', name: 'url' })
+  url: string;
+  
+  @Column({ type: 'text', name: 'mime_type', nullable: true })
+  mimeType: string | null;
+  
+  @Column({ type: 'bigint', default: 0 })
+  size: number;
+  
+  @ManyToOne(() => TaskEntity, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'task_id' })
+  task: TaskEntity | null;
+  
+  @ManyToOne(() => CommentEntity, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'comment_id' })
+  comment: CommentEntity | null;
+  
+  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
+  
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+  
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+}
+```
+
+**Key Features:**
+- Supports both task and comment attachments (nullable relationships)
+- Automatic cascade deletion when task, comment, or user is deleted
+- Stores original filename, unique storage URL, MIME type, and file size
+- Tracks uploader (user) for audit purposes
+
+##### 3.2 File Upload to Tasks
+
+**Service Method:** `uploadFile(taskId, userId, file)`
+
+**Implementation Details:**
+- Validates task exists
+- Validates user exists
+- Validates file (size and MIME type)
+- Generates unique filename using `crypto.randomUUID()`
+- Saves file to local filesystem (configurable via `UPLOAD_PATH` environment variable)
+- Creates attachment record in database
+- Tracks activity (`task_attachment_uploaded`)
+- Returns attachment metadata
+
+**File Validation:**
+- **Size Limit:** 10MB maximum
+- **Allowed MIME Types:**
+  - Images: `image/jpeg`, `image/jpg`, `image/png`, `image/gif`, `image/webp`, `image/svg+xml`
+  - Documents: `application/pdf`, `application/msword`, `.docx`, `.xlsx`, `text/plain`, `text/csv`
+  - Archives: `application/zip`, `application/x-zip-compressed`, `application/x-rar-compressed`
+
+**File Storage:**
+- Default upload path: `process.cwd()/uploads`
+- Configurable via `UPLOAD_PATH` environment variable
+- Upload directory created automatically if it doesn't exist
+- Unique filename format: `{uuid}_{sanitized-original-name}.{ext}`
+
+**Code Implementation:**
+```typescript
+async uploadFile(
+  taskId: string,
+  userId: string,
+  file: { buffer: Buffer; originalname: string; mimetype?: string; size: number },
+): Promise<AttachmentResponseDto> {
+  // Validate task and user
+  const task = await this.taskRepository.findOne({ where: { id: taskId } });
+  const user = await this.userRepository.findOne({ where: { id: userId } });
+  
+  // Validate file
+  this.validateFile(file);
+  
+  // Generate unique filename
+  const uniqueFilename = this.generateUniqueFilename(file.originalname);
+  const filePath = path.join(this.uploadPath, uniqueFilename);
+  
+  // Save to disk
+  await fs.writeFile(filePath, file.buffer);
+  
+  // Create attachment record
+  const attachment = this.attachmentRepository.create({
+    task: { id: taskId },
+    comment: null,
+    user: { id: userId },
+    filename: file.originalname,
+    url: `/attachments/${uniqueFilename}`,
+    mimeType: file.mimetype || null,
+    size: file.size,
+  });
+  
+  const savedAttachment = await this.attachmentRepository.save(attachment);
+  
+  // Track activity
+  await this.activitiesService.createActivity(
+    taskId,
+    userId,
+    'task_attachment_uploaded',
+    null,
+    { attachmentId: savedAttachment.id, filename: savedAttachment.filename, size: savedAttachment.size },
+  );
+  
+  return attachmentResponseDto;
+}
+```
+
+##### 3.3 File Upload to Comments
+
+**Service Method:** `uploadFileToComment(commentId, userId, file)`
+
+**Implementation Details:**
+- Validates comment exists
+- Loads comment's task for activity tracking
+- Validates user exists
+- Validates file (size and MIME type)
+- Generates unique filename
+- Saves file to local filesystem
+- Creates attachment record with `comment_id` set (task is null for comment attachments)
+- Tracks activity on comment's task (`comment_attachment_uploaded`)
+- Returns attachment metadata
+
+**Code Implementation:**
+```typescript
+async uploadFileToComment(
+  commentId: string,
+  userId: string,
+  file: { buffer: Buffer; originalname: string; mimetype?: string; size: number },
+): Promise<AttachmentResponseDto> {
+  const comment = await this.commentRepository.findOne({
+    where: { id: commentId },
+    relations: ['task'],
+  });
+  
+  // Validate file
+  this.validateFile(file);
+  
+  // Save file (same process as task attachments)
+  
+  // Create attachment with comment reference
+  const attachment = this.attachmentRepository.create({
+    comment: { id: commentId },
+    task: null, // Comment attachments don't have direct task reference
+    user: { id: userId },
+    filename: file.originalname,
+    url: `/attachments/${uniqueFilename}`,
+    mimeType: file.mimetype || null,
+    size: file.size,
+  });
+  
+  // Track activity on comment's task
+  if (comment.task) {
+    await this.activitiesService.createActivity(
+      comment.task.id,
+      userId,
+      'comment_attachment_uploaded',
+      null,
+      { commentId, attachmentId: attachment.id, filename: attachment.filename, size: attachment.size },
+    );
+  }
+  
+  return attachmentResponseDto;
+}
+```
+
+##### 3.4 Attachment Retrieval
+
+**Service Methods:**
+
+**Get All Attachments for Task (`findAllByTask`):**
+- Validates task exists
+- Retrieves all attachments where `task_id` matches
+- Orders by creation date (DESC)
+- Returns array of `AttachmentResponseDto`
+
+**Get All Attachments for Comment (`findAllByComment`):**
+- Validates comment exists
+- Retrieves all attachments where `comment_id` matches
+- Orders by creation date (DESC)
+- Returns array of `AttachmentResponseDto`
+
+**Get Single Attachment (`findOne`):**
+- Retrieves attachment by ID
+- Includes user and task/comment relations
+- Returns `AttachmentResponseDto`
+
+**Response DTO:**
+```typescript
+export class AttachmentResponseDto {
+  id: string;
+  taskId: string | null;
+  commentId: string | null;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  filename: string;
+  url: string;
+  mimeType: string | null;
+  size: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+##### 3.5 File Download and Preview
+
+**Service Method:** `getFileBuffer(id)`
+
+**Implementation:**
+- Retrieves attachment by ID
+- Extracts filename from URL
+- Reads file from filesystem
+- Returns buffer, original filename, and MIME type
+
+**Download Endpoint:**
+- `GET /attachments/:id/download`
+- Sets `Content-Disposition: attachment` (forces download)
+- Sets appropriate `Content-Type` header
+- Sets `Content-Length` header
+
+**Preview Endpoint:**
+- `GET /attachments/:id/preview`
+- Sets `Content-Disposition: inline` (displays in browser)
+- Sets appropriate `Content-Type` header
+- Sets `Content-Length` header
+
+**Code Implementation:**
+```typescript
+async getFileBuffer(id: string): Promise<{
+  buffer: Buffer;
+  filename: string;
+  mimeType: string | null;
+}> {
+  const attachment = await this.attachmentRepository.findOne({ where: { id } });
+  
+  const urlFilename = attachment.url.replace('/attachments/', '');
+  const filePath = path.join(this.uploadPath, urlFilename);
+  
+  const buffer = await fs.readFile(filePath);
+  
+  return {
+    buffer,
+    filename: attachment.filename,
+    mimeType: attachment.mimeType,
+  };
+}
+```
+
+##### 3.6 File Deletion
+
+**Service Method:** `remove(id, userId?)`
+
+**Implementation:**
+- Retrieves attachment with relations (task, comment, comment.task)
+- Extracts taskId from either direct task relationship or comment's task
+- Deletes file from filesystem (continues if file doesn't exist)
+- Deletes attachment record from database
+- Tracks activity if `userId` provided and `taskId` available
+- Uses appropriate activity type based on attachment type (`task_attachment_deleted` or `comment_attachment_deleted`)
+
+**Code Implementation:**
+```typescript
+async remove(id: string, userId?: string): Promise<void> {
+  const attachment = await this.attachmentRepository.findOne({
+    where: { id },
+    relations: ['task', 'comment', 'comment.task'],
+  });
+  
+  // Get taskId from either task or comment's task
+  let taskId: string | null = null;
+  if (attachment.task) {
+    taskId = attachment.task.id;
+  } else if (attachment.comment?.task) {
+    taskId = attachment.comment.task.id;
+  }
+  
+  // Delete from filesystem
+  const urlFilename = attachment.url.replace('/attachments/', '');
+  const filePath = path.join(this.uploadPath, urlFilename);
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    // File might not exist, continue with database deletion
+  }
+  
+  // Delete database record
+  await this.attachmentRepository.remove(attachment);
+  
+  // Track activity
+  if (userId && taskId) {
+    await this.activitiesService.createActivity(
+      taskId,
+      userId,
+      attachment.comment ? 'comment_attachment_deleted' : 'task_attachment_deleted',
+      { attachmentId: id, filename: attachment.filename },
+      null,
+    );
+  }
+}
+```
+
+##### 3.7 Comments with Attachments
+
+**Integration with Comments:**
+
+Comments automatically include attachments in responses:
+- All comment endpoints return `attachments` array
+- Attachments are fetched in parallel using `Promise.all` for efficiency
+- Helper method `getCommentAttachments` safely handles attachment retrieval failures
+
+**Code Implementation:**
+```typescript
+private async getCommentAttachments(commentId: string) {
+  try {
+    return await this.attachmentsService.findAllByComment(commentId);
+  } catch (error) {
+    // If attachments service fails, return empty array
+    return [];
+  }
+}
+
+// In findAllByTask method:
+const commentsWithAttachments = await Promise.all(
+  comments.map(async (comment) => {
+    const attachments = await this.getCommentAttachments(comment.id);
+    return {
+      ...commentData,
+      attachments,
+    };
+  }),
+);
+```
+
+**Endpoints:**
+- `POST /attachments/task/:taskId/upload` - Upload file to task
+- `POST /attachments/comment/:commentId/upload` - Upload file to comment
+- `GET /attachments/task/:taskId` - Get all attachments for task
+- `GET /attachments/comment/:commentId` - Get all attachments for comment
+- `GET /attachments/:id` - Get attachment metadata
+- `GET /attachments/:id/download` - Download file
+- `GET /attachments/:id/preview` - Preview file in browser
+- `DELETE /attachments/:id` - Delete attachment
+
+##### 3.8 File Validation
+
+**Validation Rules:**
+- **Maximum File Size:** 10MB (10 * 1024 * 1024 bytes)
+- **MIME Type Validation:** Only allowed MIME types are accepted
+- **Error Messages:** Clear error messages indicating what validation failed
+
+**Code Implementation:**
+```typescript
+private validateFile(file: { size: number; mimetype?: string }): void {
+  // Check file size
+  if (file.size > MAX_FILE_SIZE) {
+    throw new BadRequestException(
+      `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / 1024 / 1024}MB`,
+    );
+  }
+  
+  // Check MIME type
+  if (file.mimetype && !ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    throw new BadRequestException(
+      `File type ${file.mimetype} is not allowed. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
+    );
+  }
+}
+```
+
+### Module Configurations
+
+#### Lists Module Updates
+
+**Files Modified:**
+- `src/features/lists/lists.module.ts`
+
+**Additions:**
+- Added `ListMemberEntity` and `UserEntity` to `TypeOrmModule.forFeature`
+- Enabled list member repository injection
+
+#### Comments Module Configuration
+
+**Files Modified:**
+- `src/features/comments/comments.module.ts`
+
+**Additions:**
+- Added `AttachmentsModule` to imports (to access `AttachmentsService`)
+- All necessary entities already included
+
+#### Attachments Module Configuration
+
+**Files Modified:**
+- `src/features/attachments/attachments.module.ts`
+
+**Additions:**
+- Added `CommentEntity` to `TypeOrmModule.forFeature`
+- Already includes `TasksModule` import for `ActivitiesService` access
+
+#### Tasks Module Updates
+
+**Files Modified:**
+- `src/features/tasks/tasks.module.ts`
+
+**Additions:**
+- Added `ActivityEntity` and `UserEntity` to `TypeOrmModule.forFeature`
+- Added `ActivitiesService` to providers and exports
+
+### Technical Highlights
+
+#### 1. Permission System
+
+- **Granular Permissions**: Three-tier permission system (Owner, Editor, Viewer)
+- **Workspace Owner Override**: Workspace owners have full access to all lists
+- **Permission Inheritance**: Clear hierarchy of permissions
+- **Security**: All permission checks performed server-side
+
+#### 2. Activity Tracking
+
+- **Comprehensive Tracking**: All task modifications tracked with old/new values
+- **Granular Field Changes**: Individual field changes tracked separately
+- **Actor Tracking**: Every activity records the user who performed the action
+- **Audit Trail**: Complete history of all task changes
+
+#### 3. File Attachments
+
+- **Dual Support**: Supports both task and comment attachments
+- **Unique Filenames**: UUID-based unique filename generation prevents conflicts
+- **Type Safety**: TypeScript inline types for Multer file objects
+- **Activity Integration**: Attachment uploads/deletions tracked in activity feed
+- **Error Handling**: Graceful handling of missing files during deletion
+
+#### 4. @Mentions System
+
+- **Multiple Formats**: Supports both UUID and email mention formats
+- **Extraction**: Regex-based mention extraction from comment content
+- **Ready for Notifications**: Mention extraction enables future notification system
+
+#### 5. Comment Attachments Integration
+
+- **Automatic Inclusion**: Attachments automatically included in comment responses
+- **Parallel Fetching**: Efficient parallel fetching using `Promise.all`
+- **Error Resilience**: Attachment fetching failures don't break comment retrieval
+
+### REST Client Examples
+
+**List Members:**
+```http
+### Invite User to List
+POST http://localhost:3000/lists/:id/members/invite
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "role": "editor"
+}
+
+### Get List Members
+GET http://localhost:3000/lists/:id/members
+Authorization: Bearer {{accessToken}}
+
+### Check Permissions
+GET http://localhost:3000/lists/:id/permissions
+Authorization: Bearer {{accessToken}}
+```
+
+**Comments:**
+```http
+### Create Comment
+POST http://localhost:3000/comments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskId": "task-uuid",
+  "content": "Great work! @550e8400-e29b-41d4-a716-446655440000"
+}
+
+### Get Task Comments
+GET http://localhost:3000/comments/task/:taskId
+Authorization: Bearer {{accessToken}}
+```
+
+**Attachments:**
+```http
+### Upload File to Task
+POST http://localhost:3000/attachments/task/:taskId/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data
+
+[file upload]
+
+### Upload File to Comment
+POST http://localhost:3000/attachments/comment/:commentId/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data
+
+[file upload]
+
+### Download File
+GET http://localhost:3000/attachments/:id/download
+Authorization: Bearer {{accessToken}}
+
+### Preview File
+GET http://localhost:3000/attachments/:id/preview
+Authorization: Bearer {{accessToken}}
+```
+
+**Activity Feed:**
+```http
+### Get Task Activity Feed
+GET http://localhost:3000/tasks/:taskId/activities
+Authorization: Bearer {{accessToken}}
+```
+
+### Next Steps
+
+After completing Phase 9, the application has:
+
+- ✅ Complete list sharing and collaboration system with role-based permissions
+- ✅ Task commenting system with @mentions and attachments
+- ✅ Comprehensive activity tracking and audit trail
+- ✅ File attachment system for both tasks and comments
+- ✅ Secure file upload, storage, and retrieval with validation
+
+**Ready for:** Phase 10 - Notifications & Real-time Updates
+
+---
+
 ## Notes
 
 - All completed phases are marked with ✅

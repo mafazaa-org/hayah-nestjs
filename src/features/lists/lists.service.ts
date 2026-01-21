@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -19,6 +20,12 @@ import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
 import { FilterPresetEntity } from './entities/filter-preset.entity';
 import { CreateFilterPresetDto } from './dto/create-filter-preset.dto';
 import { UpdateFilterPresetDto } from './dto/update-filter-preset.dto';
+import { ListMemberEntity } from './entities/list-member.entity';
+import { UserEntity } from '../users/entities/user.entity';
+import { InviteUserToListDto } from './dto/invite-user-to-list.dto';
+import { UpdateListMemberRoleDto } from './dto/update-list-member-role.dto';
+import { ListMemberResponseDto } from './dto/list-member-response.dto';
+import { ListPermissionsResponseDto } from './dto/list-permissions-response.dto';
 
 @Injectable()
 export class ListsService {
@@ -33,6 +40,10 @@ export class ListsService {
     private readonly customFieldRepository: Repository<CustomFieldEntity>,
     @InjectRepository(FilterPresetEntity)
     private readonly filterPresetRepository: Repository<FilterPresetEntity>,
+    @InjectRepository(ListMemberEntity)
+    private readonly listMemberRepository: Repository<ListMemberEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
   ) {}
 
   async create(createListDto: CreateListDto): Promise<ListEntity> {
@@ -585,5 +596,333 @@ export class ListsService {
     }
 
     await this.filterPresetRepository.remove(filterPreset);
+  }
+
+  // List Member (Sharing/Teams) Methods
+
+  /**
+   * Get user's role in a list
+   * Returns 'owner' | 'editor' | 'viewer' | null
+   */
+  async getUserListRole(
+    listId: string,
+    userId: string,
+  ): Promise<'owner' | 'editor' | 'viewer' | null> {
+    const listMember = await this.listMemberRepository.findOne({
+      where: {
+        list: { id: listId },
+        user: { id: userId },
+      },
+    });
+
+    return listMember ? listMember.role : null;
+  }
+
+  /**
+   * Check if user has permission to view/edit/delete a list
+   */
+  async checkUserPermission(
+    listId: string,
+    userId: string,
+  ): Promise<ListPermissionsResponseDto> {
+    const list = await this.listRepository.findOne({
+      where: { id: listId },
+      relations: ['workspace', 'workspace.owner'],
+    });
+
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    // Check if user is workspace owner (owner has full access to all lists)
+    const isWorkspaceOwner = list.workspace.owner.id === userId;
+
+    // Get user's role in the list
+    const role = await this.getUserListRole(listId, userId);
+
+    // Owner of workspace has full access
+    if (isWorkspaceOwner) {
+      return {
+        canView: true,
+        canEdit: true,
+        canDelete: true,
+        role: 'owner',
+      };
+    }
+
+    // Check permissions based on role
+    switch (role) {
+      case 'owner':
+        return {
+          canView: true,
+          canEdit: true,
+          canDelete: true,
+          role: 'owner',
+        };
+      case 'editor':
+        return {
+          canView: true,
+          canEdit: true,
+          canDelete: false,
+          role: 'editor',
+        };
+      case 'viewer':
+        return {
+          canView: true,
+          canEdit: false,
+          canDelete: false,
+          role: 'viewer',
+        };
+      default:
+        // No role - check if list is private
+        // Private lists are only accessible to workspace owner
+        // Shared lists might be accessible to all (if visibility is 'shared')
+        // For now, we'll require explicit membership
+        return {
+          canView: false,
+          canEdit: false,
+          canDelete: false,
+          role: null,
+        };
+    }
+  }
+
+  /**
+   * Invite user to list via email
+   */
+  async inviteUserToList(
+    listId: string,
+    inviterUserId: string,
+    inviteUserToListDto: InviteUserToListDto,
+  ): Promise<ListMemberEntity> {
+    const { email, role } = inviteUserToListDto;
+
+    // Check if inviter has permission to invite (must be owner or editor)
+    const inviterPermission = await this.checkUserPermission(
+      listId,
+      inviterUserId,
+    );
+    if (!inviterPermission.canEdit) {
+      throw new ForbiddenException(
+        'You do not have permission to invite users to this list',
+      );
+    }
+
+    // Find user by email
+    const user = await this.userRepository.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found with this email');
+    }
+
+    // Check if user is already a member
+    const existingMember = await this.listMemberRepository.findOne({
+      where: {
+        list: { id: listId },
+        user: { id: user.id },
+      },
+    });
+
+    if (existingMember) {
+      throw new BadRequestException('User is already a member of this list');
+    }
+
+    // Validate list exists
+    const list = await this.listRepository.findOne({
+      where: { id: listId },
+    });
+
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    // Create list member
+    const listMember = this.listMemberRepository.create({
+      list: { id: listId } as any,
+      user: { id: user.id } as any,
+      role,
+    });
+
+    return this.listMemberRepository.save(listMember);
+  }
+
+  /**
+   * Get all members of a list
+   */
+  async findAllListMembers(listId: string): Promise<ListMemberResponseDto[]> {
+    // Validate list exists
+    const list = await this.listRepository.findOne({
+      where: { id: listId },
+    });
+
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    const members = await this.listMemberRepository.find({
+      where: {
+        list: { id: listId },
+      },
+      relations: ['user', 'list'],
+      order: { createdAt: 'ASC' },
+    });
+
+    return members.map((member) => ({
+      id: member.id,
+      userId: member.user.id,
+      userEmail: member.user.email,
+      userName: member.user.name,
+      listId: member.list.id,
+      role: member.role,
+      createdAt: member.createdAt,
+    }));
+  }
+
+  /**
+   * Get single list member
+   */
+  async findOneListMember(id: string): Promise<ListMemberResponseDto> {
+    const member = await this.listMemberRepository.findOne({
+      where: { id },
+      relations: ['user', 'list'],
+    });
+
+    if (!member) {
+      throw new NotFoundException('List member not found');
+    }
+
+    return {
+      id: member.id,
+      userId: member.user.id,
+      userEmail: member.user.email,
+      userName: member.user.name,
+      listId: member.list.id,
+      role: member.role,
+      createdAt: member.createdAt,
+    };
+  }
+
+  /**
+   * Update list member role
+   */
+  async updateListMemberRole(
+    id: string,
+    updaterUserId: string,
+    updateListMemberRoleDto: UpdateListMemberRoleDto,
+  ): Promise<ListMemberEntity> {
+    const { role } = updateListMemberRoleDto;
+
+    // Find member
+    const member = await this.listMemberRepository.findOne({
+      where: { id },
+      relations: ['list'],
+    });
+
+    if (!member) {
+      throw new NotFoundException('List member not found');
+    }
+
+    // Check if updater has permission (must be owner or editor, and can only change role to viewer/editor, not owner)
+    const updaterPermission = await this.checkUserPermission(
+      member.list.id,
+      updaterUserId,
+    );
+    if (!updaterPermission.canEdit) {
+      throw new ForbiddenException(
+        'You do not have permission to update member roles',
+      );
+    }
+
+    // Only owners can assign owner role
+    if (role === 'owner' && updaterPermission.role !== 'owner') {
+      throw new ForbiddenException(
+        'Only owners can assign the owner role',
+      );
+    }
+
+    // Cannot change own role if you're the only owner
+    if (member.user.id === updaterUserId && member.role === 'owner') {
+      // Check if there are other owners
+      const ownerCount = await this.listMemberRepository.count({
+        where: {
+          list: { id: member.list.id },
+          role: 'owner',
+        },
+      });
+
+      if (ownerCount === 1 && role !== 'owner') {
+        throw new BadRequestException(
+          'Cannot change role: you are the only owner of this list',
+        );
+      }
+    }
+
+    member.role = role;
+    return this.listMemberRepository.save(member);
+  }
+
+  /**
+   * Remove user from list
+   */
+  async removeListMember(
+    id: string,
+    removerUserId: string,
+  ): Promise<void> {
+    // Find member
+    const member = await this.listMemberRepository.findOne({
+      where: { id },
+      relations: ['list', 'user'],
+    });
+
+    if (!member) {
+      throw new NotFoundException('List member not found');
+    }
+
+    // Check if remover has permission
+    const removerPermission = await this.checkUserPermission(
+      member.list.id,
+      removerUserId,
+    );
+    if (!removerPermission.canEdit) {
+      throw new ForbiddenException(
+        'You do not have permission to remove members from this list',
+      );
+    }
+
+    // Cannot remove the last owner
+    if (member.role === 'owner') {
+      const ownerCount = await this.listMemberRepository.count({
+        where: {
+          list: { id: member.list.id },
+          role: 'owner',
+        },
+      });
+
+      if (ownerCount === 1) {
+        throw new BadRequestException(
+          'Cannot remove the last owner of the list',
+        );
+      }
+    }
+
+    // Cannot remove yourself if you're the only owner
+    if (member.user.id === removerUserId && member.role === 'owner') {
+      const ownerCount = await this.listMemberRepository.count({
+        where: {
+          list: { id: member.list.id },
+          role: 'owner',
+        },
+      });
+
+      if (ownerCount === 1) {
+        throw new BadRequestException(
+          'Cannot remove yourself: you are the only owner of this list',
+        );
+      }
+    }
+
+    await this.listMemberRepository.remove(member);
   }
 }

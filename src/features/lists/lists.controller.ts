@@ -25,6 +25,11 @@ import { ListEntity } from './entities/list.entity';
 import { ListTemplateEntity } from './entities/list-template.entity';
 import { CustomFieldEntity } from './entities/custom-field.entity';
 import { FilterPresetEntity } from './entities/filter-preset.entity';
+import { ListMemberEntity } from './entities/list-member.entity';
+import { InviteUserToListDto } from './dto/invite-user-to-list.dto';
+import { UpdateListMemberRoleDto } from './dto/update-list-member-role.dto';
+import { ListMemberResponseDto } from './dto/list-member-response.dto';
+import { ListPermissionsResponseDto } from './dto/list-permissions-response.dto';
 
 @Controller('lists')
 @UseGuards(JwtAuthGuard)
@@ -151,6 +156,62 @@ export class ListsController {
     @Param('id') id: string,
   ): Promise<void> {
     return this.listsService.removeFilterPreset(id, user.userId);
+  }
+
+  // List Member (Sharing/Teams) endpoints - must come before templates/:id route
+
+  @Post(':id/members/invite')
+  inviteUserToList(
+    @Param('id') listId: string,
+    @CurrentUser() user: { userId: string },
+    @Body() inviteUserToListDto: InviteUserToListDto,
+  ): Promise<ListMemberEntity> {
+    return this.listsService.inviteUserToList(
+      listId,
+      user.userId,
+      inviteUserToListDto,
+    );
+  }
+
+  @Get(':id/members')
+  findAllListMembers(
+    @Param('id') listId: string,
+  ): Promise<ListMemberResponseDto[]> {
+    return this.listsService.findAllListMembers(listId);
+  }
+
+  @Get('members/:id')
+  findOneListMember(@Param('id') id: string): Promise<ListMemberResponseDto> {
+    return this.listsService.findOneListMember(id);
+  }
+
+  @Put('members/:id/role')
+  updateListMemberRole(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+    @Body() updateListMemberRoleDto: UpdateListMemberRoleDto,
+  ): Promise<ListMemberEntity> {
+    return this.listsService.updateListMemberRole(
+      id,
+      user.userId,
+      updateListMemberRoleDto,
+    );
+  }
+
+  @Delete('members/:id')
+  removeListMember(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+  ): Promise<void> {
+    return this.listsService.removeListMember(id, user.userId);
+  }
+
+  @Get(':id/permissions')
+  checkUserPermission(
+    @Param('id') listId: string,
+    @CurrentUser() user: { userId: string },
+  ): Promise<ListPermissionsResponseDto> {
+    return this.listsService.checkUserPermission(listId, user.userId);
   }
 
   @Post('templates')

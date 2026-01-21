@@ -955,3 +955,121 @@ Content-Type: application/json
 ### Filter Presets - Delete Filter Preset
 DELETE http://localhost:3000/lists/filter-presets/filter-preset-uuid-here
 Authorization: Bearer {{accessToken}}
+
+### List Members - Invite User to List
+POST http://localhost:3000/lists/list-uuid-here/members/invite
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "role": "editor"
+}
+
+### List Members - Get All List Members
+GET http://localhost:3000/lists/list-uuid-here/members
+Authorization: Bearer {{accessToken}}
+
+### List Members - Get List Member
+GET http://localhost:3000/lists/members/list-member-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### List Members - Update List Member Role
+PUT http://localhost:3000/lists/members/list-member-uuid-here/role
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "role": "viewer"
+}
+
+### List Members - Remove List Member
+DELETE http://localhost:3000/lists/members/list-member-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### List Members - Check User Permissions
+GET http://localhost:3000/lists/list-uuid-here/permissions
+Authorization: Bearer {{accessToken}}
+
+### Comments - Create Comment
+POST http://localhost:3000/comments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskId": "task-uuid-here",
+  "content": "This is a comment with @user@example.com mention"
+}
+
+### Comments - Get All Comments for Task
+GET http://localhost:3000/comments/task/task-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Comments - Get Comment
+GET http://localhost:3000/comments/comment-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Comments - Update Comment
+PUT http://localhost:3000/comments/comment-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "content": "Updated comment content"
+}
+
+### Comments - Delete Comment
+DELETE http://localhost:3000/comments/comment-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Activities - Get All Activities for Task
+GET http://localhost:3000/tasks/task-uuid-here/activities
+Authorization: Bearer {{accessToken}}
+
+### Attachments - Upload File to Task
+POST http://localhost:3000/attachments/task/task-uuid-here/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="example.pdf"
+Content-Type: application/pdf
+
+< ./example.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Attachments - Get All Attachments for Task
+GET http://localhost:3000/attachments/task/task-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Attachments - Upload File to Comment
+POST http://localhost:3000/attachments/comment/comment-uuid-here/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="example.png"
+Content-Type: image/png
+
+< ./example.png
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Attachments - Get All Attachments for Comment
+GET http://localhost:3000/attachments/comment/comment-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Attachments - Get Attachment
+GET http://localhost:3000/attachments/attachment-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Attachments - Download File
+GET http://localhost:3000/attachments/attachment-uuid-here/download
+Authorization: Bearer {{accessToken}}
+
+### Attachments - Preview File
+GET http://localhost:3000/attachments/attachment-uuid-here/preview
+Authorization: Bearer {{accessToken}}
+
+### Attachments - Delete Attachment
+DELETE http://localhost:3000/attachments/attachment-uuid-here
+Authorization: Bearer {{accessToken}}

@@ -16,6 +16,9 @@ import { TasksService } from './tasks.service';
 import { SubtaskEntity } from './entities/subtask.entity';
 import { TaskCustomFieldValueEntity } from './entities/task-custom-field-value.entity';
 import { CustomFieldEntity } from '../lists/entities/custom-field.entity';
+import { ActivityEntity } from './entities/activity.entity';
+import { UserEntity } from '../users/entities/user.entity';
+import { ActivitiesService } from './services/activities.service';
 
 @Module({
   imports: [
@@ -33,11 +36,13 @@ import { CustomFieldEntity } from '../lists/entities/custom-field.entity';
       TaskDependencyEntity,
       TaskCustomFieldValueEntity,
       CustomFieldEntity,
+      ActivityEntity,
+      UserEntity,
     ]),
     AuthModule,
   ],
   controllers: [TasksController],
-  providers: [TasksService],
-  exports: [TasksService],
+  providers: [TasksService, ActivitiesService],
+  exports: [TasksService, ActivitiesService],
 })
 export class TasksModule {}

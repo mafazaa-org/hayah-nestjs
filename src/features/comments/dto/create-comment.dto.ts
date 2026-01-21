@@ -1,2 +1,11 @@
-// Placeholder DTO - To be implemented after database schema
-export class CreateCommentDto {}
+import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+
+export class CreateCommentDto {
+  @IsUUID()
+  @IsNotEmpty()
+  taskId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+}
