@@ -1376,7 +1376,572 @@ After completing Phase 5, the application has:
 
 ---
 
-## Phase 6-16: Feature Implementation Phases
+## Phase 6: Folders & Hierarchy Module
+
+**Status:** Completed  
+**Date Completed:** January 2026
+
+### Overview
+
+Phase 6 implements the complete Folders & Hierarchy Module, enabling users to organize their lists within a nested folder structure. This module supports:
+
+- Full CRUD operations for folders with nesting support
+- Folder tree retrieval with hierarchical relationships
+- Folder movement within the hierarchy
+- Maximum depth constraints to prevent excessive nesting
+- Circular reference prevention to maintain data integrity
+- Cascade deletion of folders (which automatically deletes child folders and lists)
+
+### Objectives Completed
+
+#### 1. FoldersModule Configuration ✅
+
+**Files Modified:**
+- `src/features/folders/folders.module.ts`
+
+**Implementation Details:**
+- Added `TypeOrmModule.forFeature([FolderEntity])` for repository injection
+- Imported `AuthModule` for `JwtAuthGuard` usage
+- Exported `FoldersService` for potential use in other modules
+
+**Code Implementation:**
+```typescript
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([FolderEntity]),
+    AuthModule,
+  ],
+  controllers: [FoldersController],
+  providers: [FoldersService],
+  exports: [FoldersService],
+})
+export class FoldersModule {}
+```
+
+#### 2. DTOs Implementation ✅
+
+**Files Created/Modified:**
+- `src/features/folders/dto/create-folder.dto.ts`
+- `src/features/folders/dto/update-folder.dto.ts`
+- `src/features/folders/dto/move-folder.dto.ts`
+
+**DTO Specifications:**
+
+**CreateFolderDto:**
+- `name` (string, required) - Folder name
+- `workspaceId` (UUID, required) - Workspace to which the folder belongs
+- `parentFolderId` (UUID, optional) - Parent folder ID for nesting (null for root folders)
+
+**UpdateFolderDto:**
+- `name` (string, optional) - New folder name
+
+**MoveFolderDto:**
+- `parentFolderId` (UUID, optional, nullable) - New parent folder ID (null to make folder a root)
+
+#### 3. FoldersService Implementation ✅
+
+**Files Modified:**
+- `src/features/folders/folders.service.ts`
+
+**Service Methods:**
+
+##### 3.1 Create Folder (`create`)
+
+**Functionality:**
+- Creates a new folder with optional parent folder support for nesting
+- Validates parent depth before creation to prevent exceeding maximum depth
+
+**Implementation Details:**
+- Accepts `CreateFolderDto` with `name`, `workspaceId`, and optional `parentFolderId`
+- If `parentFolderId` is provided:
+  - Calculates parent folder depth using `calculateFolderDepth()`
+  - Throws `BadRequestException` if parent depth >= `MAX_FOLDER_DEPTH` (20 levels)
+- Creates folder entity with workspace and parent relationships
+- Saves folder to database via `folderRepository.save()`
+- Returns created `FolderEntity`
+
+**Code Snippet:**
+```typescript
+async create(createFolderDto: CreateFolderDto): Promise<FolderEntity> {
+  const { name, workspaceId, parentFolderId } = createFolderDto;
+
+  if (parentFolderId) {
+    const parentDepth = await this.calculateFolderDepth(parentFolderId);
+    if (parentDepth >= this.MAX_FOLDER_DEPTH) {
+      throw new BadRequestException(
+        `Maximum folder depth of ${this.MAX_FOLDER_DEPTH} levels would be exceeded`,
+      );
+    }
+  }
+
+  const folder = this.folderRepository.create({
+    name,
+    workspace: { id: workspaceId } as any,
+    parent: parentFolderId ? ({ id: parentFolderId } as any) : null,
+  });
+
+  return this.folderRepository.save(folder);
+}
+```
+
+##### 3.2 Get Single Folder (`findOne`)
+
+**Functionality:**
+- Retrieves a single folder by ID with full relationship data
+
+**Implementation Details:**
+- Accepts folder `id` (UUID)
+- Uses `folderRepository.findOne()` with relations:
+  - `parent` - Parent folder entity
+  - `children` - Child folders array
+  - `lists` - Lists contained in the folder
+- Throws `NotFoundException` if folder doesn't exist
+- Returns `FolderEntity` with populated relationships
+
+##### 3.3 Update Folder (`update`)
+
+**Functionality:**
+- Updates folder properties (currently only name)
+
+**Implementation Details:**
+- Accepts folder `id` and `UpdateFolderDto`
+- Loads folder from database
+- Throws `NotFoundException` if folder doesn't exist
+- Updates `name` if provided in DTO
+- Saves and returns updated folder
+
+##### 3.4 Move Folder (`move`)
+
+**Functionality:**
+- Moves a folder to a new parent (or makes it a root folder)
+- Includes comprehensive validation to prevent invalid moves
+
+**Implementation Details:**
+- Accepts folder `id` and `MoveFolderDto`
+- Loads folder and current parent relationship
+- Throws `NotFoundException` if folder doesn't exist
+- If `parentFolderId` is null/undefined:
+  - Sets `parent` to null (makes folder a root)
+  - Saves and returns
+- If `parentFolderId` equals folder `id`:
+  - Throws `BadRequestException`: "Folder cannot be its own parent"
+- Validates circular reference using `wouldCreateCircularReference()`:
+  - Prevents moving folder into its own descendant
+  - Throws `BadRequestException` if circular reference would be created
+- Validates depth:
+  - Calculates new parent depth
+  - Calculates resulting depth (new parent depth + 1)
+  - Throws `BadRequestException` if result would exceed `MAX_FOLDER_DEPTH`
+- Loads new parent folder
+- Throws `NotFoundException` if new parent doesn't exist
+- Updates folder's parent and saves
+
+**Code Snippet:**
+```typescript
+async move(id: string, moveFolderDto: MoveFolderDto): Promise<FolderEntity> {
+  // ... validation logic ...
+  
+  // Check circular reference
+  const wouldCreateCycle = await this.wouldCreateCircularReference(
+    id,
+    parentFolderId,
+  );
+  if (wouldCreateCycle) {
+    throw new BadRequestException(
+      'Cannot move folder: would create a circular reference',
+    );
+  }
+
+  // Check depth
+  const newParentDepth = await this.calculateFolderDepth(parentFolderId);
+  const newDepth = newParentDepth + 1;
+  if (newDepth > this.MAX_FOLDER_DEPTH) {
+    throw new BadRequestException(
+      `Maximum folder depth of ${this.MAX_FOLDER_DEPTH} levels would be exceeded`,
+    );
+  }
+  // ... move logic ...
+}
+```
+
+##### 3.5 Delete Folder (`remove`)
+
+**Functionality:**
+- Deletes a folder and all its contents (cascade behavior handled by database)
+
+**Implementation Details:**
+- Accepts folder `id`
+- Loads folder from database
+- Throws `NotFoundException` if folder doesn't exist
+- Uses `folderRepository.remove()` to delete folder
+- Cascade deletion automatically handled by database:
+  - Child folders are deleted (via `onDelete: 'CASCADE'` on `parent` relationship)
+  - Lists in folder are deleted (via `onDelete: 'CASCADE'` on `List.folder` relationship)
+
+##### 3.6 Get Workspace Folder Tree (`getWorkspaceTree`)
+
+**Functionality:**
+- Retrieves the folder hierarchy for a workspace
+
+**Implementation Details:**
+- Accepts `workspaceId`
+- Fetches root folders (folders with `parent = null`) for the workspace
+- Uses `IsNull()` TypeORM operator for null parent check
+- Loads `children` relation to get immediate child folders
+- Orders folders by name (ascending)
+- Returns array of root `FolderEntity[]` with nested children populated
+
+**Code Snippet:**
+```typescript
+async getWorkspaceTree(workspaceId: string): Promise<FolderEntity[]> {
+  const roots = await this.folderRepository.find({
+    where: {
+      workspace: { id: workspaceId } as any,
+      parent: IsNull(),
+    },
+    relations: ['children'],
+    order: { name: 'ASC' },
+  });
+
+  return roots;
+}
+```
+
+**Note:** Current implementation returns root folders with only immediate children. Can be optimized later for deeper recursion if needed (e.g., using recursive CTEs in PostgreSQL).
+
+##### 3.7 Depth Calculation Helper (`calculateFolderDepth`)
+
+**Functionality:**
+- Calculates the depth of a folder by walking up the parent chain
+- Detects circular references during traversal
+
+**Implementation Details:**
+- Accepts `folderId`
+- Initializes depth counter and visited set
+- Walks up parent chain:
+  - Loads folder with `parent` relation
+  - If parent exists, increments depth and continues
+  - Stops when parent is null (reached root)
+- Circular reference detection:
+  - Tracks visited folder IDs in a Set
+  - Throws `BadRequestException` if same folder is visited twice
+- Safety check:
+  - Prevents infinite loops with safety limit (`MAX_FOLDER_DEPTH * 2`)
+  - Throws `BadRequestException` if safety limit exceeded
+- Returns depth (0 for root folders, 1 for first-level children, etc.)
+
+**Code Snippet:**
+```typescript
+private async calculateFolderDepth(folderId: string): Promise<number> {
+  let depth = 0;
+  let currentFolderId: string | null = folderId;
+  const visited = new Set<string>();
+
+  while (currentFolderId) {
+    if (visited.has(currentFolderId)) {
+      throw new BadRequestException(
+        'Circular reference detected in folder hierarchy',
+      );
+    }
+
+    visited.add(currentFolderId);
+
+    const folder = await this.folderRepository.findOne({
+      where: { id: currentFolderId },
+      relations: ['parent'],
+    });
+
+    if (!folder || !folder.parent) {
+      break;
+    }
+
+    depth++;
+    currentFolderId = folder.parent.id;
+
+    // Safety check
+    if (depth > this.MAX_FOLDER_DEPTH * 2) {
+      throw new BadRequestException(
+        'Folder hierarchy depth calculation exceeded safety limit',
+      );
+    }
+  }
+
+  return depth;
+}
+```
+
+##### 3.8 Circular Reference Prevention Helper (`wouldCreateCircularReference`)
+
+**Functionality:**
+- Checks if moving a folder would create a circular reference in the hierarchy
+
+**Implementation Details:**
+- Accepts `folderId` (folder being moved) and `newParentId` (proposed new parent)
+- Walks up the parent chain from `newParentId`:
+  - If at any point `currentParentId === folderId`, returns `true` (circular reference would be created)
+  - Stops when root is reached (no more parents)
+- Uses visited set to avoid redundant checks
+- Returns `false` if no circular reference would be created
+
+**Code Snippet:**
+```typescript
+private async wouldCreateCircularReference(
+  folderId: string,
+  newParentId: string,
+): Promise<boolean> {
+  let currentParentId: string | null = newParentId;
+  const visited = new Set<string>();
+
+  while (currentParentId) {
+    if (currentParentId === folderId) {
+      return true; // Circular reference would be created
+    }
+
+    if (visited.has(currentParentId)) {
+      break; // Already checked this path
+    }
+
+    visited.add(currentParentId);
+
+    const parent = await this.folderRepository.findOne({
+      where: { id: currentParentId },
+      relations: ['parent'],
+    });
+
+    if (!parent || !parent.parent) {
+      break;
+    }
+
+    currentParentId = parent.parent.id;
+  }
+
+  return false;
+}
+```
+
+#### 4. FoldersController Implementation ✅
+
+**Files Modified:**
+- `src/features/folders/folders.controller.ts`
+
+**Controller Configuration:**
+- `@Controller('folders')` - Base route: `/folders`
+- `@UseGuards(JwtAuthGuard)` - All routes protected with JWT authentication
+
+**Endpoints:**
+
+##### 4.1 Create Folder
+- **Route:** `POST /folders`
+- **Body:** `CreateFolderDto`
+- **Response:** `FolderEntity`
+- **Functionality:** Creates a new folder (supports nesting via `parentFolderId`)
+
+##### 4.2 Get Folder
+- **Route:** `GET /folders/:id`
+- **Params:** `id` (UUID)
+- **Response:** `FolderEntity` (with `parent`, `children`, `lists` relations)
+- **Functionality:** Retrieves a single folder with all relationships
+
+##### 4.3 Update Folder
+- **Route:** `PUT /folders/:id`
+- **Params:** `id` (UUID)
+- **Body:** `UpdateFolderDto`
+- **Response:** `FolderEntity`
+- **Functionality:** Updates folder name
+
+##### 4.4 Move Folder
+- **Route:** `PUT /folders/:id/move`
+- **Params:** `id` (UUID)
+- **Body:** `MoveFolderDto`
+- **Response:** `FolderEntity`
+- **Functionality:** Moves folder to new parent or makes it root
+
+##### 4.5 Delete Folder
+- **Route:** `DELETE /folders/:id`
+- **Params:** `id` (UUID)
+- **Response:** `void` (204 No Content)
+- **Functionality:** Deletes folder (cascade deletes children and lists)
+
+##### 4.6 Get Workspace Tree
+- **Route:** `GET /folders/workspace/:workspaceId/tree`
+- **Params:** `workspaceId` (UUID)
+- **Response:** `FolderEntity[]`
+- **Functionality:** Retrieves root folders for a workspace with immediate children
+
+#### 5. Hierarchy Constraints Implementation ✅
+
+**Files Modified:**
+- `src/features/folders/folders.service.ts`
+
+##### 5.1 Maximum Depth Constraint
+
+**Configuration:**
+- Constant: `MAX_FOLDER_DEPTH = 20`
+- Represents practical limit (schema supports 100+ levels functionally)
+- Configurable via constant (can be made environment-driven if needed)
+
+**Depth Calculation:**
+- Root folders have depth 0
+- First-level children have depth 1
+- Maximum allowed depth: 19 (20th level)
+- Validation occurs in:
+  - `create()` - Checks parent depth before creating child
+  - `move()` - Checks resulting depth after move operation
+
+**Validation Logic:**
+- When creating: If `parentDepth >= MAX_FOLDER_DEPTH`, throw error
+- When moving: If `newDepth > MAX_FOLDER_DEPTH`, throw error
+- Error message: "Maximum folder depth of {MAX_FOLDER_DEPTH} levels would be exceeded"
+
+##### 5.2 Circular Reference Prevention
+
+**Protection Mechanisms:**
+1. **Self-parent prevention:**
+   - In `move()`: Checks if `parentFolderId === id`
+   - Throws: "Folder cannot be its own parent"
+
+2. **Descendant-parent prevention:**
+   - In `move()`: Uses `wouldCreateCircularReference()` to check if new parent is a descendant
+   - Throws: "Cannot move folder: would create a circular reference"
+
+3. **Circular detection during depth calculation:**
+   - In `calculateFolderDepth()`: Tracks visited folders
+   - Throws: "Circular reference detected in folder hierarchy" if cycle found
+
+**Algorithm:**
+- When moving folder A to parent B:
+  - Walk up from B's parent chain
+  - If we encounter A at any point, circular reference would be created
+  - Prevents scenarios like: A → B → C → A (invalid cycle)
+
+##### 5.3 Safety Mechanisms
+
+**Infinite Loop Prevention:**
+- `calculateFolderDepth()` includes safety limit: `MAX_FOLDER_DEPTH * 2`
+- Prevents infinite loops if unexpected circular reference exists
+- Throws error if safety limit exceeded during calculation
+
+**Validation Order in Move Operation:**
+1. Check folder exists
+2. Handle null parent case (make root)
+3. Check self-parent
+4. Check circular reference
+5. Check depth constraint
+6. Verify new parent exists
+7. Perform move
+
+### Key Implementation Details
+
+#### 1. TypeORM Query Patterns
+
+**Null Parent Query:**
+- Uses `IsNull()` operator from TypeORM for null checks
+- Example: `where: { parent: IsNull() }` finds root folders
+
+**Relationship Loading:**
+- Uses `relations` array in `findOne()` and `find()` to eagerly load:
+  - `parent` - Parent folder entity
+  - `children` - Array of child folders
+  - `lists` - Lists contained in folder
+
+**Ordering:**
+- Folders ordered by `name` (ascending) in tree queries
+- Enables consistent UI rendering
+
+#### 2. Error Handling
+
+**Exception Types:**
+- `NotFoundException`: Folder or parent not found
+- `BadRequestException`: Validation failures:
+  - Maximum depth exceeded
+  - Circular reference detected
+  - Self-parent attempt
+  - Safety limit exceeded
+
+**Error Messages:**
+- Descriptive messages explaining why operation failed
+- Includes relevant context (max depth limit, etc.)
+
+#### 3. Cascade Deletion
+
+**Database-Level Cascading:**
+- `FolderEntity.parent`: `onDelete: 'CASCADE'` - Deleting parent deletes children
+- `ListEntity.folder`: `onDelete: 'CASCADE'` - Deleting folder deletes lists
+- Ensures data consistency without manual cleanup
+
+**Service-Level:**
+- `remove()` uses `folderRepository.remove()` which respects cascade settings
+- No need to manually delete children or lists
+
+#### 4. Performance Considerations
+
+**Current Implementation:**
+- `getWorkspaceTree()` loads root folders with immediate children (2 levels)
+- Simple and efficient for typical use cases
+- Can be optimized for deeper trees if needed
+
+**Future Optimizations:**
+- PostgreSQL recursive CTEs for full tree loading
+- Caching for frequently accessed workspace trees
+- Pagination for workspaces with many root folders
+
+**Depth Calculation:**
+- Walks parent chain sequentially (one database query per level)
+- Acceptable for typical depths (< 20 levels)
+- Could be optimized with recursive queries or materialized paths if needed
+
+### Benefits
+
+**1. Data Integrity:**
+- Maximum depth constraint prevents excessive nesting
+- Circular reference prevention ensures valid hierarchy
+- Cascade deletion ensures consistent state
+
+**2. User Experience:**
+- Clear error messages for invalid operations
+- Efficient tree retrieval for UI rendering
+- Flexible folder organization (up to 20 levels)
+
+**3. Performance:**
+- Reasonable depth limits prevent performance issues
+- Efficient queries with proper relation loading
+- Ready for optimization when needed
+
+**4. Maintainability:**
+- Clear separation of concerns (service vs. controller)
+- Reusable helper methods (depth calculation, cycle detection)
+- Comprehensive validation logic
+
+### Directory Structure
+
+```
+src/features/folders/
+├── entities/
+│   └── folder.entity.ts
+├── dto/
+│   ├── create-folder.dto.ts
+│   ├── update-folder.dto.ts
+│   └── move-folder.dto.ts
+├── folders.controller.ts
+├── folders.service.ts
+└── folders.module.ts
+```
+
+### Next Steps
+
+After completing Phase 6, the application has:
+- ✅ Complete folder CRUD operations
+- ✅ Folder hierarchy management (create, move, delete)
+- ✅ Workspace folder tree retrieval
+- ✅ Maximum depth constraints (20 levels)
+- ✅ Circular reference prevention
+- ✅ Cascade deletion support
+
+**Ready for:** Phase 7 - Lists Management
+
+---
+
+## Phase 7-16: Feature Implementation Phases
 
 **Status:** Not Started
 

@@ -1,2 +1,13 @@
-// Placeholder DTO - To be implemented after database schema
-export class CreateFolderDto {}
+import { IsOptional, IsString, IsUUID } from 'class-validator';
+
+export class CreateFolderDto {
+  @IsString()
+  name: string;
+
+  @IsUUID()
+  workspaceId: string;
+
+  @IsOptional()
+  @IsUUID()
+  parentFolderId?: string;
+}
