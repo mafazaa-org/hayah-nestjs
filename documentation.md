@@ -1941,7 +1941,614 @@ After completing Phase 6, the application has:
 
 ---
 
-## Phase 7-16: Feature Implementation Phases
+## Phase 7: Lists Management
+
+**Status:** Completed  
+**Date Completed:** January 2026
+
+### Overview
+
+Phase 7 implements the complete Lists Management layer on top of the existing TypeORM schema. It turns the `ListEntity` into a fully functional, API-driven feature with:
+
+- CRUD operations for lists (create, read, update, delete)
+- Archiving and unarchiving of lists
+- Duplication of lists (with preparation for task duplication)
+- Per-list settings: description, visibility, and default view configuration
+- A reusable **List Templates** mechanism that allows saving and reusing list configurations
+
+This phase builds directly upon:
+
+- The ERD from Phase 4 (`ListEntity`, `StatusEntity`, `CustomFieldEntity`, etc.)
+- The authentication and user context from Phase 5 (`JwtAuthGuard`, `@CurrentUser`)
+- The organizational model from Phase 6 (folders and workspaces)
+
+### Objectives Completed
+
+#### 1. ListEntity Enhancements ✅
+
+**File Modified:**
+- `src/features/lists/entities/list.entity.ts`
+
+**New Columns & Settings:**
+
+- `description: string | null`
+  - Type: `text`
+  - Nullable: `true`
+  - Purpose: Human-readable description/summary of the list.
+
+- `isArchived: boolean`
+  - Type: `boolean`
+  - Column name: `is_archived`
+  - Default: `false`
+  - Purpose: Marks lists as archived without deleting them (soft-archive flag).
+
+- `visibility: 'private' | 'shared'`
+  - Type: `varchar(20)`
+  - Default: `private`
+  - Purpose: Controls high-level access semantics (private vs shared).
+
+- `defaultViewConfig: { type?: 'kanban' | 'table' | 'calendar'; [key: string]: any } | null`
+  - Type: `jsonb`
+  - Column name: `default_view_config`
+  - Nullable: `true`
+  - Purpose: Stores view configuration for the list (e.g., default view type or other layout details).
+
+**Existing Relationships (from Phase 4, unchanged structurally but now actively used):**
+
+- `folder: FolderEntity | null` (Many-To-One, `folder_id`, `onDelete: 'CASCADE'`)
+- `workspace: WorkspaceEntity` (Many-To-One, `workspace_id`, `onDelete: 'CASCADE'`)
+- `statuses: StatusEntity[]` (One-To-Many)
+- `tasks: TaskEntity[]` (One-To-Many)
+- `iterations: IterationEntity[]` (One-To-Many)
+- `customFields: CustomFieldEntity[]` (One-To-Many)
+- `views: ViewEntity[]` (One-To-Many)
+- `filterPresets: FilterPresetEntity[]` (One-To-Many)
+- `listMembers: ListMemberEntity[]` (One-To-Many)
+
+These enhancements enable:
+
+- Rich list descriptions
+- Archiving/unarchiving flows
+- Visibility semantics for sharing
+- Configurable default view behavior
+
+#### 2. Lists DTOs Implementation ✅
+
+**Files Created/Updated:**
+
+- `src/features/lists/dto/create-list.dto.ts`
+- `src/features/lists/dto/update-list.dto.ts`
+- `src/features/lists/dto/list-response.dto.ts`
+- `src/features/lists/dto/duplicate-list.dto.ts`
+- `src/features/lists/dto/create-list-template.dto.ts`
+- `src/features/lists/dto/list-template-response.dto.ts`
+- `src/features/lists/dto/create-list-from-template.dto.ts`
+
+**CreateListDto**
+
+- Fields:
+  - `name: string` (required, `@IsString()`, `@MinLength(1)`)
+  - `description?: string` (optional, `@IsOptional()`, `@IsString()`)
+  - `workspaceId: string` (required, `@IsUUID()`)
+  - `folderId?: string` (optional, `@IsOptional()`, `@IsUUID()`)
+  - `visibility?: 'private' | 'shared'` (optional, `@IsOptional()`, `@IsString()`)
+  - `defaultViewConfig?: { type?: 'kanban' | 'table' | 'calendar'; [key: string]: any }` (optional)
+
+**UpdateListDto**
+
+- Fields (all optional, partial update):
+  - `name?: string` (`@IsOptional()`, `@IsString()`, `@MinLength(1)`)
+  - `description?: string` (`@IsOptional()`, `@IsString()`)
+  - `visibility?: 'private' | 'shared'` (`@IsOptional()`, `@IsString()`)
+  - `defaultViewConfig?: { type?: 'kanban' | 'table' | 'calendar'; [key: string]: any }` (`@IsOptional()`)
+
+**ListResponseDto**
+
+- Represents the shape of a list when returned from the API:
+  - `id: string`
+  - `name: string`
+  - `description: string | null`
+  - `isArchived: boolean`
+  - `visibility: 'private' | 'shared'`
+  - `defaultViewConfig: { type?: 'kanban' | 'table' | 'calendar'; [key: string]: any } | null`
+  - `folderId: string | null`
+  - `workspaceId: string`
+  - `createdAt: Date`
+  - `updatedAt: Date`
+
+**DuplicateListDto**
+
+- Fields:
+  - `includeTasks?: boolean` (`@IsOptional()`, `@IsBoolean()`)
+  - Purpose: Controls whether tasks should be copied when duplicating a list (tasks are not yet implemented in duplication logic, but DTO is ready).
+
+**CreateListTemplateDto**
+
+- Fields:
+  - `name: string` (`@IsString()`, `@MinLength(1)`)
+  - `description?: string` (`@IsOptional()`, `@IsString()`)
+  - `isPublic?: boolean` (`@IsOptional()`, `@IsBoolean()`)
+  - `workspaceId?: string` (`@IsUUID()`)
+  - `templateConfig: { ... }` (`@IsObject()`)
+    - `statuses?: Array<{ name: string; orderIndex: number; color?: string }>`
+    - `customFields?: Array<{ name: string; type: 'text' | 'number' | 'date' | 'dropdown' | 'checkbox'; config?: any }>`
+    - `defaultViewConfig?: { type?: 'kanban' | 'table' | 'calendar'; [key: string]: any }`
+    - `visibility?: 'private' | 'shared'`
+    - `[key: string]: any` - extensible configuration.
+
+**ListTemplateResponseDto**
+
+- Fields:
+  - `id: string`
+  - `name: string`
+  - `description: string | null`
+  - `isPublic: boolean`
+  - `templateConfig: { ... }` (same structure as above)
+  - `userId: string`
+  - `workspaceId: string | null`
+  - `createdAt: Date`
+  - `updatedAt: Date`
+
+**CreateListFromTemplateDto**
+
+- Fields:
+  - `name: string` (`@IsString()`, `@MinLength(1)`)
+  - `description?: string` (`@IsOptional()`, `@IsString()`)
+  - `workspaceId: string` (`@IsUUID()`)
+  - `folderId?: string` (`@IsOptional()`, `@IsUUID()`)
+
+#### 3. ListsModule Configuration ✅
+
+**File Modified:**
+- `src/features/lists/lists.module.ts`
+
+**Implementation Details:**
+
+- Imported TypeORM entities:
+  - `ListEntity`
+  - `StatusEntity` (for default statuses and template-based statuses)
+  - `ListTemplateEntity` (new)
+  - `CustomFieldEntity` (for template-based custom fields)
+- Imported `AuthModule` for `JwtAuthGuard` and `@CurrentUser` usage.
+- Exported `ListsService` for use by other modules if needed.
+
+**Code Implementation:**
+
+```typescript
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      ListEntity,
+      StatusEntity,
+      ListTemplateEntity,
+      CustomFieldEntity,
+    ]),
+    AuthModule,
+  ],
+  controllers: [ListsController],
+  providers: [ListsService],
+  exports: [ListsService],
+})
+export class ListsModule {}
+```
+
+#### 4. ListTemplateEntity Implementation ✅
+
+**File Created:**
+- `src/features/lists/entities/list-template.entity.ts`
+
+**Purpose:**
+
+- Represents a reusable template for creating lists.
+- Encapsulates all configuration necessary to recreate a list structure:
+  - Statuses (columns)
+  - Custom fields
+  - Default view config
+  - Visibility and other settings
+
+**Columns:**
+
+- `id: string`
+  - UUID primary key.
+
+- `name: string`
+  - Human-friendly template name.
+
+- `description: string | null`
+  - Optional description of the template.
+
+- `isPublic: boolean`
+  - Indicates whether the template is public (available beyond its owner) or personal.
+
+- `templateConfig: jsonb`
+  - Column name: `template_config`
+  - Structure:
+    - `statuses?: Array<{ name: string; orderIndex: number; color?: string }>`
+    - `customFields?: Array<{ name: string; type: 'text' | 'number' | 'date' | 'dropdown' | 'checkbox'; config?: any }>`
+    - `defaultViewConfig?: { type?: 'kanban' | 'table' | 'calendar'; [key: string]: any }`
+    - `visibility?: 'private' | 'shared'`
+    - `[key: string]: any` (flexible for future options)
+
+- Timestamps:
+  - `createdAt: Date` (`@CreateDateColumn`, `created_at`)
+  - `updatedAt: Date` (`@UpdateDateColumn`, `updated_at`)
+
+**Relationships:**
+
+- `user: UserEntity`
+  - Many-To-One to `UserEntity`
+  - Join column: `user_id`
+  - `onDelete: 'CASCADE'` – deleting a user deletes its templates.
+
+- `workspace: WorkspaceEntity | null`
+  - Many-To-One to `WorkspaceEntity`
+  - Join column: `workspace_id`
+  - Nullable: `true` (templates can be global/user-level or workspace-specific).
+  - `onDelete: 'CASCADE'` – deleting a workspace deletes its templates.
+
+#### 5. ListsService Implementation ✅
+
+**File Modified:**
+- `src/features/lists/lists.service.ts`
+
+**Repositories Injected:**
+
+- `listRepository: Repository<ListEntity>`
+- `statusRepository: Repository<StatusEntity>`
+- `listTemplateRepository: Repository<ListTemplateEntity>`
+- `customFieldRepository: Repository<CustomFieldEntity>`
+
+**Core List Methods:**
+
+##### 5.1 Create List (`create`)
+
+- Accepts `CreateListDto`.
+- Creates a new `ListEntity` with:
+  - `name`
+  - `description` (nullable)
+  - `workspace` (via `{ id: workspaceId }`)
+  - `folder` (via `{ id: folderId }` or `null`)
+  - `visibility` (defaults to `'private'` if not provided)
+  - `defaultViewConfig` (nullable)
+  - `isArchived = false`
+- Persists using `listRepository.save`.
+- Calls `createDefaultStatuses(list.id)` to create default statuses: `Todo`, `Doing`, `Done`.
+- Returns the list reloaded via `findOne(list.id)` to include relations.
+
+##### 5.2 Find All Lists (`findAll`)
+
+- Signature: `findAll(workspaceId?: string, folderId?: string | null)`
+- Builds a dynamic `where` clause:
+  - If `workspaceId` is provided: filters by `workspace: { id: workspaceId }`.
+  - If `folderId` is provided and not `'null'`: filters by `folder: { id: folderId }`.
+  - If `folderId` is `'null'` or `null`: filters by `folder: IsNull()` (root lists).
+- Returns lists with `folder` and `workspace` relations loaded.
+- Ordered by `createdAt` descending.
+
+##### 5.3 Find One List (`findOne`)
+
+- Loads a single `ListEntity` by `id` with relations:
+  - `folder`
+  - `workspace`
+  - `statuses`
+- Throws `NotFoundException('List not found')` if missing.
+
+##### 5.4 Update List (`update`)
+
+- Accepts `id` and `UpdateListDto`.
+- Loads the list by `id`, throws `NotFoundException` if missing.
+- Applies partial updates:
+  - `name` (if provided)
+  - `description` (if provided, null if empty)
+  - `visibility` (if provided)
+  - `defaultViewConfig` (nullable)
+- Saves and returns the updated list.
+
+##### 5.5 Delete List (`remove`)
+
+- Loads list by `id`, throws `NotFoundException` if missing.
+- Uses `listRepository.remove(list)`:
+  - Cascade deletes related entities (statuses, tasks, etc.) as defined by ERD.
+
+##### 5.6 Archive / Unarchive List (`archive`, `unarchive`)
+
+- `archive(id: string)`:
+  - Loads list, throws `NotFoundException` if missing.
+  - If `isArchived` is already `true`, throws `BadRequestException('List is already archived')`.
+  - Sets `isArchived = true` and saves.
+
+- `unarchive(id: string)`:
+  - Loads list, throws `NotFoundException` if missing.
+  - If `isArchived` is already `false`, throws `BadRequestException('List is not archived')`.
+  - Sets `isArchived = false` and saves.
+
+##### 5.7 Duplicate List (`duplicate`)
+
+- Accepts:
+  - `id: string`
+  - `DuplicateListDto` (`includeTasks?: boolean`)
+- Loads original list with relations:
+  - `statuses`
+  - `tasks`
+  - `customFields`
+  - `folder`
+  - `workspace`
+- Throws `NotFoundException('List not found')` if original is missing.
+- Creates a new list with:
+  - `name: originalList.name + ' (Copy)'`
+  - `description: originalList.description`
+  - `workspace: originalList.workspace`
+  - `folder: originalList.folder`
+  - `visibility: originalList.visibility`
+  - `defaultViewConfig: deep-cloned from original (if present)`
+  - `isArchived = false`
+- Saves the new list.
+- Copies statuses:
+  - For each original `StatusEntity`, creates a new one with the same `name` and `orderIndex` targeting the new list.
+- If the original had no statuses, falls back to `createDefaultStatuses`.
+- Task duplication is intentionally deferred to Phase 8 (Tasks Module). The method is structured to accommodate that future extension.
+- Custom field duplication is similarly left as a future enhancement.
+- Returns the new list via `findOne(newList.id)`.
+
+##### 5.8 Default Status Creation Helper (`createDefaultStatuses`)
+
+- Private method used by:
+  - `create`
+  - `duplicate` (when original has no statuses)
+  - `createFromTemplate` (when template has no statuses)
+- Creates statuses:
+  - `Todo` (orderIndex: 0)
+  - `Doing` (orderIndex: 1)
+  - `Done` (orderIndex: 2)
+- Associates them with the given `listId`.
+
+#### 6. List Templates Service Logic ✅
+
+**Template Methods in `ListsService`:**
+
+##### 6.1 Create Template (`createTemplate`)
+
+- Signature: `createTemplate(userId: string, dto: CreateListTemplateDto)`
+- Creates a `ListTemplateEntity` with:
+  - `name`, `description`
+  - `isPublic` (default `false` if not provided)
+  - `templateConfig` (statuses, custom fields, view config, visibility)
+  - `user` relation via `{ id: userId }`
+  - `workspace` relation via `{ id: workspaceId }` when provided, else `null`
+- Saves and returns the template.
+
+##### 6.2 Find All Templates (`findAllTemplates`)
+
+- Signature: `findAllTemplates(userId?: string, workspaceId?: string, includePublic = true)`
+- Behavior:
+  - Initially queries templates filtered by:
+    - `user` (if `userId` provided)
+    - `workspace` (if `workspaceId` provided)
+  - If `includePublic` is `true` and `userId` is provided:
+    - Also loads all templates where `isPublic = true`.
+    - Merges results and deduplicates by `id`.
+- Returns templates with `user` and `workspace` relations hydrated.
+
+##### 6.3 Find Template (`findTemplate`)
+
+- Loads a template by `id` with `user` and `workspace` relations.
+- Throws `NotFoundException('Template not found')` if missing.
+
+##### 6.4 Create List from Template (`createFromTemplate`)
+
+- Signature: `createFromTemplate(templateId: string, dto: CreateListFromTemplateDto)`
+- Steps:
+  1. Loads template via `findTemplate(templateId)`.
+  2. (Optional) Placeholder for access-control checks when `!template.isPublic`.
+  3. Extracts `name`, `description`, `workspaceId`, `folderId` from DTO.
+  4. Extracts `templateConfig` from template.
+  5. Creates a new `ListEntity`:
+     - `name` from DTO
+     - `description` from DTO (nullable)
+     - `workspace` via `{ id: workspaceId }`
+     - `folder` via `{ id: folderId }` or `null`
+     - `visibility` from `templateConfig.visibility` (default `'private'`)
+     - `defaultViewConfig` from `templateConfig.defaultViewConfig` (nullable)
+     - `isArchived = false`
+  6. Saves the list.
+  7. Status creation:
+     - If `templateConfig.statuses` is present and non-empty:
+       - Creates `StatusEntity` records for each, with `name` + `orderIndex` for the new list.
+     - Else:
+       - Falls back to `createDefaultStatuses`.
+  8. Custom field creation:
+     - If `templateConfig.customFields` is present and non-empty:
+       - For each, creates a `CustomFieldEntity` with `name`, `type`, `config`, and `list: savedList`.
+  9. Returns the new list via `findOne(savedList.id)` with relations.
+
+#### 7. ListsController Implementation ✅
+
+**File Modified:**
+- `src/features/lists/lists.controller.ts`
+
+**Controller Configuration:**
+
+- `@Controller('lists')`
+- `@UseGuards(JwtAuthGuard)` – all list-related routes are protected by JWT.
+
+**Imports:**
+
+- `JwtAuthGuard` from `src/features/auth/jwt-auth.guard.ts`
+- `@CurrentUser` decorator from `src/common/decorators/current-user.decorator.ts`
+- DTOs: `CreateListDto`, `UpdateListDto`, `DuplicateListDto`, `CreateListTemplateDto`, `CreateListFromTemplateDto`
+- Entities: `ListEntity`, `ListTemplateEntity`
+
+**Endpoints:**
+
+##### 7.1 Create List
+
+- `POST /lists`
+- Body: `CreateListDto`
+- Response: `ListEntity`
+- Behavior: Delegates to `ListsService.create`.
+
+##### 7.2 Get Lists
+
+- `GET /lists`
+- Query parameters:
+  - `workspaceId?: string`
+  - `folderId?: string`
+- Response: `ListEntity[]`
+- Behavior: Delegates to `ListsService.findAll` with filtering by workspace/folder and special handling of `folderId=null` for root lists (handled in service via `IsNull()`).
+
+##### 7.3 Get Single List
+
+- `GET /lists/:id`
+- Path parameter: `id: string`
+- Response: `ListEntity`
+- Behavior: Delegates to `ListsService.findOne`.
+
+##### 7.4 Update List
+
+- `PUT /lists/:id`
+- Path parameter: `id: string`
+- Body: `UpdateListDto`
+- Response: `ListEntity`
+- Behavior: Delegates to `ListsService.update`.
+
+##### 7.5 Delete List
+
+- `DELETE /lists/:id`
+- Path parameter: `id: string`
+- Response: `void`
+- Behavior: Delegates to `ListsService.remove`.
+
+##### 7.6 Archive List
+
+- `POST /lists/:id/archive`
+- Path parameter: `id: string`
+- Response: `ListEntity`
+- Behavior: Sets `isArchived = true` via `ListsService.archive`.
+
+##### 7.7 Unarchive List
+
+- `POST /lists/:id/unarchive`
+- Path parameter: `id: string`
+- Response: `ListEntity`
+- Behavior: Sets `isArchived = false` via `ListsService.unarchive`.
+
+##### 7.8 Duplicate List
+
+- `POST /lists/:id/duplicate`
+- Path parameter: `id: string`
+- Body: `DuplicateListDto`
+- Response: `ListEntity`
+- Behavior: Delegates to `ListsService.duplicate` to clone list structure (statuses, base config; tasks to be handled in Phase 8).
+
+##### 7.9 Create Template
+
+- `POST /lists/templates`
+- Requires authentication (`JwtAuthGuard`) and uses `@CurrentUser` to get `{ userId }`.
+- Body: `CreateListTemplateDto`
+- Response: `ListTemplateEntity`
+- Behavior: Delegates to `ListsService.createTemplate`.
+
+##### 7.10 Get Templates
+
+- `GET /lists/templates`
+- Query parameters:
+  - `workspaceId?: string`
+  - `includePublic?: string` (treated as boolean; default: `true` if omitted)
+- Uses `@CurrentUser` for `userId`.
+- Response: `ListTemplateEntity[]`
+- Behavior: Delegates to `ListsService.findAllTemplates` with merged personal + public templates.
+
+##### 7.11 Get Template by ID
+
+- `GET /lists/templates/:id`
+- Path parameter: `id: string`
+- Response: `ListTemplateEntity`
+- Behavior: Delegates to `ListsService.findTemplate`.
+
+##### 7.12 Create List from Template
+
+- `POST /lists/templates/:id/create-list`
+- Path parameter: `id: string` (template ID)
+- Body: `CreateListFromTemplateDto`
+- Response: `ListEntity`
+- Behavior: Delegates to `ListsService.createFromTemplate`.
+
+#### 8. REST Client Endpoints ✅
+
+**File Modified:**
+- `rest_client.http`
+
+**New/Updated Sections:**
+
+- **Lists – CRUD & Settings**
+  - `POST /lists` – Create List
+  - `GET /lists?workspaceId=...&folderId=...` – Get Lists for workspace/folder
+  - `GET /lists?workspaceId=...&folderId=null` – Get root Lists (no folder)
+  - `GET /lists/{listId}` – Get List by ID
+  - `PUT /lists/{listId}` – Update List (name, description, visibility, defaultViewConfig)
+  - `DELETE /lists/{listId}` – Delete List
+  - `POST /lists/{listId}/archive` – Archive List
+  - `POST /lists/{listId}/unarchive` – Unarchive List
+  - `POST /lists/{listId}/duplicate` – Duplicate List (with `includeTasks` flag)
+
+- **List Templates**
+  - `POST /lists/templates` – Create template
+  - `GET /lists/templates?workspaceId=...&includePublic=true` – Get templates (personal + public)
+  - `GET /lists/templates/{templateId}` – Get a single template
+  - `POST /lists/templates/{templateId}/create-list` – Create list from template
+
+All examples are wired to use `Authorization: Bearer {{accessToken}}` and realistic JSON payloads, consistent with previous phases.
+
+### Benefits
+
+**1. Feature Completeness**
+
+- Lists are now first-class resources with:
+  - Full CRUD
+  - Archiving/unarchiving
+  - Duplication
+  - Rich settings (description, visibility, default view)
+
+**2. Reusability via Templates**
+
+- Teams can standardize list structures using templates:
+  - Predefined statuses
+  - Predefined custom fields
+  - Default view configuration and visibility
+- Templates can be:
+  - **User-scoped** (linked to a user)
+  - **Workspace-scoped** (linked to a workspace)
+  - **Public** (when `isPublic = true`)
+
+**3. Consistency with ERD and Phases 4–6**
+
+- Uses the existing:
+  - `StatusEntity` for columns
+  - `CustomFieldEntity` for per-list custom field definitions
+  - `WorkspaceEntity` and `FolderEntity` for organization
+- Honors cascade rules and relationships defined in Phase 4.
+
+**4. Extensibility**
+
+- Duplicate List and List Templates are structured to be extended in:
+  - Phase 8 (Tasks Module) to duplicate tasks, subtasks, checklists, etc.
+  - Future phases (Templates & Automation) for more advanced template workflows.
+
+### Next Steps
+
+After completing Phase 7, the application has:
+
+- ✅ Full list CRUD operations with rich metadata
+- ✅ Archive/unarchive semantics for lists
+- ✅ List duplication support (structure-focused, ready for task duplication)
+- ✅ Per-list visibility and default view configuration
+- ✅ A reusable List Templates system for creating standardized list setups
+
+**Ready for:** Phase 8 - Kanban Board Module
+
+---
+
+## Phase 8-16: Feature Implementation Phases
 
 **Status:** Not Started
 

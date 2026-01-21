@@ -34,6 +34,36 @@ export class ListEntity {
   })
   name: string;
 
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  description: string | null;
+
+  @Column({
+    type: 'boolean',
+    name: 'is_archived',
+    default: false,
+  })
+  isArchived: boolean;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'private',
+  })
+  visibility: 'private' | 'shared';
+
+  @Column({
+    type: 'jsonb',
+    name: 'default_view_config',
+    nullable: true,
+  })
+  defaultViewConfig: {
+    type?: 'kanban' | 'table' | 'calendar';
+    [key: string]: any;
+  } | null;
+
   @ManyToOne('FolderEntity', {
     onDelete: 'CASCADE',
     nullable: true,

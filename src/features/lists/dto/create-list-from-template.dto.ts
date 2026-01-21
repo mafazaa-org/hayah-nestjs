@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
-export class CreateListDto {
+export class CreateListFromTemplateDto {
   @IsString()
   @MinLength(1)
   name: string;
@@ -15,14 +15,4 @@ export class CreateListDto {
   @IsOptional()
   @IsUUID()
   folderId?: string;
-
-  @IsOptional()
-  @IsString()
-  visibility?: 'private' | 'shared';
-
-  @IsOptional()
-  defaultViewConfig?: {
-    type?: 'kanban' | 'table' | 'calendar';
-    [key: string]: any;
-  };
 }

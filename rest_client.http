@@ -87,3 +87,164 @@ Content-Type: application/json
     "push": false
   }
 }
+
+### Folders - Create Folder
+POST http://localhost:3000/folders
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "My Folder",
+  "workspaceId": "workspace-uuid-here",
+  "parentFolderId": null
+}
+
+### Folders - Get Folder
+GET http://localhost:3000/folders/folder-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Folders - Update Folder
+PUT http://localhost:3000/folders/folder-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated Folder Name"
+}
+
+### Folders - Move Folder
+PUT http://localhost:3000/folders/folder-uuid-here/move
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "parentFolderId": "new-parent-folder-uuid-here"
+}
+
+### Folders - Delete Folder
+DELETE http://localhost:3000/folders/folder-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Folders - Get Workspace Tree
+GET http://localhost:3000/folders/workspace/workspace-uuid-here/tree
+Authorization: Bearer {{accessToken}}
+
+### Lists - Create List
+POST http://localhost:3000/lists
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "My List",
+  "description": "List description",
+  "workspaceId": "workspace-uuid-here",
+  "folderId": "folder-uuid-here",
+  "visibility": "private",
+  "defaultViewConfig": {
+    "type": "kanban"
+  }
+}
+
+### Lists - Get All Lists
+GET http://localhost:3000/lists?workspaceId=workspace-uuid-here&folderId=folder-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Lists - Get All Lists (Root lists only)
+GET http://localhost:3000/lists?workspaceId=workspace-uuid-here&folderId=null
+Authorization: Bearer {{accessToken}}
+
+### Lists - Get List
+GET http://localhost:3000/lists/list-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Lists - Update List
+PUT http://localhost:3000/lists/list-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated List Name",
+  "description": "Updated description",
+  "visibility": "shared",
+  "defaultViewConfig": {
+    "type": "table"
+  }
+}
+
+### Lists - Delete List
+DELETE http://localhost:3000/lists/list-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Lists - Archive List
+POST http://localhost:3000/lists/list-uuid-here/archive
+Authorization: Bearer {{accessToken}}
+
+### Lists - Unarchive List
+POST http://localhost:3000/lists/list-uuid-here/unarchive
+Authorization: Bearer {{accessToken}}
+
+### Lists - Duplicate List (without tasks)
+POST http://localhost:3000/lists/list-uuid-here/duplicate
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "includeTasks": false
+}
+
+### Lists - Duplicate List (with tasks)
+POST http://localhost:3000/lists/list-uuid-here/duplicate
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "includeTasks": true
+}
+
+### Lists - Create Template
+POST http://localhost:3000/lists/templates
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "My Template",
+  "description": "A template for project management",
+  "isPublic": false,
+  "workspaceId": "workspace-uuid-here",
+  "templateConfig": {
+    "statuses": [
+      { "name": "Backlog", "orderIndex": 0, "color": "#gray" },
+      { "name": "In Progress", "orderIndex": 1, "color": "#blue" },
+      { "name": "Review", "orderIndex": 2, "color": "#yellow" },
+      { "name": "Done", "orderIndex": 3, "color": "#green" }
+    ],
+    "customFields": [
+      { "name": "Story Points", "type": "number" },
+      { "name": "Sprint", "type": "text" }
+    ],
+    "defaultViewConfig": {
+      "type": "kanban"
+    },
+    "visibility": "private"
+  }
+}
+
+### Lists - Get All Templates
+GET http://localhost:3000/lists/templates?workspaceId=workspace-uuid-here&includePublic=true
+Authorization: Bearer {{accessToken}}
+
+### Lists - Get Template
+GET http://localhost:3000/lists/templates/template-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Lists - Create List from Template
+POST http://localhost:3000/lists/templates/template-uuid-here/create-list
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "My New List from Template",
+  "description": "Created from template",
+  "workspaceId": "workspace-uuid-here",
+  "folderId": "folder-uuid-here"
+}
