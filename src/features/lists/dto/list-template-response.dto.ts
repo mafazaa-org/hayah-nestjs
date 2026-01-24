@@ -15,7 +15,7 @@ export class ListTemplateResponseDto {
       config?: any;
     }>;
     defaultViewConfig?: {
-      type?: 'kanban' | 'table' | 'calendar';
+      type?: 'kanban' | 'table' | 'calendar' | 'timeline';
       [key: string]: any;
     };
     visibility?: 'private' | 'shared';

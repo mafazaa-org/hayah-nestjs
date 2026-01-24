@@ -5,7 +5,7 @@ export class ListResponseDto {
   isArchived: boolean;
   visibility: 'private' | 'shared';
   defaultViewConfig: {
-    type?: 'kanban' | 'table' | 'calendar';
+    type?: 'kanban' | 'table' | 'calendar' | 'timeline';
     [key: string]: any;
   } | null;
   folderId: string | null;

@@ -1401,7 +1401,31 @@ export class TasksService {
 
     // Apply complex filters
     if (filters) {
-      this.applyFilterGroup(queryBuilder, filters, 'and');
+      const customFieldIds = this.collectCustomFieldIds(filters);
+      let customFieldMap = new Map<string, { type: string }>();
+      if (customFieldIds.size > 0) {
+        const customFields = await this.customFieldRepository.find({
+          where: { id: In(Array.from(customFieldIds)) },
+          relations: ['list'],
+        });
+        for (const cf of customFields) {
+          if (listId && (cf.list as any)?.id !== listId) {
+            throw new BadRequestException(
+              `Custom field ${cf.id} does not belong to the specified list`,
+            );
+          }
+          customFieldMap.set(cf.id, { type: cf.type });
+        }
+        const foundIds = new Set(customFields.map((c) => c.id));
+        const missing = Array.from(customFieldIds).filter((id) => !foundIds.has(id));
+        if (missing.length) {
+          throw new BadRequestException(
+            `Custom field(s) not found: ${missing.join(', ')}`,
+          );
+        }
+      }
+      const context = { customFields: customFieldMap, paramCounter: 0 };
+      this.applyFilterGroup(queryBuilder, filters, 'and', context);
     }
 
     // Apply sorting
@@ -1491,10 +1515,23 @@ export class TasksService {
     return queryBuilder.getMany();
   }
 
+  private collectCustomFieldIds(filterGroup: FilterGroupDto): Set<string> {
+    const ids = new Set<string>();
+    const visit = (g: FilterGroupDto) => {
+      for (const c of g.conditions ?? []) {
+        if (c.field === 'customField' && c.customFieldId) ids.add(c.customFieldId);
+      }
+      for (const nested of g.groups ?? []) visit(nested);
+    };
+    visit(filterGroup);
+    return ids;
+  }
+
   private applyFilterGroup(
     queryBuilder: any,
     filterGroup: FilterGroupDto,
     defaultLogic: 'and' | 'or' = 'and',
+    context?: { customFields: Map<string, { type: string }>; paramCounter: number },
   ): void {
     const logic = filterGroup.logic || defaultLogic;
 
@@ -1503,11 +1540,11 @@ export class TasksService {
       filterGroup.groups.forEach((nestedGroup, groupIndex) => {
         if (groupIndex === 0) {
           queryBuilder[logic === 'or' ? 'orWhere' : 'andWhere']((qb: any) => {
-            this.applyFilterGroup(qb, nestedGroup, nestedGroup.logic);
+            this.applyFilterGroup(qb, nestedGroup, nestedGroup.logic, context);
           });
         } else {
           queryBuilder[logic === 'or' ? 'orWhere' : 'andWhere']((qb: any) => {
-            this.applyFilterGroup(qb, nestedGroup, nestedGroup.logic);
+            this.applyFilterGroup(qb, nestedGroup, nestedGroup.logic, context);
           });
         }
       });
@@ -1516,7 +1553,13 @@ export class TasksService {
     // Handle conditions
     if (filterGroup.conditions && filterGroup.conditions.length > 0) {
       filterGroup.conditions.forEach((condition, index) => {
-        this.applyFilterCondition(queryBuilder, condition, logic, index > 0 || (filterGroup.groups && filterGroup.groups.length > 0));
+        this.applyFilterCondition(
+          queryBuilder,
+          condition,
+          logic,
+          index > 0 || (filterGroup.groups && filterGroup.groups.length > 0),
+          context,
+        );
       });
     }
   }
@@ -1526,6 +1569,7 @@ export class TasksService {
     condition: FilterConditionDto,
     logic: 'and' | 'or',
     useOr: boolean = false,
+    context?: { customFields: Map<string, { type: string }>; paramCounter: number },
   ): void {
     const method = useOr ? 'orWhere' : 'andWhere';
 
@@ -1550,6 +1594,12 @@ export class TasksService {
         break;
       case 'isArchived':
         this.applyArchivedFilter(queryBuilder, condition, method);
+        break;
+      case 'customField':
+        if (context) {
+          const idx = context.paramCounter++;
+          this.applyCustomFieldFilter(queryBuilder, condition, method, context, idx);
+        }
         break;
     }
   }
@@ -1724,6 +1774,183 @@ export class TasksService {
   private applyArchivedFilter(queryBuilder: any, condition: FilterConditionDto, method: string): void {
     const isArchived = condition.value === true || condition.value === 'true';
     queryBuilder[method]('task.isArchived = :isArchived', { isArchived });
+  }
+
+  private applyCustomFieldFilter(
+    queryBuilder: any,
+    condition: FilterConditionDto,
+    method: string,
+    context: { customFields: Map<string, { type: string }>; paramCounter: number },
+    idx: number,
+  ): void {
+    const cfId = condition.customFieldId!;
+    const meta = context.customFields.get(cfId);
+    if (!meta) {
+      throw new BadRequestException(`Custom field ${cfId} not found or not usable for filtering`);
+    }
+    const t = meta.type;
+    const cfIdParam = `cfId_${idx}`;
+    const cfValParam = `cfVal_${idx}`;
+    const cfValsParam = `cfVals_${idx}`;
+
+    const base = `EXISTS (SELECT 1 FROM task_custom_field_values cfv WHERE cfv.task_id = task.id AND cfv.custom_field_id = :${cfIdParam}`;
+
+    switch (condition.operator) {
+      case FilterOperator.IS_NULL:
+        queryBuilder[method](`NOT ${base})`, { [cfIdParam]: cfId });
+        return;
+      case FilterOperator.IS_NOT_NULL:
+        queryBuilder[method](`${base})`, { [cfIdParam]: cfId });
+        return;
+    }
+
+    const val = condition.value;
+    if (val === undefined || val === null) return;
+
+    if (t === 'text' || t === 'dropdown') {
+      switch (condition.operator) {
+        case FilterOperator.EQUALS:
+          queryBuilder[method](
+            `${base} AND (cfv.value #>> '{}') = :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: String(val) },
+          );
+          break;
+        case FilterOperator.NOT_EQUALS:
+          queryBuilder[method](
+            `${base} AND (cfv.value #>> '{}') != :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: String(val) },
+          );
+          break;
+        case FilterOperator.IN:
+          if (Array.isArray(val)) {
+            const arr = (val as unknown[]).map((x) => String(x));
+            queryBuilder[method](
+              `${base} AND (cfv.value #>> '{}') IN (:...${cfValsParam}))`,
+              { [cfIdParam]: cfId, [cfValsParam]: arr },
+            );
+          }
+          break;
+        case FilterOperator.NOT_IN:
+          if (Array.isArray(val)) {
+            const arr = (val as unknown[]).map((x) => String(x));
+            const baseNotIn = `EXISTS (SELECT 1 FROM task_custom_field_values cfv WHERE cfv.task_id = task.id AND cfv.custom_field_id = :${cfIdParam} AND (cfv.value #>> '{}') NOT IN (:...${cfValsParam}))`;
+            queryBuilder[method](
+              `(NOT ${base}) OR ${baseNotIn}`,
+              { [cfIdParam]: cfId, [cfValsParam]: arr },
+            );
+          }
+          break;
+        case FilterOperator.CONTAINS:
+          queryBuilder[method](
+            `${base} AND (cfv.value #>> '{}') ILIKE :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: `%${String(val)}%` },
+          );
+          break;
+        default:
+          break;
+      }
+      return;
+    }
+
+    if (t === 'number') {
+      const n = Array.isArray(val) ? Number((val as unknown[])[0]) : Number(val);
+      if (Number.isNaN(n)) return;
+      switch (condition.operator) {
+        case FilterOperator.EQUALS:
+          queryBuilder[method](
+            `${base} AND ((cfv.value #>> '{}')::numeric) = :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: n },
+          );
+          break;
+        case FilterOperator.NOT_EQUALS:
+          queryBuilder[method](
+            `${base} AND ((cfv.value #>> '{}')::numeric) != :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: n },
+          );
+          break;
+        case FilterOperator.IN:
+          if (Array.isArray(val)) {
+            const arr = (val as unknown[]).map((x) => Number(x)).filter((x) => !Number.isNaN(x));
+            if (arr.length) {
+              queryBuilder[method](
+                `${base} AND ((cfv.value #>> '{}')::numeric) IN (:...${cfValsParam}))`,
+                { [cfIdParam]: cfId, [cfValsParam]: arr },
+              );
+            }
+          }
+          break;
+        case FilterOperator.NOT_IN:
+          if (Array.isArray(val)) {
+            const arr = (val as unknown[]).map((x) => Number(x)).filter((x) => !Number.isNaN(x));
+            if (arr.length) {
+              const baseNotIn = `EXISTS (SELECT 1 FROM task_custom_field_values cfv WHERE cfv.task_id = task.id AND cfv.custom_field_id = :${cfIdParam} AND ((cfv.value #>> '{}')::numeric) NOT IN (:...${cfValsParam}))`;
+              queryBuilder[method](
+                `(NOT ${base}) OR ${baseNotIn}`,
+                { [cfIdParam]: cfId, [cfValsParam]: arr },
+              );
+            }
+          }
+          break;
+        case FilterOperator.GREATER_THAN:
+          queryBuilder[method](
+            `${base} AND ((cfv.value #>> '{}')::numeric) > :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: n },
+          );
+          break;
+        case FilterOperator.LESS_THAN:
+          queryBuilder[method](
+            `${base} AND ((cfv.value #>> '{}')::numeric) < :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: n },
+          );
+          break;
+        case FilterOperator.GREATER_THAN_OR_EQUAL:
+          queryBuilder[method](
+            `${base} AND ((cfv.value #>> '{}')::numeric) >= :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: n },
+          );
+          break;
+        case FilterOperator.LESS_THAN_OR_EQUAL:
+          queryBuilder[method](
+            `${base} AND ((cfv.value #>> '{}')::numeric) <= :${cfValParam})`,
+            { [cfIdParam]: cfId, [cfValParam]: n },
+          );
+          break;
+        default:
+          break;
+      }
+      return;
+    }
+
+    if (t === 'date') {
+      const d = Array.isArray(val) ? (val as string[])[0] : val;
+      const dateVal = d instanceof Date ? d : new Date(d as string);
+      if (isNaN(dateVal.getTime())) return;
+      const iso = dateVal.toISOString().slice(0, 10);
+      const dateCmp = (op: string) =>
+        `${base} AND ((cfv.value #>> '{}')::date) ${op} CAST(:${cfValParam} AS date))`;
+      switch (condition.operator) {
+        case FilterOperator.EQUALS:
+          queryBuilder[method](dateCmp('='), { [cfIdParam]: cfId, [cfValParam]: iso });
+          break;
+        case FilterOperator.NOT_EQUALS:
+          queryBuilder[method](dateCmp('!='), { [cfIdParam]: cfId, [cfValParam]: iso });
+          break;
+        case FilterOperator.GREATER_THAN:
+          queryBuilder[method](dateCmp('>'), { [cfIdParam]: cfId, [cfValParam]: iso });
+          break;
+        case FilterOperator.LESS_THAN:
+          queryBuilder[method](dateCmp('<'), { [cfIdParam]: cfId, [cfValParam]: iso });
+          break;
+        case FilterOperator.GREATER_THAN_OR_EQUAL:
+          queryBuilder[method](dateCmp('>='), { [cfIdParam]: cfId, [cfValParam]: iso });
+          break;
+        case FilterOperator.LESS_THAN_OR_EQUAL:
+          queryBuilder[method](dateCmp('<='), { [cfIdParam]: cfId, [cfValParam]: iso });
+          break;
+        default:
+          break;
+      }
+    }
   }
 
   async searchTasks(
@@ -2256,6 +2483,41 @@ export class TasksService {
     }
 
     await this.taskCustomFieldValueRepository.remove(taskCustomFieldValue);
+  }
+
+  /**
+   * Get tasks with dueDate in [start, end] for a list. Used by Calendar and Timeline views.
+   */
+  async getTasksForCalendar(
+    listId: string,
+    start: string,
+    end: string,
+  ): Promise<TaskEntity[]> {
+    if (!listId || !start || !end) {
+      throw new BadRequestException('listId, start, and end are required');
+    }
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new BadRequestException('start and end must be valid ISO date strings');
+    }
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    return this.taskRepository.find({
+      where: {
+        list: { id: listId },
+        dueDate: Between(startDate, endDate) as any,
+        isArchived: false,
+      },
+      relations: ['list', 'status', 'priority', 'assignments', 'assignments.user'],
+      order: { dueDate: 'ASC', orderPosition: 'ASC' },
+    });
   }
 
   /**

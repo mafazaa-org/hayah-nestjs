@@ -5143,6 +5143,248 @@ Clients use a Socket.IO client (e.g. browser or Node), connect to the namespace 
 
 ---
 
+## Phase 11: Views & Customization ✅
+
+**Status:** Completed  
+**Scope:** Multiple board views (Kanban, Table, Calendar, Timeline), view CRUD and configuration (columns, filters, sorting, default view per list), tasks-by-view and calendar endpoints, and filter-by-custom-fields in task filtering.
+
+---
+
+### 11.1 Multiple Board Views
+
+#### 11.1.1 ViewEntity
+
+**ViewEntity** (`src/features/lists/entities/view.entity.ts`)
+
+| Column      | Type      | Notes                                        |
+|------------|-----------|----------------------------------------------|
+| `id`       | UUID      | Primary key                                  |
+| `name`     | text      | User-defined view name                       |
+| `type`     | text      | `'kanban' \| 'table' \| 'calendar' \| 'timeline'` |
+| `config`   | jsonb, null | View configuration (see §11.2.1)          |
+| `list_id`  | UUID      | FK → `lists` (CASCADE delete)                |
+| `user_id`  | UUID      | FK → `users` (CASCADE delete)                |
+| `created_at` | timestamp | CreateDateColumn                          |
+| `updated_at` | timestamp | UpdateDateColumn                          |
+
+- **Relationships:** Many-To-One `list` → `ListEntity`, Many-To-One `user` → `UserEntity`. `ListEntity` has `OneToMany` `views`; `UserEntity` has `OneToMany` `views`.
+- **Table:** `views`.
+- **Note:** `type` was extended to include `'timeline'` (previously `kanban` | `table` | `calendar` only).
+
+#### 11.1.2 View Types and Usage
+
+- **Kanban (default):** Tasks grouped by status. Use existing `GET /tasks?listId=`, `GET /statuses?listId=`. No dedicated view endpoint; client renders columns from statuses.
+- **Table:** Same task data as Kanban; client renders as table. Use same tasks API; `config.columns` (see §11.2.1) drives column visibility.
+- **Calendar:** Tasks by due date. Use `GET /tasks/calendar?listId=&start=&end=` (§11.1.4). `config.startOfWeek` (0–6) can drive calendar UI.
+- **Timeline:** Date-range based; same as Calendar. Use `GET /tasks/calendar` with `start`/`end` for timeline data.
+
+#### 11.1.3 View DTOs
+
+- **CreateViewDto** (`src/features/lists/dto/create-view.dto.ts`): `name` (required), `listId` (UUID, required), `type` (`@IsIn(['kanban','table','calendar','timeline'])`), optional `config` (`@ValidateNested` `ViewConfigDto`).
+- **UpdateViewDto** (`src/features/lists/dto/update-view.dto.ts`): optional `name`, `type` (same `@IsIn`), `config` (`ViewConfigDto`).
+- **ViewResponseDto** (`src/features/lists/dto/view-response.dto.ts`): `id`, `name`, `type`, `config`, `listId`, `userId`, `createdAt`, `updatedAt`. Used for API response shaping; controllers return `ViewEntity` directly.
+
+#### 11.1.4 ListsService – View CRUD
+
+**Dependencies:** `ViewEntity` repository, `ListEntity` repository, `UserEntity` repository; later `TasksService` for `getTasksForView`.
+
+**Methods:**
+
+- **createView(userId, createViewDto):** Validates list exists by `listId`. Creates `ViewEntity` with `name`, `type`, `config ?? null`, `list`, `user`. Saves and returns it.
+- **findAllViews(userId, listId?):** Finds views with `user.id = userId`; optionally filters by `list.id = listId`. Relations `['list','user']`, order `updatedAt` DESC.
+- **findOneView(id, userId):** Finds view by `id` and `user.id = userId` with `['list','user']`. Throws `NotFoundException` if missing.
+- **updateView(id, userId, updateViewDto):** Loads view (same ownership). Applies `name`, `type`, `config` when provided. Saves and returns.
+- **removeView(id, userId):** Same ownership check, then `remove`.
+
+All view access is **user-scoped**: users only see and manage their own views.
+
+#### 11.1.5 ListsController – View Routes
+
+**Base path:** `/lists`. **Guard:** `@UseGuards(JwtAuthGuard)`. All view handlers use `@CurrentUser() user: { userId: string }`.
+
+**Route order:** View routes are declared **before** `:id` and other parameterized list routes so that `views`, `views/:id`, `views/:id/tasks` are matched correctly.
+
+| Method | Path                | Handler         | Description                                  |
+|--------|---------------------|-----------------|----------------------------------------------|
+| POST   | `/views`            | `createView`    | Create view (body: CreateViewDto)            |
+| GET    | `/views`            | `findAllViews`  | List views; optional `?listId=`              |
+| GET    | `/views/:id/tasks`  | `getTasksForView` | Tasks for view (filtered/sorted by config) §11.2.4 |
+| GET    | `/views/:id`        | `findOneView`   | Get one view                                 |
+| PUT    | `/views/:id`        | `updateView`    | Update view (body: UpdateViewDto)            |
+| DELETE | `/views/:id`        | `removeView`    | Delete view                                  |
+
+`GET /views/:id/tasks` is declared **before** `GET /views/:id` so that `.../views/xyz/tasks` is not captured as `.../views/:id` with `id = 'xyz/tasks'`.
+
+#### 11.1.6 Calendar Endpoint
+
+**TasksService.getTasksForCalendar(listId, start, end):**
+
+- Validates `listId`, `start`, `end` present; otherwise `BadRequestException('listId, start, and end are required')`.
+- Parses `start` and `end` as dates; if invalid, `BadRequestException('start and end must be valid ISO date strings')`.
+- Normalizes `start` to 00:00:00.000 and `end` to 23:59:59.999.
+- Loads list by `listId`; throws `NotFoundException` if missing.
+- Queries tasks with `list.id = listId`, `dueDate` in `[start, end]` (TypeORM `Between`), `isArchived = false`. Relations: `list`, `status`, `priority`, `assignments`, `assignments.user`. Order: `dueDate` ASC, `orderPosition` ASC.
+- Returns `TaskEntity[]`.
+
+**TasksController:** `GET /tasks/calendar?listId=&start=&end=` → `getTasksForCalendar`. Route is registered **before** parameterized task routes (e.g. `:taskId`, `:id`) so `/tasks/calendar` is matched. Protected by controller-level `JwtAuthGuard`.
+
+---
+
+### 11.2 View Customization
+
+#### 11.2.1 ViewConfigDto and DefaultViewConfigDto
+
+**ViewConfigDto** (`src/features/lists/dto/view-config.dto.ts`)
+
+Used in `ViewEntity.config`, list `defaultViewConfig`, and when resolving tasks for a view. All properties optional.
+
+| Property         | Type              | Validation              | Description                                                                 |
+|------------------|-------------------|-------------------------|-----------------------------------------------------------------------------|
+| `columns`        | `Record<string, boolean>` | `@IsObject`        | Column visibility for table view. Keys: `title`, `description`, `status`, `priority`, `assignee`, `dueDate`, `tags`, `createdAt`, `updatedAt`, or `customField:{uuid}`. |
+| `filters`        | `FilterGroupDto`  | `@ValidateNested`       | Same structure as task filters (logic, conditions, groups).                 |
+| `sortField`      | `SortField`       | `@IsEnum(SortField)`    | `dueDate`, `priority`, `createdAt`, `updatedAt`, `title`, `orderPosition`, `assignee`, `customField`. |
+| `sortDirection`  | `SortDirection`   | `@IsEnum(SortDirection)`| `ASC` \| `DESC`.                                                            |
+| `customFieldId`  | UUID              | `@IsUUID`               | Required when `sortField === 'customField'`.                                |
+| `includeArchived`| boolean           | `@IsBoolean`            | Include archived tasks when applying view.                                  |
+| `startOfWeek`    | number            | `@IsInt` `@Min(0)` `@Max(6)` | Calendar: 0 = Sunday, 6 = Saturday.                    |
+
+**DefaultViewConfigDto** extends `ViewConfigDto` and adds:
+
+| Property | Type     | Validation | Description                    |
+|----------|----------|------------|--------------------------------|
+| `type`   | string   | `@IsIn(VIEW_TYPES)` | `'kanban' \| 'table' \| 'calendar' \| 'timeline'`. |
+
+`VIEW_TYPES = ['kanban','table','calendar','timeline'] as const` in the same file.
+
+#### 11.2.2 CreateViewDto / UpdateViewDto and Config
+
+- **CreateViewDto:** `config` is optional. When provided, validated with `@ValidateNested` + `@Type(() => ViewConfigDto)`.
+- **UpdateViewDto:** `config` optional, same validation. Partial updates; only provided fields are applied in `updateView`.
+
+#### 11.2.3 List defaultViewConfig
+
+- **ListEntity:** `defaultViewConfig` (jsonb, nullable) stores `{ type?, ...ViewConfigDto }`. Type includes `'timeline'` in list entity and related DTOs.
+- **CreateListDto** / **UpdateListDto:** `defaultViewConfig` optional, validated with `@ValidateNested` + `@Type(() => DefaultViewConfigDto)`.
+- **ListsService** `create` / `update`: Pass through `defaultViewConfig`; stored as-is on the list. List template and duplicate logic preserve `defaultViewConfig` where applicable.
+- **List-response and list-template DTOs:** `defaultViewConfig` type includes `'kanban' | 'table' | 'calendar' | 'timeline'` (and flexible extra keys where used).
+
+#### 11.2.4 GET /lists/views/:id/tasks – Tasks for View
+
+**ListsService.getTasksForView(viewId, userId):**
+
+1. Calls `findOneView(viewId, userId)` so the view exists and belongs to the user. Loads `list` relation.
+2. Reads `listId` from `view.list`; if missing, `BadRequestException('View list not found')`.
+3. Builds `FilterTasksDto`: `listId`, `filters` from `view.config?.filters`, `includeArchived` from `view.config?.includeArchived ?? false`.
+4. Calls `tasksService.filterTasks(filterDto, config.sortField, config.sortDirection ?? SortDirection.ASC, config.customFieldId)` and returns the resulting `TaskEntity[]`.
+
+Thus, tasks returned for a view are **filtered and sorted** according to that view’s `config` (filters, sort, includeArchived). View config may also include `columns` and `startOfWeek`; those are for client-side layout (table columns, calendar) and are not used by this endpoint.
+
+#### 11.2.5 ListsModule and TasksModule Integration
+
+- **ListsModule** imports **TasksModule** (and `TypeOrmModule.forFeature([..., ViewEntity])`).
+- **ListsService** injects **TasksService**, and uses **FilterTasksDto**, **SortDirection**, **TaskEntity** from the tasks feature.
+- **ListsController** imports **TaskEntity** for the `getTasksForView` return type.
+- **TasksModule** does not import ListsModule; no circular dependency.
+
+---
+
+### 11.3 Filter by Custom Fields
+
+#### 11.3.1 FilterConditionDto Extensions
+
+**File:** `src/features/tasks/dto/filter-tasks.dto.ts`
+
+- **field:** Union extended with `'customField'`. Allowed values: `'assignee' | 'status' | 'priority' | 'tag' | 'dueDate' | 'list' | 'isArchived' | 'customField'`.
+- **value:** Type extended with `number` (for custom field numeric filters). Allowed: `string | string[] | boolean | number | Date`.
+- **customFieldId:** Optional UUID. **Required when `field === 'customField'`** via `@ValidateIf((o) => o.field === 'customField')` + `@IsUUID()`. Identifies which custom field to filter on.
+
+`FilterGroupDto` and `FilterTasksDto` unchanged; they already use `FilterConditionDto` and `FilterGroupDto`, so custom-field conditions work in both top-level and nested groups.
+
+#### 11.3.2 Collecting Custom Field IDs and Filter Context
+
+**TasksService.filterTasks**, when `filters` is present:
+
+1. **collectCustomFieldIds(filters):** Recursively walks `FilterGroupDto` (conditions and nested groups). Collects all `customFieldId` where `condition.field === 'customField'` into a `Set<string>`.
+2. If the set is non-empty:
+   - Fetches `CustomFieldEntity[]` with `where: { id: In(ids) }` and `relations: ['list']`.
+   - Builds `Map<string, { type: string }>` keyed by custom field id. For each custom field:
+     - If `listId` is set in the filter and `customField.list.id !== listId`, throws `BadRequestException('Custom field {id} does not belong to the specified list')`.
+     - Sets `customFieldMap.set(cf.id, { type: cf.type })`.
+   - Checks that every requested `customFieldId` was found; otherwise `BadRequestException('Custom field(s) not found: ...')`.
+3. Creates **filter context** `{ customFields: customFieldMap, paramCounter: 0 }` and passes it into `applyFilterGroup(queryBuilder, filters, 'and', context)`.
+
+#### 11.3.3 applyFilterGroup / applyFilterCondition and Context
+
+- **applyFilterGroup(qb, filterGroup, defaultLogic, context?):** Accepts optional `context`. Forwards it recursively into nested `applyFilterGroup` calls and into each `applyFilterCondition` call.
+- **applyFilterCondition(qb, condition, logic, useOr, context?):** Adds a `switch` case for `field === 'customField'`. If `context` is present, increments `context.paramCounter`, uses the value as `idx`, and calls `applyCustomFieldFilter(queryBuilder, condition, method, context, idx)`. Otherwise the custom-field condition is skipped.
+
+#### 11.3.4 applyCustomFieldFilter
+
+**Signature:** `applyCustomFieldFilter(queryBuilder, condition, method, context, idx)`.
+
+**Behavior:**
+
+- Resolves `customFieldId` from `condition` and looks up `meta = context.customFields.get(cfId)`. If missing, throws `BadRequestException('Custom field {id} not found or not usable for filtering')`.
+- Uses `meta.type` (`'text' | 'number' | 'date' | 'dropdown'`) to choose comparison logic. Builds **EXISTS** subqueries against `task_custom_field_values` with `cfv.task_id = task.id` and `cfv.custom_field_id = :cfId_{idx}`. Parameter names use `idx` to avoid clashes across conditions: `cfId_{idx}`, `cfVal_{idx}`, `cfVals_{idx}`.
+- **IS_NULL:** `NOT EXISTS (...)` for that `task_id` + `custom_field_id` (no value row).
+- **IS_NOT_NULL:** `EXISTS (...)` for that `task_id` + `custom_field_id`.
+- **Value-based operators:** If `condition.value` is null/undefined, returns without adding a predicate. Otherwise:
+
+**Text / dropdown:**
+
+- **equals / not_equals:** `(cfv.value #>> '{}') = / != :cfVal_{idx}` with `String(val)`.
+- **in:** `(cfv.value #>> '{}') IN (:...cfVals_{idx})`; `value` must be an array, mapped to strings.
+- **not_in:** `(NOT EXISTS (base)) OR EXISTS (base AND (cfv.value #>> '{}') NOT IN (:...cfVals_{idx}))` so that tasks with no value or value not in the list match.
+- **contains:** `(cfv.value #>> '{}') ILIKE :cfVal_{idx}` with `%${String(val)}%`.
+
+**Number:**
+
+- **equals / not_equals / greater_than / less_than / greater_than_or_equal / less_than_or_equal:** `((cfv.value #>> '{}')::numeric)` compared to `:cfVal_{idx}`. Single value: `Array.isArray(val) ? Number((val as unknown[])[0]) : Number(val)`; NaN checks prevent adding a predicate.
+- **in / not_in:** Same pattern as text; values mapped to numbers, NaN filtered out. `not_in` uses the same `(NOT EXISTS (base)) OR EXISTS (base AND ... NOT IN (...))` pattern.
+
+**Date:**
+
+- **equals / not_equals / greater_than / less_than / greater_than_or_equal / less_than_or_equal:** `((cfv.value #>> '{}')::date)` compared to `CAST(:cfVal_{idx} AS date)`. Single value normalized to ISO date string `YYYY-MM-DD` via `Date#toISOString().slice(0,10)`.
+
+All subquery predicates and parameters are applied to the main `queryBuilder` via the given `method` (`andWhere` or `orWhere`), so filter logic (AND/OR) is preserved.
+
+#### 11.3.5 Filter Presets and View Config
+
+- **Filter presets** use `FilterGroupDto` (with `FilterConditionDto`). They support `customField` conditions and `customFieldId` automatically.
+- **View config** `filters` also use `FilterGroupDto`. **GET /lists/views/:id/tasks** forwards view `config.filters` into `filterTasks`, so filtering by custom fields works for saved views as well.
+
+---
+
+### 11.4 REST Client and BACKEND_TODO
+
+**rest_client.http:**
+
+- **Views:** Examples for `POST /lists/views` (simple and with `config`: columns, filters, sort, includeArchived), `GET /lists/views`, `GET /lists/views?listId=`, `GET /lists/views/:id`, `GET /lists/views/:id/tasks` (tasks filtered/sorted by view config), `PUT /lists/views/:id`, `DELETE /lists/views/:id`. Update example shows `config` with `startOfWeek`, `columns`, `sortField`, `sortDirection`, `includeArchived`.
+- **Calendar:** `GET /tasks/calendar?listId=&start=&end=` under Tasks.
+- **Filter by custom field:** `POST /tasks/filter` examples with `field: 'customField'`, `customFieldId`, and `value` (including `equals` + `is_not_null`, and number/date operators). Filter preset example **Create Filter Preset (with custom field)** using a `customField` condition.
+
+All relevant requests use `Authorization: Bearer {{accessToken}}`.
+
+**BACKEND_TODO:** Phase 11 – Views & Customization – all items marked complete:
+
+- Multiple Board Views: Kanban (default), Table, Calendar, Timeline.
+- View Customization: Save custom view configurations, column customization (show/hide), view filters and sorting, default view per list.
+- Custom Fields: Filter by custom fields.
+
+---
+
+### 11.5 Summary of Phase 11
+
+**Multiple Board Views:** ViewEntity with types `kanban` | `table` | `calendar` | `timeline`. Views CRUD under `/lists/views` (user-scoped). Calendar endpoint `GET /tasks/calendar?listId=&start=&end=` for tasks by due-date range. Kanban/Table use existing task APIs; Timeline reuses calendar.
+
+**View Customization:** ViewConfigDto (columns, filters, sort, includeArchived, startOfWeek, customFieldId) and DefaultViewConfigDto (adds type). Create/Update View and List DTOs validate config and defaultViewConfig. `GET /lists/views/:id/tasks` returns tasks filtered and sorted by the view’s config. ListsModule imports TasksModule; ListsService uses TasksService for that endpoint.
+
+**Filter by Custom Fields:** FilterConditionDto supports `field: 'customField'` and `customFieldId`. Filter pipeline collects custom field IDs, validates list membership and existence, builds a context map, and applies custom-field predicates via `applyCustomFieldFilter` (EXISTS subqueries, type-specific comparison). Filter presets and view config filters both support custom-field conditions.
+
+**Files touched:** Lists (ViewEntity; view-config, create-view, update-view, view-response DTOs; create-list, update-list, list-response, list-template DTOs/entities for defaultViewConfig; ListsService view methods + getTasksForView; ListsController view routes; ListsModule ViewEntity + TasksModule); Tasks (filter-tasks DTO customField/customFieldId; filterTasks custom-field context, collectCustomFieldIds, applyFilterGroup/applyFilterCondition/applyCustomFieldFilter; getTasksForCalendar; TasksController GET calendar); rest_client (Views, Calendar, Filter by custom field, Filter preset with custom field); BACKEND_TODO (Phase 11 completed).
+
+---
+
 ## Notes
 
 - All completed phases are marked with ✅

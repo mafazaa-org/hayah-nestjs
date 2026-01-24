@@ -113,6 +113,15 @@ export class TasksController {
     return this.tasksService.processDueReminders();
   }
 
+  @Get('calendar')
+  getTasksForCalendar(
+    @Query('listId') listId: string,
+    @Query('start') start: string,
+    @Query('end') end: string,
+  ): Promise<TaskEntity[]> {
+    return this.tasksService.getTasksForCalendar(listId, start, end);
+  }
+
   // Task Dependency endpoints - must come before :id route to avoid conflicts
   @Post('dependencies')
   createTaskDependency(

@@ -30,7 +30,7 @@ export class ViewEntity {
   @Column({
     type: 'text',
   })
-  type: 'kanban' | 'table' | 'calendar';
+  type: 'kanban' | 'table' | 'calendar' | 'timeline';
 
   @Column({
     type: 'jsonb',

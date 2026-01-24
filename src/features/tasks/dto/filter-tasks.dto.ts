@@ -1,11 +1,11 @@
 import {
   IsArray,
   IsBoolean,
-  IsDateString,
   IsEnum,
   IsOptional,
   IsString,
   IsUUID,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -31,13 +31,26 @@ export enum FilterLogic {
 
 export class FilterConditionDto {
   @IsString()
-  field: 'assignee' | 'status' | 'priority' | 'tag' | 'dueDate' | 'list' | 'isArchived';
+  field:
+    | 'assignee'
+    | 'status'
+    | 'priority'
+    | 'tag'
+    | 'dueDate'
+    | 'list'
+    | 'isArchived'
+    | 'customField';
 
   @IsEnum(FilterOperator)
   operator: FilterOperator;
 
   @IsOptional()
-  value?: string | string[] | boolean | Date;
+  value?: string | string[] | boolean | number | Date;
+
+  /** Required when field is 'customField'. UUID of the custom field. */
+  @ValidateIf((o) => o.field === 'customField')
+  @IsUUID()
+  customFieldId?: string;
 }
 
 export class FilterGroupDto {

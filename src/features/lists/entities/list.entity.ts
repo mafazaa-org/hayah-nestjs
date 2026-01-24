@@ -60,7 +60,7 @@ export class ListEntity {
     nullable: true,
   })
   defaultViewConfig: {
-    type?: 'kanban' | 'table' | 'calendar';
+    type?: 'kanban' | 'table' | 'calendar' | 'timeline';
     [key: string]: any;
   } | null;
 

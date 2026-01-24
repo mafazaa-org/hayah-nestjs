@@ -21,11 +21,15 @@ import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
 import { CreateFilterPresetDto } from './dto/create-filter-preset.dto';
 import { UpdateFilterPresetDto } from './dto/update-filter-preset.dto';
+import { CreateViewDto } from './dto/create-view.dto';
+import { UpdateViewDto } from './dto/update-view.dto';
 import { ListEntity } from './entities/list.entity';
 import { ListTemplateEntity } from './entities/list-template.entity';
 import { CustomFieldEntity } from './entities/custom-field.entity';
 import { FilterPresetEntity } from './entities/filter-preset.entity';
+import { ViewEntity } from './entities/view.entity';
 import { ListMemberEntity } from './entities/list-member.entity';
+import { TaskEntity } from '../tasks/entities/task.entity';
 import { InviteUserToListDto } from './dto/invite-user-to-list.dto';
 import { UpdateListMemberRoleDto } from './dto/update-list-member-role.dto';
 import { ListMemberResponseDto } from './dto/list-member-response.dto';
@@ -156,6 +160,56 @@ export class ListsController {
     @Param('id') id: string,
   ): Promise<void> {
     return this.listsService.removeFilterPreset(id, user.userId);
+  }
+
+  // View endpoints (Multiple Board Views) - must come before :id route
+  @Post('views')
+  createView(
+    @CurrentUser() user: { userId: string },
+    @Body() createViewDto: CreateViewDto,
+  ): Promise<ViewEntity> {
+    return this.listsService.createView(user.userId, createViewDto);
+  }
+
+  @Get('views')
+  findAllViews(
+    @CurrentUser() user: { userId: string },
+    @Query('listId') listId?: string,
+  ): Promise<ViewEntity[]> {
+    return this.listsService.findAllViews(user.userId, listId);
+  }
+
+  @Get('views/:id/tasks')
+  getTasksForView(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+  ): Promise<TaskEntity[]> {
+    return this.listsService.getTasksForView(id, user.userId);
+  }
+
+  @Get('views/:id')
+  findOneView(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+  ): Promise<ViewEntity> {
+    return this.listsService.findOneView(id, user.userId);
+  }
+
+  @Put('views/:id')
+  updateView(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+    @Body() updateViewDto: UpdateViewDto,
+  ): Promise<ViewEntity> {
+    return this.listsService.updateView(id, user.userId, updateViewDto);
+  }
+
+  @Delete('views/:id')
+  removeView(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.listsService.removeView(id, user.userId);
   }
 
   // List Member (Sharing/Teams) endpoints - must come before templates/:id route

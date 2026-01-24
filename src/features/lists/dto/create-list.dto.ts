@@ -1,4 +1,6 @@
-import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsUUID, MinLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { DefaultViewConfigDto } from './view-config.dto';
 
 export class CreateListDto {
   @IsString()
@@ -21,8 +23,7 @@ export class CreateListDto {
   visibility?: 'private' | 'shared';
 
   @IsOptional()
-  defaultViewConfig?: {
-    type?: 'kanban' | 'table' | 'calendar';
-    [key: string]: any;
-  };
+  @ValidateNested()
+  @Type(() => DefaultViewConfigDto)
+  defaultViewConfig?: DefaultViewConfigDto;
 }

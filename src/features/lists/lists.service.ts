@@ -18,14 +18,21 @@ import { CustomFieldEntity } from './entities/custom-field.entity';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
 import { FilterPresetEntity } from './entities/filter-preset.entity';
+import { ViewEntity } from './entities/view.entity';
 import { CreateFilterPresetDto } from './dto/create-filter-preset.dto';
 import { UpdateFilterPresetDto } from './dto/update-filter-preset.dto';
+import { CreateViewDto } from './dto/create-view.dto';
+import { UpdateViewDto } from './dto/update-view.dto';
 import { ListMemberEntity } from './entities/list-member.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { InviteUserToListDto } from './dto/invite-user-to-list.dto';
 import { UpdateListMemberRoleDto } from './dto/update-list-member-role.dto';
 import { ListMemberResponseDto } from './dto/list-member-response.dto';
 import { ListPermissionsResponseDto } from './dto/list-permissions-response.dto';
+import { TasksService } from '../tasks/tasks.service';
+import { FilterTasksDto } from '../tasks/dto/filter-tasks.dto';
+import { SortDirection } from '../tasks/dto/sort-tasks.dto';
+import { TaskEntity } from '../tasks/entities/task.entity';
 
 @Injectable()
 export class ListsService {
@@ -40,10 +47,13 @@ export class ListsService {
     private readonly customFieldRepository: Repository<CustomFieldEntity>,
     @InjectRepository(FilterPresetEntity)
     private readonly filterPresetRepository: Repository<FilterPresetEntity>,
+    @InjectRepository(ViewEntity)
+    private readonly viewRepository: Repository<ViewEntity>,
     @InjectRepository(ListMemberEntity)
     private readonly listMemberRepository: Repository<ListMemberEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    private readonly tasksService: TasksService,
   ) {}
 
   async create(createListDto: CreateListDto): Promise<ListEntity> {
@@ -596,6 +606,102 @@ export class ListsService {
     }
 
     await this.filterPresetRepository.remove(filterPreset);
+  }
+
+  // View methods (Multiple Board Views)
+  async createView(
+    userId: string,
+    createViewDto: CreateViewDto,
+  ): Promise<ViewEntity> {
+    const { name, listId, type, config } = createViewDto;
+
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    const view = this.viewRepository.create({
+      name,
+      type,
+      config: config ?? null,
+      list: { id: listId } as ListEntity,
+      user: { id: userId } as UserEntity,
+    });
+    return this.viewRepository.save(view);
+  }
+
+  async findAllViews(userId: string, listId?: string): Promise<ViewEntity[]> {
+    const where: any = { user: { id: userId } };
+    if (listId) {
+      where.list = { id: listId };
+    }
+    return this.viewRepository.find({
+      where,
+      relations: ['list', 'user'],
+      order: { updatedAt: 'DESC' },
+    });
+  }
+
+  async findOneView(id: string, userId: string): Promise<ViewEntity> {
+    const view = await this.viewRepository.findOne({
+      where: { id, user: { id: userId } },
+      relations: ['list', 'user'],
+    });
+    if (!view) {
+      throw new NotFoundException('View not found');
+    }
+    return view;
+  }
+
+  async updateView(
+    id: string,
+    userId: string,
+    updateViewDto: UpdateViewDto,
+  ): Promise<ViewEntity> {
+    const view = await this.viewRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+    if (!view) {
+      throw new NotFoundException('View not found');
+    }
+    if (updateViewDto.name !== undefined) view.name = updateViewDto.name;
+    if (updateViewDto.type !== undefined) view.type = updateViewDto.type;
+    if (updateViewDto.config !== undefined) view.config = updateViewDto.config;
+    return this.viewRepository.save(view);
+  }
+
+  async removeView(id: string, userId: string): Promise<void> {
+    const view = await this.viewRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+    if (!view) {
+      throw new NotFoundException('View not found');
+    }
+    await this.viewRepository.remove(view);
+  }
+
+  /**
+   * Get tasks filtered and sorted by a view's config. Uses view's listId, filters, sort, includeArchived.
+   */
+  async getTasksForView(viewId: string, userId: string): Promise<TaskEntity[]> {
+    const view = await this.findOneView(viewId, userId);
+    const list = view.list as ListEntity;
+    const listId = list?.id;
+    if (!listId) {
+      throw new BadRequestException('View list not found');
+    }
+    const cfg = view.config ?? {};
+    const filterDto: FilterTasksDto = {
+      listId,
+      filters: cfg.filters ?? undefined,
+      includeArchived: cfg.includeArchived ?? false,
+    };
+    return this.tasksService.filterTasks(
+      filterDto,
+      cfg.sortField,
+      (cfg.sortDirection as SortDirection) ?? SortDirection.ASC,
+      cfg.customFieldId,
+    );
   }
 
   // List Member (Sharing/Teams) Methods

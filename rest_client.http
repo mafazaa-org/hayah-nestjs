@@ -315,6 +315,10 @@ Content-Type: application/json
 GET http://localhost:3000/tasks?listId=list-uuid-here&statusId=status-uuid-here&includeArchived=false
 Authorization: Bearer {{accessToken}}
 
+### Tasks - Get Calendar View (by due date)
+GET http://localhost:3000/tasks/calendar?listId=list-uuid-here&start=2026-01-01&end=2026-01-31
+Authorization: Bearer {{accessToken}}
+
 ### Tasks - Get Task
 GET http://localhost:3000/tasks/task-uuid-here
 Authorization: Bearer {{accessToken}}
@@ -694,6 +698,57 @@ Content-Type: application/json
   }
 }
 
+### Tasks - Filter Tasks (by custom field)
+POST http://localhost:3000/tasks/filter
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "listId": "list-uuid-here",
+  "filters": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "customField",
+        "operator": "equals",
+        "customFieldId": "custom-field-uuid-here",
+        "value": "Some text"
+      },
+      {
+        "field": "customField",
+        "operator": "is_not_null",
+        "customFieldId": "another-custom-field-uuid"
+      }
+    ]
+  }
+}
+
+### Tasks - Filter Tasks (by custom field - number/date)
+POST http://localhost:3000/tasks/filter
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "listId": "list-uuid-here",
+  "filters": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "customField",
+        "operator": "greater_than_or_equal",
+        "customFieldId": "number-custom-field-uuid",
+        "value": 10
+      },
+      {
+        "field": "customField",
+        "operator": "less_than",
+        "customFieldId": "date-custom-field-uuid",
+        "value": "2026-12-31"
+      }
+    ]
+  }
+}
+
 ### Tasks - Search Tasks (with sorting by custom field)
 POST http://localhost:3000/tasks/search?sortField=customField&sortDirection=DESC&customFieldId=custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
@@ -920,6 +975,28 @@ Content-Type: application/json
   "includeArchived": false
 }
 
+### Filter Presets - Create Filter Preset (with custom field)
+POST http://localhost:3000/lists/filter-presets
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Tasks with Custom Field",
+  "listId": "list-uuid-here",
+  "filterConfig": {
+    "logic": "and",
+    "conditions": [
+      {
+        "field": "customField",
+        "operator": "equals",
+        "customFieldId": "custom-field-uuid-here",
+        "value": "Target Value"
+      }
+    ]
+  },
+  "includeArchived": false
+}
+
 ### Filter Presets - Get All Filter Presets
 GET http://localhost:3000/lists/filter-presets
 Authorization: Bearer {{accessToken}}
@@ -954,6 +1031,82 @@ Content-Type: application/json
 
 ### Filter Presets - Delete Filter Preset
 DELETE http://localhost:3000/lists/filter-presets/filter-preset-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Views (Multiple Board Views) - Create View
+POST http://localhost:3000/lists/views
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "My Kanban View",
+  "listId": "list-uuid-here",
+  "type": "kanban",
+  "config": {}
+}
+
+### Views - Create View (with columns, filters, sorting)
+POST http://localhost:3000/lists/views
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Table View with Filters",
+  "listId": "list-uuid-here",
+  "type": "table",
+  "config": {
+    "columns": {
+      "title": true,
+      "status": true,
+      "priority": true,
+      "assignee": true,
+      "dueDate": true,
+      "tags": false
+    },
+    "filters": {
+      "logic": "and",
+      "conditions": [
+        { "field": "status", "operator": "in", "value": ["status-uuid-1", "status-uuid-2"] },
+        { "field": "dueDate", "operator": "is_not_null" }
+      ]
+    },
+    "sortField": "dueDate",
+    "sortDirection": "ASC",
+    "includeArchived": false
+  }
+}
+
+### Views - Get All Views
+GET http://localhost:3000/lists/views
+Authorization: Bearer {{accessToken}}
+
+### Views - Get All Views for List
+GET http://localhost:3000/lists/views?listId=list-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Views - Get View
+GET http://localhost:3000/lists/views/view-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Views - Update View
+PUT http://localhost:3000/lists/views/view-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated View Name",
+  "type": "calendar",
+  "config": {
+    "startOfWeek": 0,
+    "columns": { "title": true, "dueDate": true, "status": true },
+    "sortField": "dueDate",
+    "sortDirection": "ASC",
+    "includeArchived": false
+  }
+}
+
+### Views - Delete View
+DELETE http://localhost:3000/lists/views/view-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### List Members - Invite User to List

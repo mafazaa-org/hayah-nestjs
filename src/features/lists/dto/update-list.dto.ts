@@ -1,4 +1,6 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { DefaultViewConfigDto } from './view-config.dto';
 
 export class UpdateListDto {
   @IsOptional()
@@ -15,8 +17,7 @@ export class UpdateListDto {
   visibility?: 'private' | 'shared';
 
   @IsOptional()
-  defaultViewConfig?: {
-    type?: 'kanban' | 'table' | 'calendar';
-    [key: string]: any;
-  };
+  @ValidateNested()
+  @Type(() => DefaultViewConfigDto)
+  defaultViewConfig?: DefaultViewConfigDto;
 }
