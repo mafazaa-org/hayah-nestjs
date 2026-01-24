@@ -4862,6 +4862,287 @@ After completing Phase 9, the application has:
 
 ---
 
+## Phase 10: Notifications & Real-time Updates ✅
+
+**Status:** Completed  
+**Scope:** In-app notifications, optional email delivery, user notification preferences, WebSocket-based real-time updates (tasks, comments), user presence per list, and live collaboration via room subscriptions.
+
+---
+
+### 10.1 Notifications
+
+#### 10.1.1 Entity
+
+**NotificationEntity** (`src/features/notifications/entities/notification.entity.ts`)
+
+| Column       | Type       | Notes                                      |
+|-------------|------------|--------------------------------------------|
+| `id`        | UUID       | Primary key                                |
+| `type`      | text       | Notification type (see §10.1.3)            |
+| `title`     | text       | Short title                                |
+| `message`   | text       | Body text                                  |
+| `related_id`| text, null | Optional related entity ID (task, comment) |
+| `is_read`   | boolean    | Default `false`                            |
+| `user_id`   | UUID       | FK → `users`                               |
+| `created_at`| timestamp  | CreateDateColumn                           |
+
+- **Relationship:** Many-To-One `user` → `UserEntity` (CASCADE delete).
+- **Table:** `notifications`.
+
+#### 10.1.2 DTOs
+
+- **NotificationResponseDto** (`dto/notification-response.dto.ts`): `id`, `type`, `title`, `message`, `relatedId`, `isRead`, `userId`, `createdAt`.
+- **UpdateNotificationDto** (`dto/update-notification.dto.ts`): `@IsOptional() @IsBoolean() isRead?: boolean` — used for marking read/unread.
+- **CreateNotificationDto** (`dto/create-notification.dto.ts`): Placeholder only. Notifications are created internally by services, not via a public create API.
+
+#### 10.1.3 Notification Types and Preferences
+
+**Types** (exported as `NotificationType` from `NotificationsService`):
+
+- `task_assignment` — user assigned to a task
+- `task_due_reminder` — task due soon
+- `comment` — new comment on a task (assignees / @mentioned)
+- `task_status_change` — task status updated
+
+**Preference keys** (map from type to user-setting key):
+
+- `task_assignment` → `taskAssignment`
+- `task_due_reminder` → `taskDueReminder`
+- `comment` → `comments`
+- `task_status_change` → `taskStatusChange`
+
+**Default preferences** (`DEFAULT_PREFS`): `taskAssignment`, `taskDueReminder`, `comments`, `taskStatusChange` all `true`; `email` `false`.
+
+User overrides come from `UserSettingsEntity.notificationPreferences` (JSONB). Merged with defaults via `getNotificationPreferences(userId)`. `shouldNotify(userId, type)` checks the relevant key; if missing, falls back to `DEFAULT_PREFS`.
+
+#### 10.1.4 NotificationsService
+
+**Dependencies:** `NotificationEntity`, `UserEntity`, `UserSettingsEntity` repositories; `EmailService` (from global `EmailModule`).
+
+**Private helpers:**
+
+- `shouldNotify(userId, type)`: Uses `getNotificationPreferences` and `TYPE_TO_PREF` to decide if a notification of that type should be created for the user.
+- `getNotificationPreferences(userId)`: Loads `UserSettings` by `user.id`, merges `notificationPreferences` with `DEFAULT_PREFS`, returns `Record<string, boolean>`.
+
+**Public API:**
+
+- `create(userId, type, title, message, relatedId?)`: If `shouldNotify` is false, returns `null`. Otherwise loads user, creates and saves `NotificationEntity` (`isRead: false`). Then, if `prefs.email` is true and `EmailService.isEnabled()`, calls `emailService.sendNotificationEmail(user.email, title, message)` fire-and-forget (`.catch(() => {})`). Returns saved entity or `null`.
+- `createForUsers(userIds, type, title, message, relatedId?)`: Deduplicates `userIds`, calls `create` for each, returns array of created entities (skips `null`).
+- `findAllByUser(userId, options?)`: `options.isRead` can be `'all' | true | false`. QueryBuilder on `notifications` filtered by `user_id`, optional `is_read`, ordered by `created_at` DESC. Returns `NotificationResponseDto[]`.
+- `findOne(id, userId)`: Loads notification with `user`, throws `NotFoundException` if missing, `ForbiddenException` if `user.id !== userId`. Returns `NotificationResponseDto`.
+- `update(id, userId, dto)`: Same ownership check. Applies `dto.isRead` if provided, saves, returns `findOne(id, userId)`.
+- `delete(id, userId)`: Same ownership check, then `remove`.
+- `getUnreadCount(userId)`: `count` where `user_id = userId` and `is_read = false`.
+- `markAllAsRead(userId)`: `update` all unread for user to `is_read: true`, returns `{ count: affected }`.
+
+#### 10.1.5 NotificationsController
+
+- **Base path:** `/notifications`
+- **Guard:** `@UseGuards(JwtAuthGuard)` on controller. All endpoints use `@CurrentUser() user: { userId: string }`.
+
+**Routes (order matters — static before `:id`):**
+
+| Method | Path                | Handler         | Description                                |
+|--------|---------------------|-----------------|--------------------------------------------|
+| GET    | `/`                 | `findAll`       | List notifications; `?isRead=true\|false`  |
+| GET    | `/unread-count`     | `getUnreadCount`| Unread count                               |
+| PATCH  | `/mark-all-read`    | `markAllAsRead` | Mark all as read                           |
+| GET    | `/:id`              | `findOne`       | Get one                                    |
+| PATCH  | `/:id`              | `update`        | Update (e.g. `isRead`)                     |
+| DELETE | `/:id`              | `remove`        | Delete                                     |
+
+**Note:** `rest_client.http` contains sample HTTP requests for all of the above (including `POST /tasks/due-reminders/process` under the Tasks section). All require `Authorization: Bearer <JWT>`.
+
+#### 10.1.6 NotificationsModule
+
+- **Imports:** `TypeOrmModule.forFeature([NotificationEntity, UserEntity, UserSettingsEntity])`, `AuthModule`.
+- **Controllers:** `NotificationsController`.
+- **Providers:** `NotificationsService`.
+- **Exports:** `NotificationsService`.
+
+`EmailService` is provided by `EmailModule` (global); no direct import of `EmailModule` in `NotificationsModule`.
+
+#### 10.1.7 Where Notifications Are Created
+
+**TasksService:**
+
+1. **assignUser:** After creating the assignment, if `assigneeId !== actorUserId`, calls `notificationsService.create(assigneeId, TASK_ASSIGNMENT, 'Task assignment', \`You were assigned to task "${task.title}"\`, taskId)`. Uses task loaded with `list` for title. Notification failures are caught and do not break the assign flow.
+2. **move:** When `statusId` actually changes, loads assignees for the task, filters out `userId` (actor), then `notificationsService.createForUsers(assigneeIds, TASK_STATUS_CHANGE, 'Task status updated', \`Task "${savedTask.title}" status was changed\`, savedTask.id)`. Same catch pattern.
+3. **processDueReminders:** Finds non-archived tasks with `dueDate` in the range “today 00:00” through “today + 2 days” (today and tomorrow). For each task, collects assignee IDs from `assignments`, then `createForUsers(assigneeIds, TASK_DUE_REMINDER, 'Task due soon', \`Task "${task.title}" is due ${date}\`, task.id)`. Returns `{ processed }` (total notify count). Failures per task are caught; processing continues.
+
+**CommentsService:**
+
+- **create:** After saving the comment, loads task with `assignments` and `assignments.user`, gets assignee IDs. Resolves `@mentions` to user IDs via `resolveMentionsToUserIds`. Combines assignees and mentioned users, removes the comment author, then `notificationsService.createForUsers(toNotify, COMMENT, 'New comment', \`${authorName} commented on task "${task.title}"\`, savedComment.id)`. Same catch pattern.
+
+#### 10.1.8 Due-Date Reminders Endpoint
+
+- **TasksController:** `POST /tasks/due-reminders/process` → `tasksService.processDueReminders()`. Placed **before** parameterized routes (e.g. `:taskId`, `:id`) to avoid path conflicts. Protected by controller-level `JwtAuthGuard`. Intended for cron or scheduled jobs.
+
+#### 10.1.9 User Settings and Notification Preferences
+
+- **UserSettingsEntity:** `notificationPreferences` (JSONB, nullable). Keys include `taskAssignment`, `taskDueReminder`, `comments`, `taskStatusChange`, `email`. Stored per user via `PUT /users/me/settings` (`UpdateUserSettingsDto`).
+- **UpdateUserSettingsDto:** `notificationPreferences?: Record<string, any>`.
+- Clients toggle in-app and email notifications by updating `notificationPreferences` and optionally `email: true` when using optional email.
+
+---
+
+### 10.2 Email Notifications (Optional)
+
+#### 10.2.1 EmailService
+
+- **Path:** `src/common/email/email.service.ts`
+- **Config:** `ConfigService`. Reads `MAIL_ENABLED`, `MAIL_FROM`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASSWORD`.
+
+**Behavior:**
+
+- If `MAIL_ENABLED` is not `'true'`, or `MAIL_HOST` / `MAIL_USER` / `MAIL_PASSWORD` are missing, email is disabled (`enabled = false`, `transporter = null`).
+- `isEnabled()`: `true` only when enabled and transporter exists.
+- `sendNotificationEmail(to, subject, text)`: No-op if disabled. Otherwise sends via nodemailer with `from: MAIL_FROM` (default `Hayah <noreply@example.com>`), `subject: [Hayah] ${subject}`, plain `text` and HTML (HTML-escaped, `\n` → `<br/>`). Errors are logged; no throw.
+
+#### 10.2.2 EmailModule
+
+- **Path:** `src/common/email/email.module.ts`
+- **Global:** `@Global()`, imports `ConfigModule`, provides and exports `EmailService`.
+- **AppModule:** Imports `EmailModule`.
+
+#### 10.2.3 Environment Variables
+
+Documented in `src/database/README.md`:
+
+```env
+# MAIL_ENABLED=false
+# MAIL_HOST=smtp.example.com
+# MAIL_PORT=587
+# MAIL_USER=
+# MAIL_PASSWORD=
+# MAIL_FROM=Hayah <noreply@example.com>
+```
+
+Email sending runs only when `MAIL_ENABLED=true`, SMTP is configured, and the user has `notificationPreferences.email === true`.
+
+---
+
+### 10.3 Real-time Updates (WebSockets)
+
+#### 10.3.1 Overview
+
+- **Transport:** Socket.IO.
+- **Namespace:** `/realtime`.
+- **Path:** `/socket.io`.
+- **Auth:** JWT at handshake; invalid or missing token → disconnect.
+- **Features:** Task and comment events, list/task room subscriptions, presence per list, live collaboration.
+
+#### 10.3.2 EventsEmitterService
+
+**Path:** `src/features/events/events-emitter.service.ts`
+
+**Role:** Central emitter for real-time events. Holds a Socket.IO `Server` reference (`setServer(server)` called by the gateway in `afterInit`). All emit logic uses `emitToRoom(room, event, payload)`; if `server` is null or emit throws, it no-ops or catches so HTTP flows are never broken.
+
+**Room helpers:**
+
+- `LIST_ROOM(id)` → `list:${id}`
+- `TASK_ROOM(id)` → `task:${id}`
+- `PRESENCE_ROOM(id)` → `presence:list:${id}`
+
+**Methods:**
+
+| Method | Rooms | Event | Payload |
+|--------|-------|-------|---------|
+| `emitTaskCreated(listId, task)` | `list:{listId}` | `task_created` | `{ listId, task }` |
+| `emitTaskUpdated(listId, taskId, task)` | `list`, `task` | `task_updated` | `{ listId, taskId, task }` |
+| `emitTaskMoved(listId, taskId, task)` | `list`, `task` | `task_moved` | `{ listId, taskId, task }` |
+| `emitTaskDeleted(listId, taskId)` | `list`, `task` | `task_deleted` | `{ listId, taskId }` |
+| `emitTaskAssigned(listId, taskId, userId)` | `list`, `task` | `task_assigned` | `{ listId, taskId, userId }` |
+| `emitTaskUnassigned(listId, taskId, userId)` | `list`, `task` | `task_unassigned` | `{ listId, taskId, userId }` |
+| `emitCommentCreated(listId, taskId, comment)` | `list`, `task` | `comment_created` | `{ listId, taskId, comment }` |
+| `emitCommentUpdated(listId, taskId, comment)` | `list`, `task` | `comment_updated` | `{ listId, taskId, comment }` |
+| `emitCommentDeleted(listId, taskId, commentId)` | `list`, `task` | `comment_deleted` | `{ listId, taskId, commentId }` |
+| `emitPresenceUpdated(listId, userIds)` | `presence:list:{listId}` | `presence_updated` | `{ listId, userIds }` |
+
+Task payloads use `toTaskPayload` (see §10.3.6). Comment payloads include full comment shape (e.g. `id`, `taskId`, `userId`, `content`, `mentions`, `attachments`, `createdAt`, `updatedAt`); dates as ISO strings in emitted payload.
+
+#### 10.3.3 EventsGateway
+
+**Path:** `src/features/events/events.gateway.ts`
+
+**Config:** `@WebSocketGateway({ path: '/socket.io', cors: { origin: '*' }, namespace: '/realtime' })`.
+
+**Dependencies:** `JwtService`, `ConfigService`, `EventsEmitterService`. `JWT_SECRET` from config (fallback `'dev-change-me'`).
+
+**Lifecycle:**
+
+- `afterInit(server)`: `this.emitter.setServer(server)`.
+- `handleConnection(client)`: `extractToken(client)` → from `handshake.auth.token` or `Authorization: Bearer`. Verifies JWT with `JwtService.verify`, sets `client.data.userId = payload.sub`. Invalid or missing token → `client.disconnect()`.
+- `handleDisconnect(client)`: Looks up `socketLists.get(client.id)` (list IDs this socket subscribed to). Removes socket from that map. For each listId, removes `userId` from presence, updates or deletes `presence` set, then `emitPresenceUpdated(listId, [...userIds])` for remaining users.
+
+**Subscribe handlers:**
+
+- `subscribe_list` payload `{ listId }`: Joins `list:{listId}` and `presence:list:{listId}`. Tracks `listId` in `socketLists` per socket. Adds `userId` to `presence.get(listId)`, then `emitPresenceUpdated`.
+- `unsubscribe_list` payload `{ listId }`: Leaves both rooms, removes `listId` from `socketLists`, updates presence and emits.
+- `subscribe_task` payload `{ taskId }`: Joins `task:{taskId}`.
+- `unsubscribe_task` payload `{ taskId }`: Leaves `task:{taskId}`.
+- `presence_heartbeat` payload `{ listId }`: If `userId` not yet in `presence.get(listId)`, adds and `emitPresenceUpdated`. Used to refresh presence without full re-subscribe.
+
+**State:** `presence: Map<listId, Set<userId>>`, `socketLists: Map<socketId, Set<listId>>` for correct cleanup on disconnect.
+
+#### 10.3.4 EventsModule
+
+- **Imports:** `AuthModule` (for `JwtService`; `AuthModule` exports `JwtModule`).
+- **Providers:** `EventsGateway`, `EventsEmitterService`.
+- **Exports:** `EventsEmitterService`.
+- **AppModule:** Imports `EventsModule`.
+
+#### 10.3.5 Bootstrap
+
+**main.ts:** `app.useWebSocketAdapter(new IoAdapter(app))` with `IoAdapter` from `@nestjs/platform-socket.io`, so the HTTP server also serves Socket.IO.
+
+#### 10.3.6 TasksService Integration
+
+- **Imports:** `EventsEmitterService`; `TasksModule` imports `EventsModule`.
+- **Helper:** `toTaskPayload(t, listId?)`: Builds `{ id, title, description, listId, statusId, priorityId, dueDate (ISO), orderPosition, isArchived, createdAt (ISO), updatedAt (ISO) }`. Uses `listId` arg or `t.list?.id`.
+
+**Emit calls (all inside try/catch; failures do not affect HTTP):**
+
+1. **create:** After save and activity, `emitTaskCreated(listId, toTaskPayload(savedTask, listId))`. `listId` from DTO.
+2. **update:** After save and activity, `emitTaskUpdated(task.list.id, savedTask.id, toTaskPayload(savedTask))`. Task loaded with `list`.
+3. **remove:** Task loaded with `relations: ['list']`, `listId = task.list.id` captured **before** delete. After activity and `remove`, `emitTaskDeleted(listId, id)`.
+4. **move:** After save and activity/notifications, `emitTaskMoved(task.list.id, savedTask.id, toTaskPayload(savedTask))`.
+5. **assignUser:** Task loaded with `relations: ['list']`. After assignment and notification, `emitTaskAssigned(task.list.id, taskId, assigneeId)`.
+6. **unassignUser:** Assignment loaded with `relations: ['task', 'task.list']`. `listId = assignment.task.list.id`. After `remove` and activity, `emitTaskUnassigned(listId, taskId, userId)`.
+
+#### 10.3.7 CommentsService Integration
+
+- **Imports:** `EventsEmitterService`; `CommentsModule` imports `EventsModule`.
+
+**Emit calls (same try/catch pattern):**
+
+1. **create:** Task loaded with `list`. After notifications, builds `payload` (comment + mentions, attachments, dates). `emitCommentCreated(task.list.id, taskId, { ...payload, createdAt/updatedAt as ISO })`.
+2. **update:** Comment loaded with `user`, `task`, `task.list`. After save, reload with `task.list`. Builds `payload`, gets `listId` from `updatedComment.task.list?.id`. If `listId` present, `emitCommentUpdated(listId, updatedComment.task.id, { ...payload, dates as ISO })`.
+3. **remove:** Comment loaded with `task`, `task.list`. `listId` and `taskId` captured **before** delete. After `remove`, if `listId` present, `emitCommentDeleted(listId, taskId, id)`.
+
+#### 10.3.8 REST Client and Client Usage
+
+**rest_client.http:** A comment block documents the WebSocket API:
+
+- Base URL `http://localhost:3000`, namespace `/realtime`.
+- Auth: `handshake.auth.token` or `Authorization: Bearer <JWT>`.
+- Client→Server: `subscribe_list`, `unsubscribe_list`, `subscribe_task`, `unsubscribe_task`, `presence_heartbeat` with `listId` / `taskId`.
+- Server→Client: `task_created`, `task_updated`, `task_moved`, `task_deleted`, `task_assigned`, `task_unassigned`, `comment_created`, `comment_updated`, `comment_deleted`, `presence_updated`.
+
+Clients use a Socket.IO client (e.g. browser or Node), connect to the namespace with JWT, then emit subscribe events and listen for the above events.
+
+---
+
+### 10.4 Summary of Phase 10
+
+**Notifications:** In-app notifications for assignments, due reminders, comments, and status changes; preferences per user; mark read/unread and delete; optional email when `MAIL_*` and user prefs enabled.
+
+**Real-time:** Socket.IO gateway `/realtime`, JWT handshake auth, list/task rooms and presence rooms; task and comment CRUD events; presence tracking and `presence_updated`; `EventsEmitterService` used by `TasksService` and `CommentsService`; IoAdapter in `main.ts`.
+
+**Files touched:** Notifications (entity, DTOs, service, controller, module); Email (service, module); Auth (export `JwtModule`); Tasks (service, controller, module); Comments (service, module); Events (emitter, gateway, module); App (imports); main (IoAdapter); rest_client (notifications + WebSocket block); database README (MAIL_*); BACKEND_TODO (Phase 10 completed).
+
+---
+
 ## Notes
 
 - All completed phases are marked with ✅

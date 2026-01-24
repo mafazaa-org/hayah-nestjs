@@ -108,6 +108,11 @@ export class TasksController {
     );
   }
 
+  @Post('due-reminders/process')
+  processDueReminders(): Promise<{ processed: number }> {
+    return this.tasksService.processDueReminders();
+  }
+
   // Task Dependency endpoints - must come before :id route to avoid conflicts
   @Post('dependencies')
   createTaskDependency(

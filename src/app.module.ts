@@ -13,6 +13,8 @@ import { StatusesModule } from './features/statuses/statuses.module';
 import { TasksModule } from './features/tasks/tasks.module';
 import { TagsModule } from './features/tags/tags.module';
 import { UsersModule } from './features/users/users.module';
+import { EmailModule } from './common/email/email.module';
+import { EventsModule } from './features/events/events.module';
 import databaseConfig from './config/database.config';
 
 @Module({
@@ -29,6 +31,7 @@ import databaseConfig from './config/database.config';
         configService.get('database') as ReturnType<typeof databaseConfig>,
       inject: [ConfigService],
     }),
+    EmailModule,
     AttachmentsModule,
     AuthModule,
     CommentsModule,
@@ -39,6 +42,7 @@ import databaseConfig from './config/database.config';
     TasksModule,
     UsersModule,
     TagsModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

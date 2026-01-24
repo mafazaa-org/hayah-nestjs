@@ -22,6 +22,15 @@ DB_SSL=false
 # Application Configuration
 PORT=3000
 NODE_ENV=development
+
+# Email (optional – for notification emails)
+# Set MAIL_ENABLED=true and SMTP credentials to enable.
+# MAIL_ENABLED=false
+# MAIL_HOST=smtp.example.com
+# MAIL_PORT=587
+# MAIL_USER=
+# MAIL_PASSWORD=
+# MAIL_FROM=Hayah <noreply@example.com>
 ```
 
 ### Features

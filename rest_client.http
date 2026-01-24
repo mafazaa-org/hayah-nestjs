@@ -1073,3 +1073,69 @@ Authorization: Bearer {{accessToken}}
 ### Attachments - Delete Attachment
 DELETE http://localhost:3000/attachments/attachment-uuid-here
 Authorization: Bearer {{accessToken}}
+
+### Notifications - List (all)
+GET http://localhost:3000/notifications
+Authorization: Bearer {{accessToken}}
+
+### Notifications - List unread only
+GET http://localhost:3000/notifications?isRead=false
+Authorization: Bearer {{accessToken}}
+
+### Notifications - Unread count
+GET http://localhost:3000/notifications/unread-count
+Authorization: Bearer {{accessToken}}
+
+### Notifications - Mark all as read
+PATCH http://localhost:3000/notifications/mark-all-read
+Authorization: Bearer {{accessToken}}
+
+### Notifications - Get one
+GET http://localhost:3000/notifications/notification-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Notifications - Mark as read/unread
+PATCH http://localhost:3000/notifications/notification-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "isRead": true
+}
+
+### Notifications - Delete
+DELETE http://localhost:3000/notifications/notification-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Tasks - Process due-date reminders (cron)
+POST http://localhost:3000/tasks/due-reminders/process
+Authorization: Bearer {{accessToken}}
+
+# ------------------------------------------------------------------------------
+# Real-time (WebSocket) – Socket.IO namespace /realtime
+# Connect via Socket.IO client; not executable as HTTP. Use auth.token or
+# Authorization Bearer in handshake.
+#
+# Base URL: http://localhost:3000
+# Namespace: /realtime
+# Auth: handshake.auth.token = JWT, or Authorization: Bearer <JWT>
+#
+# Client → Server (emit):
+#   subscribe_list   { listId }
+#   unsubscribe_list { listId }
+#   subscribe_task   { taskId }
+#   unsubscribe_task { taskId }
+#   presence_heartbeat { listId }
+#
+# Server → Client (on):
+#   task_created     { listId, task }
+#   task_updated     { listId, taskId, task }
+#   task_moved       { listId, taskId, task }
+#   task_deleted     { listId, taskId }
+#   task_assigned    { listId, taskId, userId }
+#   task_unassigned  { listId, taskId, userId }
+#   comment_created  { listId, taskId, comment }
+#   comment_updated  { listId, taskId, comment }
+#   comment_deleted  { listId, taskId, commentId }
+#   presence_updated { listId, userIds }
+# ------------------------------------------------------------------------------

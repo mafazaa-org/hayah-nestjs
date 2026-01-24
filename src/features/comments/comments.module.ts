@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { AttachmentsModule } from '../attachments/attachments.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { EventsModule } from '../events/events.module';
 import { CommentEntity } from './entities/comment.entity';
 import { TaskEntity } from '../tasks/entities/task.entity';
 import { UserEntity } from '../users/entities/user.entity';
@@ -20,7 +22,9 @@ import { CommentsService } from './comments.service';
       ListMemberEntity,
     ]),
     AuthModule,
-    AttachmentsModule, // Import AttachmentsModule to access AttachmentsService
+    AttachmentsModule,
+    NotificationsModule,
+    EventsModule,
   ],
   controllers: [CommentsController],
   providers: [CommentsService],

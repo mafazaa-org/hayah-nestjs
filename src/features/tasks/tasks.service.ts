@@ -37,8 +37,13 @@ import { CreateTaskCustomFieldValueDto } from './dto/create-task-custom-field-va
 import { UpdateTaskCustomFieldValueDto } from './dto/update-task-custom-field-value.dto';
 import { TaskCustomFieldValueEntity } from './entities/task-custom-field-value.entity';
 import { CustomFieldEntity } from '../lists/entities/custom-field.entity';
-import { In } from 'typeorm';
+import { Between, In } from 'typeorm';
 import { ActivitiesService } from './services/activities.service';
+import {
+  NotificationsService,
+  NotificationType,
+} from '../notifications/notifications.service';
+import { EventsEmitterService } from '../events/events-emitter.service';
 
 @Injectable()
 export class TasksService {
@@ -70,6 +75,8 @@ export class TasksService {
     @InjectRepository(CustomFieldEntity)
     private readonly customFieldRepository: Repository<CustomFieldEntity>,
     private readonly activitiesService: ActivitiesService,
+    private readonly notificationsService: NotificationsService,
+    private readonly eventsEmitter: EventsEmitterService,
   ) {}
 
   async create(
@@ -160,7 +167,33 @@ export class TasksService {
       );
     }
 
+    try {
+      this.eventsEmitter.emitTaskCreated(listId, this.toTaskPayload(savedTask, listId));
+    } catch {
+      // Real-time emit must not break create
+    }
+
     return savedTask;
+  }
+
+  private toTaskPayload(
+    t: TaskEntity,
+    listId?: string,
+  ): Record<string, unknown> {
+    const lid = listId ?? (t.list as ListEntity)?.id;
+    return {
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      listId: lid,
+      statusId: t.status?.id ?? null,
+      priorityId: t.priority?.id ?? null,
+      dueDate: t.dueDate ? (t.dueDate as Date).toISOString() : null,
+      orderPosition: t.orderPosition,
+      isArchived: t.isArchived,
+      createdAt: (t.createdAt as Date)?.toISOString?.(),
+      updatedAt: (t.updatedAt as Date)?.toISOString?.(),
+    };
   }
 
   async findAll(
@@ -526,15 +559,30 @@ export class TasksService {
       }
     }
 
+    try {
+      this.eventsEmitter.emitTaskUpdated(
+        task.list.id,
+        savedTask.id,
+        this.toTaskPayload(savedTask),
+      );
+    } catch {
+      // Real-time emit must not break update
+    }
+
     return savedTask;
   }
 
   async remove(id: string, userId?: string): Promise<void> {
-    const task = await this.taskRepository.findOne({ where: { id } });
+    const task = await this.taskRepository.findOne({
+      where: { id },
+      relations: ['list'],
+    });
 
     if (!task) {
       throw new NotFoundException('Task not found');
     }
+
+    const listId = task.list.id;
 
     // Track activity before deletion
     if (userId) {
@@ -549,6 +597,12 @@ export class TasksService {
 
     // Cascade delete will handle related entities (subtasks, comments, attachments, etc.)
     await this.taskRepository.remove(task);
+
+    try {
+      this.eventsEmitter.emitTaskDeleted(listId, id);
+    } catch {
+      // Real-time emit must not break delete
+    }
   }
 
   async move(
@@ -617,6 +671,28 @@ export class TasksService {
             { statusId: oldStatusId },
             { statusId: newStatusId },
           );
+
+          // Notify assignees of status change (exclude actor)
+          try {
+            const assignments = await this.assignmentRepository.find({
+              where: { task: { id: savedTask.id } },
+              relations: ['user'],
+            });
+            const assigneeIds = assignments
+              .map((a) => a.user.id)
+              .filter((id) => id !== userId);
+            if (assigneeIds.length > 0) {
+              await this.notificationsService.createForUsers(
+                assigneeIds,
+                NotificationType.TASK_STATUS_CHANGE,
+                'Task status updated',
+                `Task "${savedTask.title}" status was changed`,
+                savedTask.id,
+              );
+            }
+          } catch {
+            // Notification failure should not break move
+          }
         }
       }
       if (moveTaskDto.orderPosition !== undefined || (moveTaskDto.statusId !== undefined && oldOrderPosition !== savedTask.orderPosition)) {
@@ -630,6 +706,16 @@ export class TasksService {
           );
         }
       }
+    }
+
+    try {
+      this.eventsEmitter.emitTaskMoved(
+        task.list.id,
+        savedTask.id,
+        this.toTaskPayload(savedTask),
+      );
+    } catch {
+      // Real-time emit must not break move
     }
 
     return savedTask;
@@ -696,7 +782,10 @@ export class TasksService {
     assignTaskDto: AssignTaskDto,
     actorUserId?: string,
   ): Promise<AssignmentEntity> {
-    const task = await this.taskRepository.findOne({ where: { id: taskId } });
+    const task = await this.taskRepository.findOne({
+      where: { id: taskId },
+      relations: ['list'],
+    });
     if (!task) {
       throw new NotFoundException('Task not found');
     }
@@ -731,6 +820,28 @@ export class TasksService {
       );
     }
 
+    // Notify assignee (unless they assigned themselves)
+    const assigneeId = assignTaskDto.userId;
+    if (assigneeId !== actorUserId) {
+      try {
+        await this.notificationsService.create(
+          assigneeId,
+          NotificationType.TASK_ASSIGNMENT,
+          'Task assignment',
+          `You were assigned to task "${task.title}"`,
+          taskId,
+        );
+      } catch {
+        // Notification failure should not break assignment
+      }
+    }
+
+    try {
+      this.eventsEmitter.emitTaskAssigned(task.list.id, taskId, assigneeId);
+    } catch {
+      // Real-time emit must not break assign
+    }
+
     return savedAssignment;
   }
 
@@ -744,6 +855,7 @@ export class TasksService {
         task: { id: taskId },
         user: { id: userId },
       },
+      relations: ['task', 'task.list'],
     });
 
     if (!assignment) {
@@ -751,6 +863,8 @@ export class TasksService {
         'Assignment not found (user is not assigned to this task)',
       );
     }
+
+    const listId = assignment.task.list.id;
 
     await this.assignmentRepository.remove(assignment);
 
@@ -763,6 +877,12 @@ export class TasksService {
         { userId },
         null,
       );
+    }
+
+    try {
+      this.eventsEmitter.emitTaskUnassigned(listId, taskId, userId);
+    } catch {
+      // Real-time emit must not break unassign
     }
   }
 
@@ -2136,5 +2256,46 @@ export class TasksService {
     }
 
     await this.taskCustomFieldValueRepository.remove(taskCustomFieldValue);
+  }
+
+  /**
+   * Create due-date reminder notifications for tasks due in the next 24 hours.
+   * Intended to be called by a cron job or scheduled task.
+   * Assignees receive a TASK_DUE_REMINDER notification per task (respecting preferences).
+   */
+  async processDueReminders(): Promise<{ processed: number }> {
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 2); // today + tomorrow
+
+    const tasks = await this.taskRepository.find({
+      where: {
+        dueDate: Between(start, end) as any,
+        isArchived: false,
+      },
+      relations: ['assignments', 'assignments.user'],
+    });
+
+    let processed = 0;
+    for (const task of tasks) {
+      if (!task.dueDate) continue;
+      const assigneeIds = (task.assignments ?? []).map((a) => a.user.id);
+      if (assigneeIds.length === 0) continue;
+      try {
+        await this.notificationsService.createForUsers(
+          assigneeIds,
+          NotificationType.TASK_DUE_REMINDER,
+          'Task due soon',
+          `Task "${task.title}" is due ${task.dueDate.toISOString().slice(0, 10)}`,
+          task.id,
+        );
+        processed += assigneeIds.length;
+      } catch {
+        // Continue with other tasks
+      }
+    }
+    return { processed };
   }
 }

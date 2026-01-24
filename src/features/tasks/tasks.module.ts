@@ -19,6 +19,8 @@ import { CustomFieldEntity } from '../lists/entities/custom-field.entity';
 import { ActivityEntity } from './entities/activity.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { ActivitiesService } from './services/activities.service';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { EventsModule } from '../events/events.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { ActivitiesService } from './services/activities.service';
       UserEntity,
     ]),
     AuthModule,
+    NotificationsModule,
+    EventsModule,
   ],
   controllers: [TasksController],
   providers: [TasksService, ActivitiesService],

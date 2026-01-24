@@ -14,6 +14,14 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { CommentResponseDto } from './dto/comment-response.dto';
 import { AttachmentsService } from '../attachments/attachments.service';
+import {
+  NotificationsService,
+  NotificationType,
+} from '../notifications/notifications.service';
+import { EventsEmitterService } from '../events/events-emitter.service';
+
+const UUID_REGEX =
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
 @Injectable()
 export class CommentsService {
@@ -29,7 +37,25 @@ export class CommentsService {
     @InjectRepository(ListMemberEntity)
     private readonly listMemberRepository: Repository<ListMemberEntity>,
     private readonly attachmentsService: AttachmentsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly eventsEmitter: EventsEmitterService,
   ) {}
+
+  /**
+   * Resolve mention strings (UUID or email) to user IDs
+   */
+  private async resolveMentionsToUserIds(mentions: string[]): Promise<string[]> {
+    const ids: string[] = [];
+    for (const m of mentions) {
+      if (UUID_REGEX.test(m)) {
+        ids.push(m);
+      } else {
+        const u = await this.userRepository.findOne({ where: { email: m } });
+        if (u) ids.push(u.id);
+      }
+    }
+    return [...new Set(ids)];
+  }
 
   /**
    * Get attachments for a comment
@@ -168,7 +194,34 @@ export class CommentsService {
     // Get attachments for this comment
     const attachments = await this.getCommentAttachments(commentWithRelations.id);
 
-    return {
+    // Notify assignees and @mentioned users (exclude author)
+    try {
+      const taskWithAssignees = await this.taskRepository.findOne({
+        where: { id: taskId },
+        relations: ['assignments', 'assignments.user'],
+      });
+      const assigneeIds = (taskWithAssignees?.assignments ?? []).map(
+        (a) => a.user.id,
+      );
+      const mentionIds = await this.resolveMentionsToUserIds(mentions);
+      const toNotify = [...new Set([...assigneeIds, ...mentionIds])].filter(
+        (id) => id !== userId,
+      );
+      const authorName = user.name || user.email;
+      if (toNotify.length > 0) {
+        await this.notificationsService.createForUsers(
+          toNotify,
+          NotificationType.COMMENT,
+          'New comment',
+          `${authorName} commented on task "${task.title}"`,
+          savedComment.id,
+        );
+      }
+    } catch {
+      // Notification failure should not break comment creation
+    }
+
+    const payload = {
       id: commentWithRelations.id,
       taskId: commentWithRelations.task.id,
       userId: commentWithRelations.user.id,
@@ -180,6 +233,18 @@ export class CommentsService {
       createdAt: commentWithRelations.createdAt,
       updatedAt: commentWithRelations.updatedAt,
     };
+
+    try {
+      this.eventsEmitter.emitCommentCreated(
+        task.list.id,
+        commentWithRelations.task.id,
+        { ...payload, createdAt: (payload.createdAt as Date).toISOString(), updatedAt: (payload.updatedAt as Date).toISOString() },
+      );
+    } catch {
+      // Real-time emit must not break create
+    }
+
+    return payload;
   }
 
   /**
@@ -272,7 +337,7 @@ export class CommentsService {
 
     const comment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['user', 'task'],
+      relations: ['user', 'task', 'task.list'],
     });
 
     if (!comment) {
@@ -288,7 +353,7 @@ export class CommentsService {
     // Reload with relations
     const updatedComment = await this.commentRepository.findOne({
       where: { id },
-      relations: ['user', 'task'],
+      relations: ['user', 'task', 'task.list'],
     });
 
     if (!updatedComment) {
@@ -297,7 +362,7 @@ export class CommentsService {
 
     const attachments = await this.getCommentAttachments(updatedComment.id);
 
-    return {
+    const payload = {
       id: updatedComment.id,
       taskId: updatedComment.task.id,
       userId: updatedComment.user.id,
@@ -309,6 +374,22 @@ export class CommentsService {
       createdAt: updatedComment.createdAt,
       updatedAt: updatedComment.updatedAt,
     };
+
+    try {
+      const taskWithList = updatedComment.task as TaskEntity & { list?: { id: string } };
+      const listId = taskWithList.list?.id;
+      if (listId) {
+        this.eventsEmitter.emitCommentUpdated(listId, updatedComment.task.id, {
+          ...payload,
+          createdAt: (payload.createdAt as Date).toISOString(),
+          updatedAt: (payload.updatedAt as Date).toISOString(),
+        });
+      }
+    } catch {
+      // Real-time emit must not break update
+    }
+
+    return payload;
   }
 
   /**
@@ -325,12 +406,24 @@ export class CommentsService {
 
     const comment = await this.commentRepository.findOne({
       where: { id },
+      relations: ['task', 'task.list'],
     });
 
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
 
+    const listId = (comment.task as TaskEntity & { list?: { id: string } }).list?.id;
+    const taskId = comment.task.id;
+
     await this.commentRepository.remove(comment);
+
+    try {
+      if (listId) {
+        this.eventsEmitter.emitCommentDeleted(listId, taskId, id);
+      }
+    } catch {
+      // Real-time emit must not break delete
+    }
   }
 }
