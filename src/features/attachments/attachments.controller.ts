@@ -12,12 +12,15 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentResponseDto } from './dto/attachment-response.dto';
 import { memoryStorage } from 'multer';
 
+@ApiTags('attachments')
+@ApiBearerAuth('access-token')
 @Controller('attachments')
 @UseGuards(JwtAuthGuard)
 export class AttachmentsController {

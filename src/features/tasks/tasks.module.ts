@@ -21,6 +21,7 @@ import { UserEntity } from '../users/entities/user.entity';
 import { ActivitiesService } from './services/activities.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EventsModule } from '../events/events.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { EventsModule } from '../events/events.module';
     AuthModule,
     NotificationsModule,
     EventsModule,
+    WebhooksModule,
   ],
   controllers: [TasksController],
   providers: [TasksService, ActivitiesService],

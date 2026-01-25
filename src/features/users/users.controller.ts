@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
@@ -16,6 +17,8 @@ import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserSettingsResponseDto } from './dto/user-settings-response.dto';
 
+@ApiTags('users')
+@ApiBearerAuth('access-token')
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {

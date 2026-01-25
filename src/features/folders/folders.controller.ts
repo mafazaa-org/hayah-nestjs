@@ -8,6 +8,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FoldersService } from './folders.service';
 import { CreateFolderDto } from './dto/create-folder.dto';
@@ -15,6 +16,8 @@ import { UpdateFolderDto } from './dto/update-folder.dto';
 import { MoveFolderDto } from './dto/move-folder.dto';
 import { FolderEntity } from './entities/folder.entity';
 
+@ApiTags('folders')
+@ApiBearerAuth('access-token')
 @Controller('folders')
 @UseGuards(JwtAuthGuard)
 export class FoldersController {

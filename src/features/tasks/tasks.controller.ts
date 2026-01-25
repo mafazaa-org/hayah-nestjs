@@ -41,7 +41,10 @@ import { TaskDependencyEntity } from './entities/task-dependency.entity';
 import { TaskCustomFieldValueEntity } from './entities/task-custom-field-value.entity';
 import { ActivitiesService } from './services/activities.service';
 import { ActivityResponseDto } from './dto/activity-response.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('tasks')
+@ApiBearerAuth('access-token')
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
 export class TasksController {

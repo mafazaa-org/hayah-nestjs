@@ -34,7 +34,10 @@ import { InviteUserToListDto } from './dto/invite-user-to-list.dto';
 import { UpdateListMemberRoleDto } from './dto/update-list-member-role.dto';
 import { ListMemberResponseDto } from './dto/list-member-response.dto';
 import { ListPermissionsResponseDto } from './dto/list-permissions-response.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('lists')
+@ApiBearerAuth('access-token')
 @Controller('lists')
 @UseGuards(JwtAuthGuard)
 export class ListsController {

@@ -1,5 +1,8 @@
+# REST API base: http://localhost:3000/api/v1 (versioned). Swagger UI: http://localhost:3000/api/docs
+# Use {{accessToken}} or paste JWT for Authorization: Bearer <token> on protected routes.
+
 ### Auth - Register
-POST http://localhost:3000/auth/register
+POST http://localhost:3000/api/v1/auth/register
 Content-Type: application/json
 
 {
@@ -9,7 +12,7 @@ Content-Type: application/json
 }
 
 ### Auth - Login
-POST http://localhost:3000/auth/login
+POST http://localhost:3000/api/v1/auth/login
 Content-Type: application/json
 
 {
@@ -18,11 +21,11 @@ Content-Type: application/json
 }
 
 ### Auth - Get Current Auth Payload (JWT)
-GET http://localhost:3000/auth/me
+GET http://localhost:3000/api/v1/auth/me
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3OWUzMjhiNy0xODgyLTQ4ZjItYjk1My05ZmYxMzhiMGQyMzUiLCJlbWFpbCI6InRlc3QwMUBleGFtcGxlLmNvbSIsImlhdCI6MTc2OTAwMDY2MCwiZXhwIjoxNzY5MDA0MjYwfQ._GVmRIq5upALbOv9RogwTaBICRDBukoGVLnashL59UQ
 
 ### Auth - Verify Email
-POST http://localhost:3000/auth/verify-email
+POST http://localhost:3000/api/v1/auth/verify-email
 Content-Type: application/json
 
 {
@@ -30,7 +33,7 @@ Content-Type: application/json
 }
 
 ### Auth - Request Password Reset
-POST http://localhost:3000/auth/request-password-reset
+POST http://localhost:3000/api/v1/auth/request-password-reset
 Content-Type: application/json
 
 {
@@ -38,7 +41,7 @@ Content-Type: application/json
 }
 
 ### Auth - Reset Password
-PUT http://localhost:3000/auth/reset-password
+PUT http://localhost:3000/api/v1/auth/reset-password
 Content-Type: application/json
 
 {
@@ -47,11 +50,11 @@ Content-Type: application/json
 }
 
 ### Users - Get Profile
-GET http://localhost:3000/users/me
+GET http://localhost:3000/api/v1/users/me
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
 
 ### Users - Update Profile
-PUT http://localhost:3000/users/me
+PUT http://localhost:3000/api/v1/users/me
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
 Content-Type: application/json
 
@@ -61,7 +64,7 @@ Content-Type: application/json
 }
 
 ### Users - Change Password
-PUT http://localhost:3000/users/me/password
+PUT http://localhost:3000/api/v1/users/me/password
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
 Content-Type: application/json
 
@@ -71,11 +74,11 @@ Content-Type: application/json
 }
 
 ### Users - Get Settings
-GET http://localhost:3000/users/me/settings
+GET http://localhost:3000/api/v1/users/me/settings
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
 
 ### Users - Update Settings
-PUT http://localhost:3000/users/me/settings
+PUT http://localhost:3000/api/v1/users/me/settings
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlYzBiOTY5OS1kZjE5LTRmNTUtODA1OS0zYmU4ODZlMTlmYzgiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjkwMDA3ODQsImV4cCI6MTc2OTAwNDM4NH0.zFcmqvDqwoOt-YL_gGXDhOcXQaY0QjIjMQkSET9tmCk
 Content-Type: application/json
 
@@ -89,7 +92,7 @@ Content-Type: application/json
 }
 
 ### Folders - Create Folder
-POST http://localhost:3000/folders
+POST http://localhost:3000/api/v1/folders
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -100,11 +103,11 @@ Content-Type: application/json
 }
 
 ### Folders - Get Folder
-GET http://localhost:3000/folders/folder-uuid-here
+GET http://localhost:3000/api/v1/folders/folder-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Folders - Update Folder
-PUT http://localhost:3000/folders/folder-uuid-here
+PUT http://localhost:3000/api/v1/folders/folder-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -113,7 +116,7 @@ Content-Type: application/json
 }
 
 ### Folders - Move Folder
-PUT http://localhost:3000/folders/folder-uuid-here/move
+PUT http://localhost:3000/api/v1/folders/folder-uuid-here/move
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -122,15 +125,15 @@ Content-Type: application/json
 }
 
 ### Folders - Delete Folder
-DELETE http://localhost:3000/folders/folder-uuid-here
+DELETE http://localhost:3000/api/v1/folders/folder-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Folders - Get Workspace Tree
-GET http://localhost:3000/folders/workspace/workspace-uuid-here/tree
+GET http://localhost:3000/api/v1/folders/workspace/workspace-uuid-here/tree
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Create List
-POST http://localhost:3000/lists
+POST http://localhost:3000/api/v1/lists
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -146,19 +149,19 @@ Content-Type: application/json
 }
 
 ### Lists - Get All Lists
-GET http://localhost:3000/lists?workspaceId=workspace-uuid-here&folderId=folder-uuid-here
+GET http://localhost:3000/api/v1/lists?workspaceId=workspace-uuid-here&folderId=folder-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Get All Lists (Root lists only)
-GET http://localhost:3000/lists?workspaceId=workspace-uuid-here&folderId=null
+GET http://localhost:3000/api/v1/lists?workspaceId=workspace-uuid-here&folderId=null
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Get List
-GET http://localhost:3000/lists/list-uuid-here
+GET http://localhost:3000/api/v1/lists/list-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Update List
-PUT http://localhost:3000/lists/list-uuid-here
+PUT http://localhost:3000/api/v1/lists/list-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -172,19 +175,19 @@ Content-Type: application/json
 }
 
 ### Lists - Delete List
-DELETE http://localhost:3000/lists/list-uuid-here
+DELETE http://localhost:3000/api/v1/lists/list-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Archive List
-POST http://localhost:3000/lists/list-uuid-here/archive
+POST http://localhost:3000/api/v1/lists/list-uuid-here/archive
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Unarchive List
-POST http://localhost:3000/lists/list-uuid-here/unarchive
+POST http://localhost:3000/api/v1/lists/list-uuid-here/unarchive
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Duplicate List (without tasks)
-POST http://localhost:3000/lists/list-uuid-here/duplicate
+POST http://localhost:3000/api/v1/lists/list-uuid-here/duplicate
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -193,7 +196,7 @@ Content-Type: application/json
 }
 
 ### Lists - Duplicate List (with tasks)
-POST http://localhost:3000/lists/list-uuid-here/duplicate
+POST http://localhost:3000/api/v1/lists/list-uuid-here/duplicate
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -202,7 +205,7 @@ Content-Type: application/json
 }
 
 ### Lists - Create Template
-POST http://localhost:3000/lists/templates
+POST http://localhost:3000/api/v1/lists/templates
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -230,15 +233,15 @@ Content-Type: application/json
 }
 
 ### Lists - Get All Templates
-GET http://localhost:3000/lists/templates?workspaceId=workspace-uuid-here&includePublic=true
+GET http://localhost:3000/api/v1/lists/templates?workspaceId=workspace-uuid-here&includePublic=true
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Get Template
-GET http://localhost:3000/lists/templates/template-uuid-here
+GET http://localhost:3000/api/v1/lists/templates/template-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Lists - Create List from Template
-POST http://localhost:3000/lists/templates/template-uuid-here/create-list
+POST http://localhost:3000/api/v1/lists/templates/template-uuid-here/create-list
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -250,7 +253,7 @@ Content-Type: application/json
 }
 
 ### Statuses - Create Status
-POST http://localhost:3000/statuses
+POST http://localhost:3000/api/v1/statuses
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -262,15 +265,15 @@ Content-Type: application/json
 }
 
 ### Statuses - Get All Statuses for List
-GET http://localhost:3000/statuses?listId=list-uuid-here
+GET http://localhost:3000/api/v1/statuses?listId=list-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Statuses - Get Status
-GET http://localhost:3000/statuses/status-uuid-here
+GET http://localhost:3000/api/v1/statuses/status-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Statuses - Update Status
-PUT http://localhost:3000/statuses/status-uuid-here
+PUT http://localhost:3000/api/v1/statuses/status-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -280,11 +283,11 @@ Content-Type: application/json
 }
 
 ### Statuses - Delete Status
-DELETE http://localhost:3000/statuses/status-uuid-here
+DELETE http://localhost:3000/api/v1/statuses/status-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Statuses - Reorder Statuses
-PUT http://localhost:3000/statuses/reorder?listId=list-uuid-here
+PUT http://localhost:3000/api/v1/statuses/reorder?listId=list-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -297,7 +300,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Create Task
-POST http://localhost:3000/tasks
+POST http://localhost:3000/api/v1/tasks
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -312,19 +315,19 @@ Content-Type: application/json
 }
 
 ### Tasks - Get All Tasks
-GET http://localhost:3000/tasks?listId=list-uuid-here&statusId=status-uuid-here&includeArchived=false
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&statusId=status-uuid-here&includeArchived=false
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get Calendar View (by due date)
-GET http://localhost:3000/tasks/calendar?listId=list-uuid-here&start=2026-01-01&end=2026-01-31
+GET http://localhost:3000/api/v1/tasks/calendar?listId=list-uuid-here&start=2026-01-01&end=2026-01-31
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get Task
-GET http://localhost:3000/tasks/task-uuid-here
+GET http://localhost:3000/api/v1/tasks/task-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Update Task
-PUT http://localhost:3000/tasks/task-uuid-here
+PUT http://localhost:3000/api/v1/tasks/task-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -338,11 +341,11 @@ Content-Type: application/json
 }
 
 ### Tasks - Delete Task
-DELETE http://localhost:3000/tasks/task-uuid-here
+DELETE http://localhost:3000/api/v1/tasks/task-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Move Task
-PUT http://localhost:3000/tasks/task-uuid-here/move
+PUT http://localhost:3000/api/v1/tasks/task-uuid-here/move
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -352,15 +355,15 @@ Content-Type: application/json
 }
 
 ### Tasks - Archive Task
-POST http://localhost:3000/tasks/task-uuid-here/archive
+POST http://localhost:3000/api/v1/tasks/task-uuid-here/archive
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Unarchive Task
-POST http://localhost:3000/tasks/task-uuid-here/unarchive
+POST http://localhost:3000/api/v1/tasks/task-uuid-here/unarchive
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Assign User to Task
-POST http://localhost:3000/tasks/task-uuid-here/assign
+POST http://localhost:3000/api/v1/tasks/task-uuid-here/assign
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -369,11 +372,11 @@ Content-Type: application/json
 }
 
 ### Tasks - Unassign User from Task
-DELETE http://localhost:3000/tasks/task-uuid-here/assign/user-uuid-here
+DELETE http://localhost:3000/api/v1/tasks/task-uuid-here/assign/user-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Add Tag to Task
-POST http://localhost:3000/tasks/task-uuid-here/tags
+POST http://localhost:3000/api/v1/tasks/task-uuid-here/tags
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -382,11 +385,11 @@ Content-Type: application/json
 }
 
 ### Tasks - Remove Tag from Task
-DELETE http://localhost:3000/tasks/task-uuid-here/tags/tag-uuid-here
+DELETE http://localhost:3000/api/v1/tasks/task-uuid-here/tags/tag-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Subtasks - Create Subtask
-POST http://localhost:3000/tasks/subtasks
+POST http://localhost:3000/api/v1/tasks/subtasks
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -397,15 +400,15 @@ Content-Type: application/json
 }
 
 ### Subtasks - Get All Subtasks for Task
-GET http://localhost:3000/tasks/task-uuid-here/subtasks
+GET http://localhost:3000/api/v1/tasks/task-uuid-here/subtasks
 Authorization: Bearer {{accessToken}}
 
 ### Subtasks - Get Subtask
-GET http://localhost:3000/tasks/subtasks/subtask-uuid-here
+GET http://localhost:3000/api/v1/tasks/subtasks/subtask-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Subtasks - Update Subtask
-PUT http://localhost:3000/tasks/subtasks/subtask-uuid-here
+PUT http://localhost:3000/api/v1/tasks/subtasks/subtask-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -416,11 +419,11 @@ Content-Type: application/json
 }
 
 ### Subtasks - Delete Subtask
-DELETE http://localhost:3000/tasks/subtasks/subtask-uuid-here
+DELETE http://localhost:3000/api/v1/tasks/subtasks/subtask-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Subtasks - Move Subtask to Another Task
-PUT http://localhost:3000/tasks/subtasks/subtask-uuid-here/move
+PUT http://localhost:3000/api/v1/tasks/subtasks/subtask-uuid-here/move
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -430,7 +433,7 @@ Content-Type: application/json
 }
 
 ### Checklists - Create Checklist
-POST http://localhost:3000/tasks/checklists
+POST http://localhost:3000/api/v1/tasks/checklists
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -441,15 +444,15 @@ Content-Type: application/json
 }
 
 ### Checklists - Get All Checklists for Task
-GET http://localhost:3000/tasks/task-uuid-here/checklists
+GET http://localhost:3000/api/v1/tasks/task-uuid-here/checklists
 Authorization: Bearer {{accessToken}}
 
 ### Checklists - Get Checklist
-GET http://localhost:3000/tasks/checklists/checklist-uuid-here
+GET http://localhost:3000/api/v1/tasks/checklists/checklist-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Checklists - Update Checklist
-PUT http://localhost:3000/tasks/checklists/checklist-uuid-here
+PUT http://localhost:3000/api/v1/tasks/checklists/checklist-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -459,11 +462,11 @@ Content-Type: application/json
 }
 
 ### Checklists - Delete Checklist
-DELETE http://localhost:3000/tasks/checklists/checklist-uuid-here
+DELETE http://localhost:3000/api/v1/tasks/checklists/checklist-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Checklist Items - Create Checklist Item
-POST http://localhost:3000/tasks/checklist-items
+POST http://localhost:3000/api/v1/tasks/checklist-items
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -474,15 +477,15 @@ Content-Type: application/json
 }
 
 ### Checklist Items - Get All Checklist Items for Checklist
-GET http://localhost:3000/tasks/checklist-uuid-here/checklist-items
+GET http://localhost:3000/api/v1/tasks/checklist-uuid-here/checklist-items
 Authorization: Bearer {{accessToken}}
 
 ### Checklist Items - Get Checklist Item
-GET http://localhost:3000/tasks/checklist-items/checklist-item-uuid-here
+GET http://localhost:3000/api/v1/tasks/checklist-items/checklist-item-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Checklist Items - Update Checklist Item
-PUT http://localhost:3000/tasks/checklist-items/checklist-item-uuid-here
+PUT http://localhost:3000/api/v1/tasks/checklist-items/checklist-item-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -493,11 +496,11 @@ Content-Type: application/json
 }
 
 ### Checklist Items - Delete Checklist Item
-DELETE http://localhost:3000/tasks/checklist-items/checklist-item-uuid-here
+DELETE http://localhost:3000/api/v1/tasks/checklist-items/checklist-item-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Checklist Items - Reorder Checklist Items
-PUT http://localhost:3000/tasks/checklists/checklist-uuid-here/reorder-items
+PUT http://localhost:3000/api/v1/tasks/checklists/checklist-uuid-here/reorder-items
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -510,7 +513,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Filter Tasks (Simple)
-POST http://localhost:3000/tasks/filter
+POST http://localhost:3000/api/v1/tasks/filter
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -535,7 +538,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Filter Tasks (Complex with AND/OR)
-POST http://localhost:3000/tasks/filter
+POST http://localhost:3000/api/v1/tasks/filter
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -580,7 +583,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Search Tasks
-POST http://localhost:3000/tasks/search
+POST http://localhost:3000/api/v1/tasks/search
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -590,39 +593,39 @@ Content-Type: application/json
 }
 
 ### Tasks - Get All Tasks (with sorting by due date)
-GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=dueDate&sortDirection=ASC
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&sortField=dueDate&sortDirection=ASC
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get All Tasks (with sorting by priority)
-GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=priority&sortDirection=DESC
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&sortField=priority&sortDirection=DESC
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get All Tasks (with sorting by creation date)
-GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=createdAt&sortDirection=DESC
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&sortField=createdAt&sortDirection=DESC
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get All Tasks (with sorting by title)
-GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=title&sortDirection=ASC
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&sortField=title&sortDirection=ASC
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get All Tasks (with sorting by assignee)
-GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=assignee&sortDirection=ASC
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&sortField=assignee&sortDirection=ASC
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get All Tasks (with sorting by custom field - text)
-GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get All Tasks (with sorting by custom field - number)
-GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=customField&sortDirection=DESC&customFieldId=custom-field-uuid-here
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&sortField=customField&sortDirection=DESC&customFieldId=custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Get All Tasks (with sorting by custom field - date)
-GET http://localhost:3000/tasks?listId=list-uuid-here&sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
+GET http://localhost:3000/api/v1/tasks?listId=list-uuid-here&sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Filter Tasks (with sorting by due date)
-POST http://localhost:3000/tasks/filter?sortField=dueDate&sortDirection=ASC
+POST http://localhost:3000/api/v1/tasks/filter?sortField=dueDate&sortDirection=ASC
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -641,7 +644,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Search Tasks (with sorting by priority)
-POST http://localhost:3000/tasks/search?sortField=priority&sortDirection=DESC
+POST http://localhost:3000/api/v1/tasks/search?sortField=priority&sortDirection=DESC
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -651,7 +654,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Filter Tasks (with sorting by assignee)
-POST http://localhost:3000/tasks/filter?sortField=assignee&sortDirection=ASC
+POST http://localhost:3000/api/v1/tasks/filter?sortField=assignee&sortDirection=ASC
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -670,7 +673,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Search Tasks (with sorting by assignee)
-POST http://localhost:3000/tasks/search?sortField=assignee&sortDirection=DESC
+POST http://localhost:3000/api/v1/tasks/search?sortField=assignee&sortDirection=DESC
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -680,7 +683,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Filter Tasks (with sorting by custom field)
-POST http://localhost:3000/tasks/filter?sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
+POST http://localhost:3000/api/v1/tasks/filter?sortField=customField&sortDirection=ASC&customFieldId=custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -699,7 +702,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Filter Tasks (by custom field)
-POST http://localhost:3000/tasks/filter
+POST http://localhost:3000/api/v1/tasks/filter
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -724,7 +727,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Filter Tasks (by custom field - number/date)
-POST http://localhost:3000/tasks/filter
+POST http://localhost:3000/api/v1/tasks/filter
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -750,7 +753,7 @@ Content-Type: application/json
 }
 
 ### Tasks - Search Tasks (with sorting by custom field)
-POST http://localhost:3000/tasks/search?sortField=customField&sortDirection=DESC&customFieldId=custom-field-uuid-here
+POST http://localhost:3000/api/v1/tasks/search?sortField=customField&sortDirection=DESC&customFieldId=custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -760,7 +763,7 @@ Content-Type: application/json
 }
 
 ### Task Dependencies - Create Dependency (blocked_by)
-POST http://localhost:3000/tasks/dependencies
+POST http://localhost:3000/api/v1/tasks/dependencies
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -771,7 +774,7 @@ Content-Type: application/json
 }
 
 ### Task Dependencies - Create Dependency (blocks)
-POST http://localhost:3000/tasks/dependencies
+POST http://localhost:3000/api/v1/tasks/dependencies
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -782,19 +785,19 @@ Content-Type: application/json
 }
 
 ### Task Dependencies - Get All Dependencies for Task
-GET http://localhost:3000/tasks/task-uuid-here/dependencies
+GET http://localhost:3000/api/v1/tasks/task-uuid-here/dependencies
 Authorization: Bearer {{accessToken}}
 
 ### Task Dependencies - Get Dependency
-GET http://localhost:3000/tasks/dependencies/dependency-uuid-here
+GET http://localhost:3000/api/v1/tasks/dependencies/dependency-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Task Dependencies - Delete Dependency
-DELETE http://localhost:3000/tasks/dependencies/dependency-uuid-here
+DELETE http://localhost:3000/api/v1/tasks/dependencies/dependency-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Custom Fields - Create Custom Field (Text)
-POST http://localhost:3000/lists/custom-fields
+POST http://localhost:3000/api/v1/lists/custom-fields
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -806,7 +809,7 @@ Content-Type: application/json
 }
 
 ### Custom Fields - Create Custom Field (Dropdown)
-POST http://localhost:3000/lists/custom-fields
+POST http://localhost:3000/api/v1/lists/custom-fields
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -820,15 +823,15 @@ Content-Type: application/json
 }
 
 ### Custom Fields - Get All Custom Fields for List
-GET http://localhost:3000/lists/custom-fields?listId=list-uuid-here
+GET http://localhost:3000/api/v1/lists/custom-fields?listId=list-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Custom Fields - Get Custom Field
-GET http://localhost:3000/lists/custom-fields/custom-field-uuid-here
+GET http://localhost:3000/api/v1/lists/custom-fields/custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Custom Fields - Update Custom Field
-PUT http://localhost:3000/lists/custom-fields/custom-field-uuid-here
+PUT http://localhost:3000/api/v1/lists/custom-fields/custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -840,11 +843,11 @@ Content-Type: application/json
 }
 
 ### Custom Fields - Delete Custom Field
-DELETE http://localhost:3000/lists/custom-fields/custom-field-uuid-here
+DELETE http://localhost:3000/api/v1/lists/custom-fields/custom-field-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Task Custom Field Values - Create Custom Field Value (Text)
-POST http://localhost:3000/tasks/custom-field-values
+POST http://localhost:3000/api/v1/tasks/custom-field-values
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -855,7 +858,7 @@ Content-Type: application/json
 }
 
 ### Task Custom Field Values - Create Custom Field Value (Number)
-POST http://localhost:3000/tasks/custom-field-values
+POST http://localhost:3000/api/v1/tasks/custom-field-values
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -866,7 +869,7 @@ Content-Type: application/json
 }
 
 ### Task Custom Field Values - Create Custom Field Value (Date)
-POST http://localhost:3000/tasks/custom-field-values
+POST http://localhost:3000/api/v1/tasks/custom-field-values
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -877,7 +880,7 @@ Content-Type: application/json
 }
 
 ### Task Custom Field Values - Create Custom Field Value (Dropdown)
-POST http://localhost:3000/tasks/custom-field-values
+POST http://localhost:3000/api/v1/tasks/custom-field-values
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -888,15 +891,15 @@ Content-Type: application/json
 }
 
 ### Task Custom Field Values - Get All Custom Field Values for Task
-GET http://localhost:3000/tasks/task-uuid-here/custom-field-values
+GET http://localhost:3000/api/v1/tasks/task-uuid-here/custom-field-values
 Authorization: Bearer {{accessToken}}
 
 ### Task Custom Field Values - Get Custom Field Value
-GET http://localhost:3000/tasks/custom-field-values/custom-field-value-uuid-here
+GET http://localhost:3000/api/v1/tasks/custom-field-values/custom-field-value-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Task Custom Field Values - Update Custom Field Value
-PUT http://localhost:3000/tasks/custom-field-values/custom-field-value-uuid-here
+PUT http://localhost:3000/api/v1/tasks/custom-field-values/custom-field-value-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -905,11 +908,11 @@ Content-Type: application/json
 }
 
 ### Task Custom Field Values - Delete Custom Field Value
-DELETE http://localhost:3000/tasks/custom-field-values/custom-field-value-uuid-here
+DELETE http://localhost:3000/api/v1/tasks/custom-field-values/custom-field-value-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Filter Presets - Create Filter Preset
-POST http://localhost:3000/lists/filter-presets
+POST http://localhost:3000/api/v1/lists/filter-presets
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -935,7 +938,7 @@ Content-Type: application/json
 }
 
 ### Filter Presets - Create Filter Preset (Complex)
-POST http://localhost:3000/lists/filter-presets
+POST http://localhost:3000/api/v1/lists/filter-presets
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -976,7 +979,7 @@ Content-Type: application/json
 }
 
 ### Filter Presets - Create Filter Preset (with custom field)
-POST http://localhost:3000/lists/filter-presets
+POST http://localhost:3000/api/v1/lists/filter-presets
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -998,19 +1001,19 @@ Content-Type: application/json
 }
 
 ### Filter Presets - Get All Filter Presets
-GET http://localhost:3000/lists/filter-presets
+GET http://localhost:3000/api/v1/lists/filter-presets
 Authorization: Bearer {{accessToken}}
 
 ### Filter Presets - Get All Filter Presets for List
-GET http://localhost:3000/lists/filter-presets?listId=list-uuid-here
+GET http://localhost:3000/api/v1/lists/filter-presets?listId=list-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Filter Presets - Get Filter Preset
-GET http://localhost:3000/lists/filter-presets/filter-preset-uuid-here
+GET http://localhost:3000/api/v1/lists/filter-presets/filter-preset-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Filter Presets - Update Filter Preset
-PUT http://localhost:3000/lists/filter-presets/filter-preset-uuid-here
+PUT http://localhost:3000/api/v1/lists/filter-presets/filter-preset-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1030,11 +1033,11 @@ Content-Type: application/json
 }
 
 ### Filter Presets - Delete Filter Preset
-DELETE http://localhost:3000/lists/filter-presets/filter-preset-uuid-here
+DELETE http://localhost:3000/api/v1/lists/filter-presets/filter-preset-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Views (Multiple Board Views) - Create View
-POST http://localhost:3000/lists/views
+POST http://localhost:3000/api/v1/lists/views
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1046,7 +1049,7 @@ Content-Type: application/json
 }
 
 ### Views - Create View (with columns, filters, sorting)
-POST http://localhost:3000/lists/views
+POST http://localhost:3000/api/v1/lists/views
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1077,19 +1080,19 @@ Content-Type: application/json
 }
 
 ### Views - Get All Views
-GET http://localhost:3000/lists/views
+GET http://localhost:3000/api/v1/lists/views
 Authorization: Bearer {{accessToken}}
 
 ### Views - Get All Views for List
-GET http://localhost:3000/lists/views?listId=list-uuid-here
+GET http://localhost:3000/api/v1/lists/views?listId=list-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Views - Get View
-GET http://localhost:3000/lists/views/view-uuid-here
+GET http://localhost:3000/api/v1/lists/views/view-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Views - Update View
-PUT http://localhost:3000/lists/views/view-uuid-here
+PUT http://localhost:3000/api/v1/lists/views/view-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1106,11 +1109,11 @@ Content-Type: application/json
 }
 
 ### Views - Delete View
-DELETE http://localhost:3000/lists/views/view-uuid-here
+DELETE http://localhost:3000/api/v1/lists/views/view-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### List Members - Invite User to List
-POST http://localhost:3000/lists/list-uuid-here/members/invite
+POST http://localhost:3000/api/v1/lists/list-uuid-here/members/invite
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1120,15 +1123,15 @@ Content-Type: application/json
 }
 
 ### List Members - Get All List Members
-GET http://localhost:3000/lists/list-uuid-here/members
+GET http://localhost:3000/api/v1/lists/list-uuid-here/members
 Authorization: Bearer {{accessToken}}
 
 ### List Members - Get List Member
-GET http://localhost:3000/lists/members/list-member-uuid-here
+GET http://localhost:3000/api/v1/lists/members/list-member-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### List Members - Update List Member Role
-PUT http://localhost:3000/lists/members/list-member-uuid-here/role
+PUT http://localhost:3000/api/v1/lists/members/list-member-uuid-here/role
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1137,15 +1140,15 @@ Content-Type: application/json
 }
 
 ### List Members - Remove List Member
-DELETE http://localhost:3000/lists/members/list-member-uuid-here
+DELETE http://localhost:3000/api/v1/lists/members/list-member-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### List Members - Check User Permissions
-GET http://localhost:3000/lists/list-uuid-here/permissions
+GET http://localhost:3000/api/v1/lists/list-uuid-here/permissions
 Authorization: Bearer {{accessToken}}
 
 ### Comments - Create Comment
-POST http://localhost:3000/comments
+POST http://localhost:3000/api/v1/comments
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1155,15 +1158,15 @@ Content-Type: application/json
 }
 
 ### Comments - Get All Comments for Task
-GET http://localhost:3000/comments/task/task-uuid-here
+GET http://localhost:3000/api/v1/comments/task/task-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Comments - Get Comment
-GET http://localhost:3000/comments/comment-uuid-here
+GET http://localhost:3000/api/v1/comments/comment-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Comments - Update Comment
-PUT http://localhost:3000/comments/comment-uuid-here
+PUT http://localhost:3000/api/v1/comments/comment-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1172,15 +1175,15 @@ Content-Type: application/json
 }
 
 ### Comments - Delete Comment
-DELETE http://localhost:3000/comments/comment-uuid-here
+DELETE http://localhost:3000/api/v1/comments/comment-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Activities - Get All Activities for Task
-GET http://localhost:3000/tasks/task-uuid-here/activities
+GET http://localhost:3000/api/v1/tasks/task-uuid-here/activities
 Authorization: Bearer {{accessToken}}
 
 ### Attachments - Upload File to Task
-POST http://localhost:3000/attachments/task/task-uuid-here/upload
+POST http://localhost:3000/api/v1/attachments/task/task-uuid-here/upload
 Authorization: Bearer {{accessToken}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
@@ -1192,11 +1195,11 @@ Content-Type: application/pdf
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### Attachments - Get All Attachments for Task
-GET http://localhost:3000/attachments/task/task-uuid-here
+GET http://localhost:3000/api/v1/attachments/task/task-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Attachments - Upload File to Comment
-POST http://localhost:3000/attachments/comment/comment-uuid-here/upload
+POST http://localhost:3000/api/v1/attachments/comment/comment-uuid-here/upload
 Authorization: Bearer {{accessToken}}
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
@@ -1208,47 +1211,47 @@ Content-Type: image/png
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### Attachments - Get All Attachments for Comment
-GET http://localhost:3000/attachments/comment/comment-uuid-here
+GET http://localhost:3000/api/v1/attachments/comment/comment-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Attachments - Get Attachment
-GET http://localhost:3000/attachments/attachment-uuid-here
+GET http://localhost:3000/api/v1/attachments/attachment-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Attachments - Download File
-GET http://localhost:3000/attachments/attachment-uuid-here/download
+GET http://localhost:3000/api/v1/attachments/attachment-uuid-here/download
 Authorization: Bearer {{accessToken}}
 
 ### Attachments - Preview File
-GET http://localhost:3000/attachments/attachment-uuid-here/preview
+GET http://localhost:3000/api/v1/attachments/attachment-uuid-here/preview
 Authorization: Bearer {{accessToken}}
 
 ### Attachments - Delete Attachment
-DELETE http://localhost:3000/attachments/attachment-uuid-here
+DELETE http://localhost:3000/api/v1/attachments/attachment-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Notifications - List (all)
-GET http://localhost:3000/notifications
+GET http://localhost:3000/api/v1/notifications
 Authorization: Bearer {{accessToken}}
 
 ### Notifications - List unread only
-GET http://localhost:3000/notifications?isRead=false
+GET http://localhost:3000/api/v1/notifications?isRead=false
 Authorization: Bearer {{accessToken}}
 
 ### Notifications - Unread count
-GET http://localhost:3000/notifications/unread-count
+GET http://localhost:3000/api/v1/notifications/unread-count
 Authorization: Bearer {{accessToken}}
 
 ### Notifications - Mark all as read
-PATCH http://localhost:3000/notifications/mark-all-read
+PATCH http://localhost:3000/api/v1/notifications/mark-all-read
 Authorization: Bearer {{accessToken}}
 
 ### Notifications - Get one
-GET http://localhost:3000/notifications/notification-uuid-here
+GET http://localhost:3000/api/v1/notifications/notification-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Notifications - Mark as read/unread
-PATCH http://localhost:3000/notifications/notification-uuid-here
+PATCH http://localhost:3000/api/v1/notifications/notification-uuid-here
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -1257,12 +1260,126 @@ Content-Type: application/json
 }
 
 ### Notifications - Delete
-DELETE http://localhost:3000/notifications/notification-uuid-here
+DELETE http://localhost:3000/api/v1/notifications/notification-uuid-here
 Authorization: Bearer {{accessToken}}
 
 ### Tasks - Process due-date reminders (cron)
-POST http://localhost:3000/tasks/due-reminders/process
+POST http://localhost:3000/api/v1/tasks/due-reminders/process
 Authorization: Bearer {{accessToken}}
+
+# ------------------------------------------------------------------------------
+# Webhooks – Outgoing HTTP POST on task events (create, update, delete)
+# Payloads are signed with X-Hayah-Webhook-Signature: sha256=<HMAC-SHA256(secret, body)>.
+# ------------------------------------------------------------------------------
+
+### Webhooks - Create
+POST http://localhost:3000/api/v1/webhooks
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "url": "https://your-server.com/hayah-events",
+  "listId": "list-uuid-here",
+  "events": ["task.created", "task.updated", "task.deleted"],
+  "enabled": true
+}
+
+### Webhooks - Create (with custom secret)
+# Optional secret; if omitted, a random one is generated. Min 16 chars.
+POST http://localhost:3000/api/v1/webhooks
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "url": "https://your-server.com/hayah-events",
+  "listId": "list-uuid-here",
+  "events": ["task.created", "task.deleted"],
+  "secret": "your-webhook-secret-at-least-16-chars"
+}
+
+### Webhooks - List (all or by listId)
+GET http://localhost:3000/api/v1/webhooks
+Authorization: Bearer {{accessToken}}
+
+### Webhooks - List by list
+GET http://localhost:3000/api/v1/webhooks?listId=list-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Webhooks - Get one
+GET http://localhost:3000/api/v1/webhooks/webhook-uuid-here
+Authorization: Bearer {{accessToken}}
+
+### Webhooks - Get deliveries
+GET http://localhost:3000/api/v1/webhooks/webhook-uuid-here/deliveries?limit=20
+Authorization: Bearer {{accessToken}}
+
+### Webhooks - Update
+PUT http://localhost:3000/api/v1/webhooks/webhook-uuid-here
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "url": "https://updated.example.com/hook",
+  "events": ["task.created", "task.updated", "task.deleted"],
+  "enabled": false
+}
+
+### Webhooks - Delete
+DELETE http://localhost:3000/api/v1/webhooks/webhook-uuid-here
+Authorization: Bearer {{accessToken}}
+
+# ------------------------------------------------------------------------------
+# Export/Import – Export lists+tasks (JSON/CSV), import tasks from CSV, bulk ops
+# ------------------------------------------------------------------------------
+
+### Export - List + tasks as JSON (default)
+GET http://localhost:3000/api/v1/export-import/lists/list-uuid-here/export?format=json
+Authorization: Bearer {{accessToken}}
+
+### Export - List + tasks as CSV
+GET http://localhost:3000/api/v1/export-import/lists/list-uuid-here/export?format=csv
+Authorization: Bearer {{accessToken}}
+
+### Import - Tasks from CSV (multipart form, key "file")
+# CSV columns: title, description, status, priority, dueDate, orderPosition, isArchived
+# status/priority: use exact names from list (statuses) or global priorities
+# POST with Content-Type: multipart/form-data, form field "file" = CSV file
+# POST http://localhost:3000/api/v1/export-import/lists/list-uuid-here/import/tasks
+# Authorization: Bearer {{accessToken}}
+# (Use REST client file upload or curl -F "file=@tasks.csv" ...)
+
+### Bulk Create Tasks
+POST http://localhost:3000/api/v1/export-import/tasks/bulk
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "listId": "list-uuid-here",
+  "tasks": [
+    { "title": "Task A", "description": "First", "status": "Todo", "priority": "Medium" },
+    { "title": "Task B", "status": "Doing", "dueDate": "2026-02-01" }
+  ]
+}
+
+### Bulk Update Tasks (same updates for all)
+PATCH http://localhost:3000/api/v1/export-import/tasks/bulk
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskIds": ["task-uuid-1", "task-uuid-2"],
+  "statusId": "status-uuid-done",
+  "priorityId": "priority-uuid-high"
+}
+
+### Bulk Delete Tasks
+POST http://localhost:3000/api/v1/export-import/tasks/bulk-delete
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "taskIds": ["task-uuid-1", "task-uuid-2"]
+}
 
 # ------------------------------------------------------------------------------
 # Real-time (WebSocket) – Socket.IO namespace /realtime

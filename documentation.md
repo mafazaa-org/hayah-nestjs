@@ -6,30 +6,35 @@ This document tracks the implementation progress and details of each completed p
 
 ## Phase 1: Project Setup & Architecture ✅
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2025
 
 ### Overview
+
 Phase 1 establishes the foundational architecture of the NestJS backend application, including configuration management, validation, and error handling.
 
 ### Objectives Completed
 
 #### 1. Initialize NestJS Project ✅
+
 - **Status:** Already completed
 - **Description:** Basic NestJS project structure was initialized with core dependencies.
 
 #### 2. Configuration Module (`@nestjs/config`) ✅
 
 **Files Modified:**
+
 - `src/app.module.ts`
 
 **Implementation Details:**
+
 - Configured `ConfigModule` as a global module using `ConfigModule.forRoot()`
 - Enabled global access to configuration across all modules
 - Configured environment file loading with priority: `.env.local` → `.env`
 - Enabled configuration caching for improved performance
 
 **Code Implementation:**
+
 ```typescript
 // src/app.module.ts
 import { ConfigModule } from '@nestjs/config';
@@ -47,6 +52,7 @@ import { ConfigModule } from '@nestjs/config';
 ```
 
 **Benefits:**
+
 - Environment variables accessible via `ConfigService` anywhere in the application
 - Centralized configuration management
 - Support for environment-specific configuration files
@@ -54,14 +60,17 @@ import { ConfigModule } from '@nestjs/config';
 #### 3. Validation Pipes & Global Exception Filters ✅
 
 **Files Modified:**
+
 - `src/main.ts`
 
 **Files Created:**
+
 - `src/common/filters/all-exceptions.filter.ts`
 
 **Implementation Details:**
 
 ##### 3.1 Global Validation Pipe
+
 - Configured `ValidationPipe` globally in the application bootstrap
 - **Key Features:**
   - `whitelist: true` - Automatically strips unknown properties from incoming DTOs
@@ -70,6 +79,7 @@ import { ConfigModule } from '@nestjs/config';
   - `enableImplicitConversion: true` - Converts primitive types automatically (e.g., string to number)
 
 **Code Implementation:**
+
 ```typescript
 // src/main.ts
 app.useGlobalPipes(
@@ -85,12 +95,14 @@ app.useGlobalPipes(
 ```
 
 **Benefits:**
+
 - Automatic validation of all incoming requests
 - Type safety through DTO transformation
 - Prevents data pollution from unknown properties
 - Consistent validation behavior across all endpoints
 
 ##### 3.2 Global Exception Filter
+
 - Created `AllExceptionsFilter` to handle all application exceptions
 - **Features:**
   - Catches all exceptions (both `HttpException` and unexpected errors)
@@ -100,6 +112,7 @@ app.useGlobalPipes(
   - Provides detailed error information (status code, timestamp, path, method)
 
 **Code Implementation:**
+
 ```typescript
 // src/common/filters/all-exceptions.filter.ts
 @Catch()
@@ -113,6 +126,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 ```
 
 **Error Response Format:**
+
 ```json
 {
   "statusCode": 404,
@@ -124,6 +138,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 ```
 
 **Benefits:**
+
 - Consistent error response format across the entire API
 - Comprehensive error logging for debugging
 - Graceful handling of unexpected errors
@@ -145,6 +160,7 @@ src/
 ### Dependencies Used
 
 All required dependencies were already installed:
+
 - `@nestjs/config` - Configuration management
 - `class-validator` - Validation decorators
 - `class-transformer` - Object transformation
@@ -152,6 +168,7 @@ All required dependencies were already installed:
 ### Configuration Files
 
 **Environment Variables:**
+
 - Application uses `.env.local` (priority) or `.env` files
 - Port configuration: `process.env.PORT ?? 3000`
 
@@ -164,6 +181,7 @@ All required dependencies were already installed:
 ### Next Steps
 
 After completing Phase 1, the application has:
+
 - ✅ Global configuration management
 - ✅ Automatic request validation
 - ✅ Centralized error handling
@@ -174,10 +192,11 @@ After completing Phase 1, the application has:
 
 ## Phase 2: Project Structure & Module Setup
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2025
 
 ### Overview
+
 Phase 2 focuses on establishing a clean, scalable project structure based on feature-driven modules. It introduces the `src/features` directory, base feature folders (auth, users, folders, lists, tasks, statuses, tags, comments, attachments, notifications), and placeholder DTOs/entities to be wired to the database schema in later phases.
 
 ### Objectives Completed
@@ -188,6 +207,7 @@ Phase 2 focuses on establishing a clean, scalable project structure based on fea
 - **Description:** Core top-level folders were created to separate concerns and prepare for future work.
 
 **Folders Created:**
+
 - `src/features` — Feature-based modules (auth, users, folders, lists, tasks, statuses, tags, comments, attachments, notifications)
 - `src/common` — Shared utilities, filters, guards, decorators, etc.
 - `src/config` — Configuration-related files (to be filled later)
@@ -199,6 +219,7 @@ Phase 2 focuses on establishing a clean, scalable project structure based on fea
 - **Description:** Each core feature now has its own folder with module, controller, and service files, along with DTO and entity subfolders.
 
 **Features Implemented:**
+
 - `src/features/auth`
 - `src/features/users`
 - `src/features/folders`
@@ -211,6 +232,7 @@ Phase 2 focuses on establishing a clean, scalable project structure based on fea
 - `src/features/notifications`
 
 Each feature folder includes:
+
 - `*.module.ts` — NestJS module definition
 - `*.controller.ts` — HTTP route handling
 - `*.service.ts` — Business logic layer
@@ -218,6 +240,7 @@ Each feature folder includes:
 - `entities/` — Placeholder entity interface/type for the feature
 
 **Integration with App Module:**
+
 - `src/app.module.ts` was updated to import and register all feature modules in the `imports` array so they are part of the main application context.
 
 #### 3. Create Base Entity/DTO Structure (Placeholders) ✅
@@ -226,6 +249,7 @@ Each feature folder includes:
 - **Description:** For each feature, basic DTO and entity placeholders were created. These are intentionally minimal and will be fleshed out once the database schema is finalized in later phases.
 
 **Placeholder Structure:**
+
 - DTOs:
   - `create-*.dto.ts`
   - `update-*.dto.ts`
@@ -234,6 +258,7 @@ Each feature folder includes:
   - `*.entity.ts` (interface or type representing the core domain object)
 
 **Notes:**
+
 - DTO and entity files currently contain simple placeholder classes/interfaces with comments indicating they will be implemented after the database schema is defined.
 - This allows controllers and services to be wired up with types without blocking on database design.
 
@@ -276,10 +301,11 @@ src/
 
 ## Phase 3: Database Connection & Setup
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2026
 
 ### Overview
+
 Phase 3 configures the database connection using TypeORM for development, wires it into the NestJS application via `ConfigModule` and `TypeOrmModule`, and introduces a configurable schema with sensible fallbacks.
 
 ### Objectives Completed
@@ -287,19 +313,23 @@ Phase 3 configures the database connection using TypeORM for development, wires 
 #### 1. Install and Configure TypeORM for PostgreSQL ✅
 
 **Files Modified:**
+
 - `package.json`
 - `src/app.module.ts`
 
 **Files Created/Updated:**
+
 - `src/config/database.config.ts`
 - `src/database/README.md`
 
 **Implementation Details:**
+
 - Added TypeORM and NestJS integration packages (`typeorm`, `@nestjs/typeorm`).
 - Registered `databaseConfig` with `ConfigModule.forRoot({ load: [databaseConfig], ... })` so database options are managed via the configuration system.
 - Configured PostgreSQL as the database driver with environment-driven connection settings.
 
 **Key Configuration (`database.config.ts`):**
+
 - `type: 'postgres'` — Uses PostgreSQL as the primary database.
 - `host`, `port`, `username`, `password`, `database` are read from environment variables with local development defaults:
   - `DB_HOST || 'localhost'`
@@ -322,9 +352,11 @@ Phase 3 configures the database connection using TypeORM for development, wires 
 #### 2. Integrate TypeORM via `AppModule` ✅
 
 **Files Modified:**
+
 - `src/app.module.ts`
 
 **Implementation Details:**
+
 - `ConfigModule.forRoot` is configured as:
   - `isGlobal: true` — Makes configuration available across the entire app.
   - `envFilePath: ['.env.local', '.env']` — Loads environment variables with `.env.local` taking precedence.
@@ -338,9 +370,11 @@ Phase 3 configures the database connection using TypeORM for development, wires 
 #### 3. Environment Variables and Local Setup ✅
 
 **Files Modified:**
+
 - `src/database/README.md`
 
 **Implementation Details:**
+
 - Documented required environment variables for local development:
   - `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL`
   - `PORT`, `NODE_ENV`
@@ -361,7 +395,7 @@ Phase 3 configures the database connection using TypeORM for development, wires 
 
 ## Phase 4: Database Schema Design (ERD Implementation)
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2026
 
 ### Overview
@@ -375,6 +409,7 @@ Phase 4 implements the complete Entity-Relationship Diagram (ERD) for the Hayah 
 **Total Entities Created:** 27 TypeORM entities across all feature modules
 
 **Implementation Approach:**
+
 - All entities use TypeORM decorators (`@Entity`, `@Column`, `@PrimaryGeneratedColumn`, etc.)
 - PostgreSQL-compatible column types (`text`, `uuid`, `timestamp`, `jsonb`, `integer`, `boolean`, `bigint`, `date`)
 - Consistent naming conventions: snake_case for database columns, camelCase for TypeScript properties
@@ -384,12 +419,14 @@ Phase 4 implements the complete Entity-Relationship Diagram (ERD) for the Hayah 
 #### 2. Relationship Implementation ✅
 
 All relationship types have been implemented:
+
 - **One-To-One:** `User` ↔ `UserSettings`
 - **One-To-Many:** Numerous parent-child relationships (e.g., `User` → `Comment[]`, `List` → `Task[]`, `Task` → `Subtask[]`)
 - **Many-To-One:** Foreign key relationships throughout the schema
 - **Many-To-Many:** Implemented via explicit join tables (e.g., `Assignment` for `User` ↔ `Task`, `TaskTag` for `Task` ↔ `Tag`, `ListMember` for `User` ↔ `List`)
 
 **Cascade Behaviors:**
+
 - `CASCADE`: Automatically deletes related entities when parent is deleted (e.g., deleting a `Task` deletes all `Comment`s, `Attachment`s, `Subtask`s)
 - `SET NULL`: Sets foreign key to null when parent is deleted (e.g., deleting a `Status` sets `status_id` to null on related `Task`s)
 - Proper handling of optional relationships with `nullable: true`
@@ -399,6 +436,7 @@ All relationship types have been implemented:
 #### Core User & Authentication Entities
 
 **1. UserEntity** (`users`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `email` (text, unique)
@@ -419,6 +457,7 @@ All relationship types have been implemented:
 - **File:** `src/features/users/entities/user.entity.ts`
 
 **2. UserSettingsEntity** (`user_settings`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `user_id` (UUID, Foreign Key, unique index)
@@ -432,6 +471,7 @@ All relationship types have been implemented:
 - **File:** `src/features/users/entities/user-settings.entity.ts`
 
 **3. AuthEntity** (`auth`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `user_id` (UUID, Foreign Key)
@@ -448,6 +488,7 @@ All relationship types have been implemented:
 #### Workspace & Organization Entities
 
 **4. WorkspaceEntity** (`workspaces`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `owner_id` (UUID, Foreign Key)
@@ -462,6 +503,7 @@ All relationship types have been implemented:
 - **File:** `src/features/workspaces/entities/workspace.entity.ts`
 
 **5. FolderEntity** (`folders`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `workspace_id` (UUID, Foreign Key)
@@ -479,6 +521,7 @@ All relationship types have been implemented:
 - **File:** `src/features/folders/entities/folder.entity.ts`
 
 **6. ListEntity** (`lists`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `folder_id` (UUID, Foreign Key, nullable)
@@ -499,6 +542,7 @@ All relationship types have been implemented:
 - **File:** `src/features/lists/entities/list.entity.ts`
 
 **7. ListMemberEntity** (`list_members`) - Join Table for Many-To-Many
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `user_id` (UUID, Foreign Key)
@@ -514,6 +558,7 @@ All relationship types have been implemented:
 #### Task Management Entities
 
 **8. TaskEntity** (`tasks`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `list_id` (UUID, Foreign Key)
@@ -540,6 +585,7 @@ All relationship types have been implemented:
 - **File:** `src/features/tasks/entities/task.entity.ts`
 
 **9. StatusEntity** (`statuses`) - Kanban Board Columns
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `list_id` (UUID, Foreign Key)
@@ -553,6 +599,7 @@ All relationship types have been implemented:
 - **File:** `src/features/statuses/entities/status.entity.ts`
 
 **10. TaskPriorityEntity** (`task_priorities`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `name` (text)
@@ -565,6 +612,7 @@ All relationship types have been implemented:
 - **File:** `src/features/tasks/entities/task-priority.entity.ts`
 
 **11. AssignmentEntity** (`assignments`) - Join Table for Many-To-Many
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `user_id` (UUID, Foreign Key)
@@ -577,6 +625,7 @@ All relationship types have been implemented:
 - **File:** `src/features/tasks/entities/assignment.entity.ts`
 
 **12. SubtaskEntity** (`subtasks`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -590,6 +639,7 @@ All relationship types have been implemented:
 - **File:** `src/features/tasks/entities/subtask.entity.ts`
 
 **13. TaskDependencyEntity** (`task_dependencies`) - Directed Graph
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -605,6 +655,7 @@ All relationship types have been implemented:
 #### Tags & Labels
 
 **14. TagEntity** (`tags`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `workspace_id` (UUID, Foreign Key)
@@ -618,6 +669,7 @@ All relationship types have been implemented:
 - **File:** `src/features/tags/entities/tag.entity.ts`
 
 **15. TaskTagEntity** (`task_tags`) - Join Table for Many-To-Many
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -631,6 +683,7 @@ All relationship types have been implemented:
 #### Iterations & Sprints
 
 **16. IterationEntity** (`iterations`) - Optional Feature
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `list_id` (UUID, Foreign Key)
@@ -645,6 +698,7 @@ All relationship types have been implemented:
 - **File:** `src/features/lists/entities/iteration.entity.ts`
 
 **17. TaskIterationEntity** (`task_iterations`) - Join Table for Many-To-Many (Optional)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -658,6 +712,7 @@ All relationship types have been implemented:
 #### Checklists
 
 **18. ChecklistEntity** (`task_checklists`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -671,6 +726,7 @@ All relationship types have been implemented:
 - **File:** `src/features/tasks/entities/checklist.entity.ts`
 
 **19. ChecklistItemEntity** (`checklist_items`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `checklist_id` (UUID, Foreign Key)
@@ -686,6 +742,7 @@ All relationship types have been implemented:
 #### Custom Fields
 
 **20. CustomFieldEntity** (`custom_fields`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `list_id` (UUID, Foreign Key)
@@ -700,6 +757,7 @@ All relationship types have been implemented:
 - **File:** `src/features/lists/entities/custom-field.entity.ts`
 
 **21. TaskCustomFieldValueEntity** (`task_custom_field_values`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -715,6 +773,7 @@ All relationship types have been implemented:
 #### Collaboration & Activity
 
 **22. CommentEntity** (`comments`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -728,6 +787,7 @@ All relationship types have been implemented:
 - **File:** `src/features/comments/entities/comment.entity.ts`
 
 **23. AttachmentEntity** (`attachments`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -744,6 +804,7 @@ All relationship types have been implemented:
 - **File:** `src/features/attachments/entities/attachment.entity.ts`
 
 **24. ActivityEntity** (`activities`) - History/Tracking
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `task_id` (UUID, Foreign Key)
@@ -758,6 +819,7 @@ All relationship types have been implemented:
 - **File:** `src/features/tasks/entities/activity.entity.ts`
 
 **25. NotificationEntity** (`notifications`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `user_id` (UUID, Foreign Key)
@@ -774,6 +836,7 @@ All relationship types have been implemented:
 #### Views & Filters
 
 **26. ViewEntity** (`views`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `list_id` (UUID, Foreign Key)
@@ -789,6 +852,7 @@ All relationship types have been implemented:
 - **File:** `src/features/lists/entities/view.entity.ts`
 
 **27. FilterPresetEntity** (`filter_presets`)
+
 - **Columns:**
   - `id` (UUID, Primary Key)
   - `user_id` (UUID, Foreign Key)
@@ -805,16 +869,19 @@ All relationship types have been implemented:
 ### Key Implementation Details
 
 #### 1. Primary Keys & Identifiers
+
 - All entities use UUID primary keys via `@PrimaryGeneratedColumn('uuid')`
 - Provides globally unique identifiers, beneficial for distributed systems
 - Prevents sequential ID enumeration attacks
 
 #### 2. Timestamps
+
 - Automatic `created_at` via `@CreateDateColumn`
 - Automatic `updated_at` via `@UpdateDateColumn`
 - Consistent timestamp management across all entities
 
 #### 3. Foreign Key Constraints
+
 - All relationships use `@JoinColumn` to specify foreign key column names
 - Consistent naming: `{entity}_id` format (e.g., `user_id`, `task_id`, `list_id`)
 - Cascade behaviors properly configured:
@@ -824,29 +891,35 @@ All relationship types have been implemented:
 #### 4. Relationship Patterns
 
 **One-To-One:**
+
 - `User` ↔ `UserSettings`: Unique constraint on `user_id` ensures one-to-one mapping
 - Implemented with `@OneToOne` decorator and `@Index` for uniqueness
 
 **One-To-Many / Many-To-One:**
+
 - Standard parent-child relationships throughout
 - Bidirectional relationships with inverse side defined via function references
 
 **Many-To-Many:**
+
 - Implemented via explicit join table entities (not TypeORM's implicit `@ManyToMany`)
 - Provides full control over join table columns and additional metadata
 - Examples: `AssignmentEntity`, `TaskTagEntity`, `TaskIterationEntity`, `ListMemberEntity`
 
 **Self-Referencing:**
+
 - `FolderEntity` supports nested folder hierarchies via self-referencing `parent` relationship
 - Enables infinite nesting depth (practically 100+ levels)
 
 **Directed Graph:**
+
 - `TaskDependencyEntity` creates a directed graph of task dependencies
 - Uses two Many-To-One relationships to the same entity (`TaskEntity`)
 
 #### 5. Data Types & PostgreSQL Features
 
 **Column Types:**
+
 - `text`: For all string columns (PostgreSQL text type, no length limit)
 - `uuid`: For all primary and foreign keys
 - `timestamp`: For date/time columns
@@ -857,11 +930,13 @@ All relationship types have been implemented:
 - `jsonb`: For flexible JSON storage (configs, preferences, values)
 
 **PostgreSQL-Specific Features:**
+
 - `jsonb` columns used for flexible data storage (view configs, filter configs, custom field values)
 - UUID extension implicitly used for primary keys
 - Indexes: Unique index on `user_settings.user_id` for one-to-one relationship
 
 #### 6. Nullability & Optional Relationships
+
 - Careful use of `nullable: true` for optional fields and relationships
 - Examples:
   - `Task.status` is nullable (SET NULL on status deletion)
@@ -927,26 +1002,31 @@ src/features/
 ### Benefits
 
 **1. Type Safety:**
+
 - Full TypeScript type safety across all entities
 - IntelliSense support for all properties and relationships
 - Compile-time checking of relationship definitions
 
 **2. Developer Experience:**
+
 - Auto-discovery of entities via TypeORM's glob pattern
 - Automatic schema synchronization in development
 - SQL logging enabled in development for debugging
 
 **3. Data Integrity:**
+
 - Foreign key constraints enforced at database level
 - Cascade delete behaviors prevent orphaned records
 - Unique constraints prevent duplicate data
 
 **4. Flexibility:**
+
 - JSONB columns allow flexible configuration storage
 - Self-referencing relationships support complex hierarchies
 - Optional relationships enable flexible data models
 
 **5. Scalability:**
+
 - UUID primary keys support distributed systems
 - Proper indexing strategy (via TypeORM decorators)
 - Efficient relationship loading with TypeORM query builder
@@ -956,6 +1036,7 @@ src/features/
 #### TypeORM vs Prisma: Analysis and Recommendation
 
 **Current Implementation (TypeORM):**
+
 - ✅ Fully implemented and working
 - ✅ Deep NestJS integration via `@nestjs/typeorm`
 - ✅ Mature and stable (years in production)
@@ -967,6 +1048,7 @@ src/features/
 - ⚠️ Manual migration file generation
 
 **Prisma Alternative:**
+
 - ✅ Excellent type safety and developer experience
 - ✅ Auto-generated migrations
 - ✅ Superior Prisma Studio (database GUI)
@@ -981,23 +1063,24 @@ src/features/
 **Rationale:**
 
 1. **Already Fully Implemented:**
+
    - All 27 entities are implemented and working
    - Relationships are correctly defined and tested
    - No breaking changes needed
-
 2. **Production-Ready:**
+
    - TypeORM is battle-tested in production environments
    - Excellent NestJS integration
    - Active community and maintenance
-
 3. **Migration to Prisma Would Require:**
+
    - Rewriting all entities as Prisma schema definitions
    - Converting all service layer queries to Prisma Client API
    - Generating and testing new migrations
    - Potential downtime during migration
    - Learning curve for the team
-
 4. **TypeORM is Sufficient:**
+
    - Provides all needed features (relationships, migrations, query building)
    - TypeScript support is good (not perfect, but adequate)
    - Performance is acceptable for most use cases
@@ -1008,15 +1091,17 @@ src/features/
 **Scenario:** You want to migrate to Prisma for better type safety and developer experience.
 
 **Approach:**
+
 1. **Keep TypeORM in Development:** Continue using TypeORM for active development
 2. **Parallel Prisma Setup:** Introduce Prisma alongside TypeORM
-3. **Gradual Migration:** 
+3. **Gradual Migration:**
    - Start with new features using Prisma
    - Migrate existing entities incrementally
    - Use both ORMs during transition period
 4. **Full Migration:** Once all entities are migrated, remove TypeORM
 
 **Prisma Setup Steps (if chosen):**
+
 1. Install Prisma: `npm install prisma @prisma/client`
 2. Initialize Prisma: `npx prisma init`
 3. Define schema: Convert TypeORM entities to Prisma schema format
@@ -1026,6 +1111,7 @@ src/features/
 7. Update services: Convert queries from TypeORM to Prisma Client
 
 **Best Practice for Production:**
+
 1. **Disable `synchronize`:** Already configured (`NODE_ENV !== 'production'`)
 2. **Use Migrations:** Generate TypeORM migrations for all schema changes
 3. **Add Indexes:** Review query patterns and add appropriate indexes
@@ -1034,6 +1120,7 @@ src/features/
 6. **Monitoring:** Add database query logging and performance monitoring
 
 **Future Considerations:**
+
 - If the application grows significantly and requires more advanced type safety
 - If the team prefers Prisma's developer experience
 - If performance becomes a bottleneck (Prisma's query engine can be faster)
@@ -1044,6 +1131,7 @@ TypeORM is a solid choice for production. The current implementation is complete
 ### Next Steps
 
 After completing Phase 4, the application has:
+
 - ✅ Complete database schema with 27 entities
 - ✅ All relationships properly defined (One-To-One, One-To-Many, Many-To-One, Many-To-Many)
 - ✅ Cascade behaviors configured for data integrity
@@ -1055,7 +1143,7 @@ After completing Phase 4, the application has:
 
 ## Phase 5: Authorization & Authentication
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2026
 
 ### Overview
@@ -1074,6 +1162,7 @@ Phase 5 introduces a complete authentication and authorization layer on top of t
 #### 1. Auth Module (JWT-based Authentication) ✅
 
 **Files Modified/Created:**
+
 - `src/features/auth/auth.module.ts`
 - `src/features/auth/auth.service.ts`
 - `src/features/auth/auth.controller.ts`
@@ -1090,6 +1179,7 @@ Phase 5 introduces a complete authentication and authorization layer on top of t
 **Implementation Details:**
 
 ##### 1.1 AuthModule Wiring
+
 - Imported and configured:
   - `ConfigModule` for env-driven secrets and expiration
   - `PassportModule.register({ defaultStrategy: 'jwt' })`
@@ -1103,6 +1193,7 @@ Phase 5 introduces a complete authentication and authorization layer on top of t
 - Exported `AuthService` for use by other modules if needed.
 
 ##### 1.2 DTOs & Response Shapes
+
 - `CreateAuthDto`
   - `email` (validated as email)
   - `password` (string, `MinLength(8)`)
@@ -1114,6 +1205,7 @@ Phase 5 introduces a complete authentication and authorization layer on top of t
 ##### 1.3 AuthService – Register & Login
 
 **Registration (`POST /auth/register`):**
+
 - Checks for existing user by email; throws `ConflictException` if found.
 - Hashes passwords using `bcrypt` with a salt (10 rounds).
 - Creates a new `UserEntity` with:
@@ -1128,6 +1220,7 @@ Phase 5 introduces a complete authentication and authorization layer on top of t
 - Returns `AuthResponseDto` with token and basic user info.
 
 **Login (`POST /auth/login`):**
+
 - Looks up user by email.
 - Validates password using `bcrypt.compare`.
 - On failure, throws `UnauthorizedException` with generic “Invalid credentials”.
@@ -1137,13 +1230,14 @@ Phase 5 introduces a complete authentication and authorization layer on top of t
 ##### 1.4 JWT Strategy & Guard
 
 - `JwtStrategy` (`src/features/auth/jwt.strategy.ts`):
+
   - Extends `PassportStrategy(Strategy)` from `passport-jwt`.
   - Extracts JWT from `Authorization: Bearer <token>` header.
   - Validates token with secret from `JWT_SECRET`.
   - `validate(payload)` returns:
     - `{ userId: payload.sub, email: payload.email }`, which becomes `request.user`.
-
 - `JwtAuthGuard` (`src/features/auth/jwt-auth.guard.ts`):
+
   - Extends `AuthGuard('jwt')` (Passport).
   - Used with `@UseGuards(JwtAuthGuard)` to protect routes.
 
@@ -1156,14 +1250,15 @@ Phase 5 introduces a complete authentication and authorization layer on top of t
 ##### 1.6 AuthController Endpoints
 
 - `POST /auth/register`
+
   - Body: `CreateAuthDto`
   - Returns: `AuthResponseDto`
-
 - `POST /auth/login`
+
   - Body: `CreateAuthDto` (email + password used)
   - Returns: `AuthResponseDto`
-
 - `GET /auth/me`
+
   - Protected with `@UseGuards(JwtAuthGuard)`
   - Uses `@CurrentUser()` to return the JWT payload (`userId`, `email`).
 
@@ -1172,6 +1267,7 @@ These endpoints are fully integrated, validated via `class-validator`, and prote
 #### 2. User Profile & Settings ✅
 
 **Files Modified/Created:**
+
 - `src/features/users/users.module.ts`
 - `src/features/users/users.service.ts`
 - `src/features/users/users.controller.ts`
@@ -1208,23 +1304,24 @@ These fields are used by the AuthService to handle optional email verification a
 ##### 2.3 DTOs for Profile & Settings
 
 - `UpdateUserDto`
+
   - Optional `email` (validated as email)
   - Optional `name` (string)
   - Optional `avatarUrl` (string placeholder for future file-upload integration)
-
 - `ChangePasswordDto`
+
   - `currentPassword` (string, `MinLength(8)`)
   - `newPassword` (string, `MinLength(8)`)
-
 - `UpdateUserSettingsDto`
+
   - Optional `timezone` (string)
   - Optional `language` (string)
   - Optional `notificationPreferences` (object)
-
 - `UserResponseDto`
-  - `id`, `email`, `name`, `createdAt`, `updatedAt`
 
+  - `id`, `email`, `name`, `createdAt`, `updatedAt`
 - `UserSettingsResponseDto`
+
   - `id`, `timezone`, `language`, `notificationPreferences`, `createdAt`, `updatedAt`
 
 ##### 2.4 UsersService – Profile Management
@@ -1232,10 +1329,11 @@ These fields are used by the AuthService to handle optional email verification a
 Key methods:
 
 - `getProfile(userId: string): Promise<UserResponseDto>`
+
   - Looks up user by `id`, throws `NotFoundException` if missing.
   - Returns DTO with basic profile fields.
-
 - `updateProfile(userId: string, updateUserDto: UpdateUserDto): Promise<UserResponseDto>`
+
   - Loads user, throws `NotFoundException` if missing.
   - If `email` is provided and changed:
     - Checks for another user with the same email.
@@ -1243,8 +1341,8 @@ Key methods:
   - Updates `name` if provided.
   - (Avatar handling left as a placeholder for future file-upload support.)
   - Saves and returns updated DTO.
-
 - `changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<void>`
+
   - Loads user, throws `NotFoundException` if missing.
   - Verifies `currentPassword` using `bcrypt.compare`.
   - On mismatch, throws `UnauthorizedException`.
@@ -1256,12 +1354,13 @@ Key methods:
 Key methods:
 
 - `getUserSettings(userId: string): Promise<UserSettingsResponseDto>`
+
   - Ensures user exists; throws `NotFoundException` otherwise.
   - Attempts to load settings by user relation.
   - If none exist, creates default settings tied to the user.
   - Returns DTO with timezone, language, and notification preferences.
-
 - `updateUserSettings(userId: string, updateUserSettingsDto: UpdateUserSettingsDto): Promise<UserSettingsResponseDto>`
+
   - Ensures user exists.
   - Loads or creates `UserSettingsEntity` for the user.
   - Applies partial updates for:
@@ -1273,29 +1372,31 @@ Key methods:
 ##### 2.6 UsersController Endpoints (Protected by JWT)
 
 Controller-level:
+
 - `@Controller('users')`
 - `@UseGuards(JwtAuthGuard)` – all routes require authentication.
 
 Endpoints:
 
 - `GET /users/me`
+
   - Uses `@CurrentUser()` to obtain `{ userId }` from JWT.
   - Returns profile via `UsersService.getProfile`.
-
 - `PUT /users/me`
+
   - Body: `UpdateUserDto`
   - Uses `@CurrentUser()` to get `userId`.
   - Returns updated profile via `UsersService.updateProfile`.
-
 - `PUT /users/me/password`
+
   - Body: `ChangePasswordDto`
   - Returns `204 No Content` on success.
   - No body returned; errors are raised on invalid current password or missing user.
-
 - `GET /users/me/settings`
-  - Returns user settings via `UsersService.getUserSettings`.
 
+  - Returns user settings via `UsersService.getUserSettings`.
 - `PUT /users/me/settings`
+
   - Body: `UpdateUserSettingsDto`
   - Returns updated settings DTO.
 
@@ -1304,13 +1405,15 @@ Endpoints:
 While full email delivery is not wired yet, the backend data and endpoints are ready for integration with a mail provider (e.g., Nodemailer + SMTP).
 
 **Email Verification:**
+
 - On registration:
+
   - Generates `emailVerificationToken` (random 32-byte hex).
   - Sets `emailVerificationTokenExpiresAt` to 24 hours in the future.
   - Stores both on the user.
   - Placeholder comment for sending verification email.
-
 - `POST /auth/verify-email`
+
   - Body: `VerifyEmailDto` (`token` string).
   - Looks up user by token.
   - Validates:
@@ -1324,14 +1427,15 @@ While full email delivery is not wired yet, the backend data and endpoints are r
 **Password Reset:**
 
 - `POST /auth/request-password-reset`
+
   - Body: `RequestPasswordResetDto` (`email`).
   - Looks up user by email.
   - If user does not exist, returns silently (does not leak existence).
   - Generates `passwordResetToken` and `passwordResetTokenExpiresAt` (1 hour).
   - Saves user.
   - Placeholder comment for sending reset email.
-
 - `PUT /auth/reset-password`
+
   - Body: `ResetPasswordDto` (`token`, `newPassword`).
   - Looks up user by `passwordResetToken`.
   - Validates token existence and expiry.
@@ -1342,22 +1446,23 @@ While full email delivery is not wired yet, the backend data and endpoints are r
 ### Benefits
 
 - **Security:**
+
   - Passwords are hashed with `bcrypt`.
   - JWTs provide stateless authentication with configurable expiration.
   - Email verification and password reset tokens are time-limited and stored server-side.
   - Errors avoid leaking whether a specific email exists during password reset.
-
 - **Developer Experience:**
+
   - Clear separation between Auth and Users modules.
   - Reusable `JwtAuthGuard` and `@CurrentUser` decorator.
   - DTOs enforce input validation and provide stable response contracts.
-
 - **Extensibility:**
+
   - Email verification and reset flows ready for integration with any email provider.
   - User settings are flexible via `notificationPreferences` (JSON).
   - Avatar support can be implemented later via file-upload endpoints referencing `avatarUrl`.
-
 - **Consistency:**
+
   - All user-facing auth/profile/settings operations follow the same patterns:
     - DTO validation
     - Service-layer business logic
@@ -1366,6 +1471,7 @@ While full email delivery is not wired yet, the backend data and endpoints are r
 ### Next Steps
 
 After completing Phase 5, the application has:
+
 - ✅ Secure registration and login with JWTs
 - ✅ Protected routes via guards and a reusable current-user decorator
 - ✅ User profile endpoints (view & update)
@@ -1378,7 +1484,7 @@ After completing Phase 5, the application has:
 
 ## Phase 6: Folders & Hierarchy Module
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2026
 
 ### Overview
@@ -1397,14 +1503,17 @@ Phase 6 implements the complete Folders & Hierarchy Module, enabling users to or
 #### 1. FoldersModule Configuration ✅
 
 **Files Modified:**
+
 - `src/features/folders/folders.module.ts`
 
 **Implementation Details:**
+
 - Added `TypeOrmModule.forFeature([FolderEntity])` for repository injection
 - Imported `AuthModule` for `JwtAuthGuard` usage
 - Exported `FoldersService` for potential use in other modules
 
 **Code Implementation:**
+
 ```typescript
 @Module({
   imports: [
@@ -1421,6 +1530,7 @@ export class FoldersModule {}
 #### 2. DTOs Implementation ✅
 
 **Files Created/Modified:**
+
 - `src/features/folders/dto/create-folder.dto.ts`
 - `src/features/folders/dto/update-folder.dto.ts`
 - `src/features/folders/dto/move-folder.dto.ts`
@@ -1428,19 +1538,23 @@ export class FoldersModule {}
 **DTO Specifications:**
 
 **CreateFolderDto:**
+
 - `name` (string, required) - Folder name
 - `workspaceId` (UUID, required) - Workspace to which the folder belongs
 - `parentFolderId` (UUID, optional) - Parent folder ID for nesting (null for root folders)
 
 **UpdateFolderDto:**
+
 - `name` (string, optional) - New folder name
 
 **MoveFolderDto:**
+
 - `parentFolderId` (UUID, optional, nullable) - New parent folder ID (null to make folder a root)
 
 #### 3. FoldersService Implementation ✅
 
 **Files Modified:**
+
 - `src/features/folders/folders.service.ts`
 
 **Service Methods:**
@@ -1448,10 +1562,12 @@ export class FoldersModule {}
 ##### 3.1 Create Folder (`create`)
 
 **Functionality:**
+
 - Creates a new folder with optional parent folder support for nesting
 - Validates parent depth before creation to prevent exceeding maximum depth
 
 **Implementation Details:**
+
 - Accepts `CreateFolderDto` with `name`, `workspaceId`, and optional `parentFolderId`
 - If `parentFolderId` is provided:
   - Calculates parent folder depth using `calculateFolderDepth()`
@@ -1461,6 +1577,7 @@ export class FoldersModule {}
 - Returns created `FolderEntity`
 
 **Code Snippet:**
+
 ```typescript
 async create(createFolderDto: CreateFolderDto): Promise<FolderEntity> {
   const { name, workspaceId, parentFolderId } = createFolderDto;
@@ -1487,9 +1604,11 @@ async create(createFolderDto: CreateFolderDto): Promise<FolderEntity> {
 ##### 3.2 Get Single Folder (`findOne`)
 
 **Functionality:**
+
 - Retrieves a single folder by ID with full relationship data
 
 **Implementation Details:**
+
 - Accepts folder `id` (UUID)
 - Uses `folderRepository.findOne()` with relations:
   - `parent` - Parent folder entity
@@ -1501,9 +1620,11 @@ async create(createFolderDto: CreateFolderDto): Promise<FolderEntity> {
 ##### 3.3 Update Folder (`update`)
 
 **Functionality:**
+
 - Updates folder properties (currently only name)
 
 **Implementation Details:**
+
 - Accepts folder `id` and `UpdateFolderDto`
 - Loads folder from database
 - Throws `NotFoundException` if folder doesn't exist
@@ -1513,10 +1634,12 @@ async create(createFolderDto: CreateFolderDto): Promise<FolderEntity> {
 ##### 3.4 Move Folder (`move`)
 
 **Functionality:**
+
 - Moves a folder to a new parent (or makes it a root folder)
 - Includes comprehensive validation to prevent invalid moves
 
 **Implementation Details:**
+
 - Accepts folder `id` and `MoveFolderDto`
 - Loads folder and current parent relationship
 - Throws `NotFoundException` if folder doesn't exist
@@ -1537,6 +1660,7 @@ async create(createFolderDto: CreateFolderDto): Promise<FolderEntity> {
 - Updates folder's parent and saves
 
 **Code Snippet:**
+
 ```typescript
 async move(id: string, moveFolderDto: MoveFolderDto): Promise<FolderEntity> {
   // ... validation logic ...
@@ -1567,9 +1691,11 @@ async move(id: string, moveFolderDto: MoveFolderDto): Promise<FolderEntity> {
 ##### 3.5 Delete Folder (`remove`)
 
 **Functionality:**
+
 - Deletes a folder and all its contents (cascade behavior handled by database)
 
 **Implementation Details:**
+
 - Accepts folder `id`
 - Loads folder from database
 - Throws `NotFoundException` if folder doesn't exist
@@ -1581,9 +1707,11 @@ async move(id: string, moveFolderDto: MoveFolderDto): Promise<FolderEntity> {
 ##### 3.6 Get Workspace Folder Tree (`getWorkspaceTree`)
 
 **Functionality:**
+
 - Retrieves the folder hierarchy for a workspace
 
 **Implementation Details:**
+
 - Accepts `workspaceId`
 - Fetches root folders (folders with `parent = null`) for the workspace
 - Uses `IsNull()` TypeORM operator for null parent check
@@ -1592,6 +1720,7 @@ async move(id: string, moveFolderDto: MoveFolderDto): Promise<FolderEntity> {
 - Returns array of root `FolderEntity[]` with nested children populated
 
 **Code Snippet:**
+
 ```typescript
 async getWorkspaceTree(workspaceId: string): Promise<FolderEntity[]> {
   const roots = await this.folderRepository.find({
@@ -1612,10 +1741,12 @@ async getWorkspaceTree(workspaceId: string): Promise<FolderEntity[]> {
 ##### 3.7 Depth Calculation Helper (`calculateFolderDepth`)
 
 **Functionality:**
+
 - Calculates the depth of a folder by walking up the parent chain
 - Detects circular references during traversal
 
 **Implementation Details:**
+
 - Accepts `folderId`
 - Initializes depth counter and visited set
 - Walks up parent chain:
@@ -1631,6 +1762,7 @@ async getWorkspaceTree(workspaceId: string): Promise<FolderEntity[]> {
 - Returns depth (0 for root folders, 1 for first-level children, etc.)
 
 **Code Snippet:**
+
 ```typescript
 private async calculateFolderDepth(folderId: string): Promise<number> {
   let depth = 0;
@@ -1673,9 +1805,11 @@ private async calculateFolderDepth(folderId: string): Promise<number> {
 ##### 3.8 Circular Reference Prevention Helper (`wouldCreateCircularReference`)
 
 **Functionality:**
+
 - Checks if moving a folder would create a circular reference in the hierarchy
 
 **Implementation Details:**
+
 - Accepts `folderId` (folder being moved) and `newParentId` (proposed new parent)
 - Walks up the parent chain from `newParentId`:
   - If at any point `currentParentId === folderId`, returns `true` (circular reference would be created)
@@ -1684,6 +1818,7 @@ private async calculateFolderDepth(folderId: string): Promise<number> {
 - Returns `false` if no circular reference would be created
 
 **Code Snippet:**
+
 ```typescript
 private async wouldCreateCircularReference(
   folderId: string,
@@ -1722,27 +1857,32 @@ private async wouldCreateCircularReference(
 #### 4. FoldersController Implementation ✅
 
 **Files Modified:**
+
 - `src/features/folders/folders.controller.ts`
 
 **Controller Configuration:**
+
 - `@Controller('folders')` - Base route: `/folders`
 - `@UseGuards(JwtAuthGuard)` - All routes protected with JWT authentication
 
 **Endpoints:**
 
 ##### 4.1 Create Folder
+
 - **Route:** `POST /folders`
 - **Body:** `CreateFolderDto`
 - **Response:** `FolderEntity`
 - **Functionality:** Creates a new folder (supports nesting via `parentFolderId`)
 
 ##### 4.2 Get Folder
+
 - **Route:** `GET /folders/:id`
 - **Params:** `id` (UUID)
 - **Response:** `FolderEntity` (with `parent`, `children`, `lists` relations)
 - **Functionality:** Retrieves a single folder with all relationships
 
 ##### 4.3 Update Folder
+
 - **Route:** `PUT /folders/:id`
 - **Params:** `id` (UUID)
 - **Body:** `UpdateFolderDto`
@@ -1750,6 +1890,7 @@ private async wouldCreateCircularReference(
 - **Functionality:** Updates folder name
 
 ##### 4.4 Move Folder
+
 - **Route:** `PUT /folders/:id/move`
 - **Params:** `id` (UUID)
 - **Body:** `MoveFolderDto`
@@ -1757,12 +1898,14 @@ private async wouldCreateCircularReference(
 - **Functionality:** Moves folder to new parent or makes it root
 
 ##### 4.5 Delete Folder
+
 - **Route:** `DELETE /folders/:id`
 - **Params:** `id` (UUID)
 - **Response:** `void` (204 No Content)
 - **Functionality:** Deletes folder (cascade deletes children and lists)
 
 ##### 4.6 Get Workspace Tree
+
 - **Route:** `GET /folders/workspace/:workspaceId/tree`
 - **Params:** `workspaceId` (UUID)
 - **Response:** `FolderEntity[]`
@@ -1771,16 +1914,19 @@ private async wouldCreateCircularReference(
 #### 5. Hierarchy Constraints Implementation ✅
 
 **Files Modified:**
+
 - `src/features/folders/folders.service.ts`
 
 ##### 5.1 Maximum Depth Constraint
 
 **Configuration:**
+
 - Constant: `MAX_FOLDER_DEPTH = 20`
 - Represents practical limit (schema supports 100+ levels functionally)
 - Configurable via constant (can be made environment-driven if needed)
 
 **Depth Calculation:**
+
 - Root folders have depth 0
 - First-level children have depth 1
 - Maximum allowed depth: 19 (20th level)
@@ -1789,6 +1935,7 @@ private async wouldCreateCircularReference(
   - `move()` - Checks resulting depth after move operation
 
 **Validation Logic:**
+
 - When creating: If `parentDepth >= MAX_FOLDER_DEPTH`, throw error
 - When moving: If `newDepth > MAX_FOLDER_DEPTH`, throw error
 - Error message: "Maximum folder depth of {MAX_FOLDER_DEPTH} levels would be exceeded"
@@ -1796,19 +1943,22 @@ private async wouldCreateCircularReference(
 ##### 5.2 Circular Reference Prevention
 
 **Protection Mechanisms:**
+
 1. **Self-parent prevention:**
+
    - In `move()`: Checks if `parentFolderId === id`
    - Throws: "Folder cannot be its own parent"
-
 2. **Descendant-parent prevention:**
+
    - In `move()`: Uses `wouldCreateCircularReference()` to check if new parent is a descendant
    - Throws: "Cannot move folder: would create a circular reference"
-
 3. **Circular detection during depth calculation:**
+
    - In `calculateFolderDepth()`: Tracks visited folders
    - Throws: "Circular reference detected in folder hierarchy" if cycle found
 
 **Algorithm:**
+
 - When moving folder A to parent B:
   - Walk up from B's parent chain
   - If we encounter A at any point, circular reference would be created
@@ -1817,11 +1967,13 @@ private async wouldCreateCircularReference(
 ##### 5.3 Safety Mechanisms
 
 **Infinite Loop Prevention:**
+
 - `calculateFolderDepth()` includes safety limit: `MAX_FOLDER_DEPTH * 2`
 - Prevents infinite loops if unexpected circular reference exists
 - Throws error if safety limit exceeded during calculation
 
 **Validation Order in Move Operation:**
+
 1. Check folder exists
 2. Handle null parent case (make root)
 3. Check self-parent
@@ -1835,22 +1987,26 @@ private async wouldCreateCircularReference(
 #### 1. TypeORM Query Patterns
 
 **Null Parent Query:**
+
 - Uses `IsNull()` operator from TypeORM for null checks
 - Example: `where: { parent: IsNull() }` finds root folders
 
 **Relationship Loading:**
+
 - Uses `relations` array in `findOne()` and `find()` to eagerly load:
   - `parent` - Parent folder entity
   - `children` - Array of child folders
   - `lists` - Lists contained in folder
 
 **Ordering:**
+
 - Folders ordered by `name` (ascending) in tree queries
 - Enables consistent UI rendering
 
 #### 2. Error Handling
 
 **Exception Types:**
+
 - `NotFoundException`: Folder or parent not found
 - `BadRequestException`: Validation failures:
   - Maximum depth exceeded
@@ -1859,33 +2015,39 @@ private async wouldCreateCircularReference(
   - Safety limit exceeded
 
 **Error Messages:**
+
 - Descriptive messages explaining why operation failed
 - Includes relevant context (max depth limit, etc.)
 
 #### 3. Cascade Deletion
 
 **Database-Level Cascading:**
+
 - `FolderEntity.parent`: `onDelete: 'CASCADE'` - Deleting parent deletes children
 - `ListEntity.folder`: `onDelete: 'CASCADE'` - Deleting folder deletes lists
 - Ensures data consistency without manual cleanup
 
 **Service-Level:**
+
 - `remove()` uses `folderRepository.remove()` which respects cascade settings
 - No need to manually delete children or lists
 
 #### 4. Performance Considerations
 
 **Current Implementation:**
+
 - `getWorkspaceTree()` loads root folders with immediate children (2 levels)
 - Simple and efficient for typical use cases
 - Can be optimized for deeper trees if needed
 
 **Future Optimizations:**
+
 - PostgreSQL recursive CTEs for full tree loading
 - Caching for frequently accessed workspace trees
 - Pagination for workspaces with many root folders
 
 **Depth Calculation:**
+
 - Walks parent chain sequentially (one database query per level)
 - Acceptable for typical depths (< 20 levels)
 - Could be optimized with recursive queries or materialized paths if needed
@@ -1893,21 +2055,25 @@ private async wouldCreateCircularReference(
 ### Benefits
 
 **1. Data Integrity:**
+
 - Maximum depth constraint prevents excessive nesting
 - Circular reference prevention ensures valid hierarchy
 - Cascade deletion ensures consistent state
 
 **2. User Experience:**
+
 - Clear error messages for invalid operations
 - Efficient tree retrieval for UI rendering
 - Flexible folder organization (up to 20 levels)
 
 **3. Performance:**
+
 - Reasonable depth limits prevent performance issues
 - Efficient queries with proper relation loading
 - Ready for optimization when needed
 
 **4. Maintainability:**
+
 - Clear separation of concerns (service vs. controller)
 - Reusable helper methods (depth calculation, cycle detection)
 - Comprehensive validation logic
@@ -1930,6 +2096,7 @@ src/features/folders/
 ### Next Steps
 
 After completing Phase 6, the application has:
+
 - ✅ Complete folder CRUD operations
 - ✅ Folder hierarchy management (create, move, delete)
 - ✅ Workspace folder tree retrieval
@@ -1943,7 +2110,7 @@ After completing Phase 6, the application has:
 
 ## Phase 7: Lists Management
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2026
 
 ### Overview
@@ -1967,27 +2134,29 @@ This phase builds directly upon:
 #### 1. ListEntity Enhancements ✅
 
 **File Modified:**
+
 - `src/features/lists/entities/list.entity.ts`
 
 **New Columns & Settings:**
 
 - `description: string | null`
+
   - Type: `text`
   - Nullable: `true`
   - Purpose: Human-readable description/summary of the list.
-
 - `isArchived: boolean`
+
   - Type: `boolean`
   - Column name: `is_archived`
   - Default: `false`
   - Purpose: Marks lists as archived without deleting them (soft-archive flag).
-
 - `visibility: 'private' | 'shared'`
+
   - Type: `varchar(20)`
   - Default: `private`
   - Purpose: Controls high-level access semantics (private vs shared).
-
 - `defaultViewConfig: { type?: 'kanban' | 'table' | 'calendar'; [key: string]: any } | null`
+
   - Type: `jsonb`
   - Column name: `default_view_config`
   - Nullable: `true`
@@ -2100,6 +2269,7 @@ These enhancements enable:
 #### 3. ListsModule Configuration ✅
 
 **File Modified:**
+
 - `src/features/lists/lists.module.ts`
 
 **Implementation Details:**
@@ -2135,6 +2305,7 @@ export class ListsModule {}
 #### 4. ListTemplateEntity Implementation ✅
 
 **File Created:**
+
 - `src/features/lists/entities/list-template.entity.ts`
 
 **Purpose:**
@@ -2149,18 +2320,19 @@ export class ListsModule {}
 **Columns:**
 
 - `id: string`
+
   - UUID primary key.
-
 - `name: string`
+
   - Human-friendly template name.
-
 - `description: string | null`
+
   - Optional description of the template.
-
 - `isPublic: boolean`
-  - Indicates whether the template is public (available beyond its owner) or personal.
 
+  - Indicates whether the template is public (available beyond its owner) or personal.
 - `templateConfig: jsonb`
+
   - Column name: `template_config`
   - Structure:
     - `statuses?: Array<{ name: string; orderIndex: number; color?: string }>`
@@ -2168,19 +2340,20 @@ export class ListsModule {}
     - `defaultViewConfig?: { type?: 'kanban' | 'table' | 'calendar'; [key: string]: any }`
     - `visibility?: 'private' | 'shared'`
     - `[key: string]: any` (flexible for future options)
-
 - Timestamps:
+
   - `createdAt: Date` (`@CreateDateColumn`, `created_at`)
   - `updatedAt: Date` (`@UpdateDateColumn`, `updated_at`)
 
 **Relationships:**
 
 - `user: UserEntity`
+
   - Many-To-One to `UserEntity`
   - Join column: `user_id`
   - `onDelete: 'CASCADE'` – deleting a user deletes its templates.
-
 - `workspace: WorkspaceEntity | null`
+
   - Many-To-One to `WorkspaceEntity`
   - Join column: `workspace_id`
   - Nullable: `true` (templates can be global/user-level or workspace-specific).
@@ -2189,6 +2362,7 @@ export class ListsModule {}
 #### 5. ListsService Implementation ✅
 
 **File Modified:**
+
 - `src/features/lists/lists.service.ts`
 
 **Repositories Injected:**
@@ -2253,11 +2427,12 @@ export class ListsModule {}
 ##### 5.6 Archive / Unarchive List (`archive`, `unarchive`)
 
 - `archive(id: string)`:
+
   - Loads list, throws `NotFoundException` if missing.
   - If `isArchived` is already `true`, throws `BadRequestException('List is already archived')`.
   - Sets `isArchived = true` and saves.
-
 - `unarchive(id: string)`:
+
   - Loads list, throws `NotFoundException` if missing.
   - If `isArchived` is already `false`, throws `BadRequestException('List is not archived')`.
   - Sets `isArchived = false` and saves.
@@ -2364,6 +2539,7 @@ export class ListsModule {}
 #### 7. ListsController Implementation ✅
 
 **File Modified:**
+
 - `src/features/lists/lists.controller.ts`
 
 **Controller Configuration:**
@@ -2476,11 +2652,13 @@ export class ListsModule {}
 #### 8. REST Client Endpoints ✅
 
 **File Modified:**
+
 - `rest_client.http`
 
 **New/Updated Sections:**
 
 - **Lists – CRUD & Settings**
+
   - `POST /lists` – Create List
   - `GET /lists?workspaceId=...&folderId=...` – Get Lists for workspace/folder
   - `GET /lists?workspaceId=...&folderId=null` – Get root Lists (no folder)
@@ -2490,8 +2668,8 @@ export class ListsModule {}
   - `POST /lists/{listId}/archive` – Archive List
   - `POST /lists/{listId}/unarchive` – Unarchive List
   - `POST /lists/{listId}/duplicate` – Duplicate List (with `includeTasks` flag)
-
 - **List Templates**
+
   - `POST /lists/templates` – Create template
   - `GET /lists/templates?workspaceId=...&includePublic=true` – Get templates (personal + public)
   - `GET /lists/templates/{templateId}` – Get a single template
@@ -2550,7 +2728,7 @@ After completing Phase 7, the application has:
 
 ## Phase 8: Kanban Board Module ✅
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2026
 
 ### Overview
@@ -2574,12 +2752,14 @@ Phase 8 implements the complete Kanban Board Module, providing a comprehensive t
 **Status:** Completed (Referenced from Phase 7 integration)
 
 **Implementation Details:**
+
 - Status management was implemented as part of the Lists Module
 - Statuses represent Kanban board columns
 - Full CRUD operations with ordering and color customization
 - Default statuses created on list creation (Todo, Doing, Done)
 
 **Endpoints:**
+
 - `POST /statuses` - Create status
 - `GET /statuses?listId=...` - Get all statuses for a list
 - `GET /statuses/:id` - Get status by ID
@@ -2590,6 +2770,7 @@ Phase 8 implements the complete Kanban Board Module, providing a comprehensive t
 #### 2. Tasks ✅
 
 **Files Created:**
+
 - `src/features/tasks/dto/create-task.dto.ts`
 - `src/features/tasks/dto/update-task.dto.ts`
 - `src/features/tasks/dto/task-response.dto.ts`
@@ -2598,6 +2779,7 @@ Phase 8 implements the complete Kanban Board Module, providing a comprehensive t
 - `src/features/tasks/dto/add-tag-to-task.dto.ts`
 
 **Files Modified:**
+
 - `src/features/tasks/entities/task.entity.ts`
 - `src/features/tasks/tasks.service.ts`
 - `src/features/tasks/tasks.controller.ts`
@@ -2608,6 +2790,7 @@ Phase 8 implements the complete Kanban Board Module, providing a comprehensive t
 ##### 2.1 Task Entity Extension
 
 **Entity Updates:**
+
 - Added `dueDate: Date | null` - Task due date (date type, nullable)
 - Added `orderPosition: number` - Position within status column (integer, default: 0)
 - Added `isArchived: boolean` - Archive flag (boolean, default: false)
@@ -2615,6 +2798,7 @@ Phase 8 implements the complete Kanban Board Module, providing a comprehensive t
 - Updated `priority` relationship with `nullable: true` option
 
 **Code Implementation:**
+
 ```typescript
 // src/features/tasks/entities/task.entity.ts
 @Column({
@@ -2642,6 +2826,7 @@ isArchived: boolean;
 ##### 2.2 Task CRUD Operations
 
 **Create Task (`create`):**
+
 - Validates list exists
 - Validates status belongs to list (if provided)
 - Validates priority exists (if provided)
@@ -2649,31 +2834,37 @@ isArchived: boolean;
 - Supports: `title`, `description`, `listId`, `statusId`, `priorityId`, `dueDate`, `orderPosition`
 
 **Read Tasks (`findAll`):**
+
 - Supports filtering by `listId`, `statusId`, `includeArchived`
 - Supports sorting by various fields (see Sorting section)
 - Returns tasks with relations: `list`, `status`, `priority`, `assignments`, `taskTags`
 
 **Read Single Task (`findOne`):**
+
 - Returns task with all relations loaded
 - Includes: `list`, `status`, `priority`, `assignments`, `assignments.user`, `taskTags`, `taskTags.tag`, `subtasks`, `checklists`, `comments`, `attachments`
 
 **Update Task (`update`):**
+
 - Updates task properties
 - Validates status belongs to list (if changing)
 - Supports: `title`, `description`, `statusId`, `priorityId`, `dueDate`, `orderPosition`
 
 **Delete Task (`remove`):**
+
 - Cascade deletes all related entities (assignments, subtasks, checklists, comments, attachments, tags, dependencies, custom field values)
 
 ##### 2.3 Task Movement
 
 **Move Task (`move`):**
+
 - Moves task between statuses (columns)
 - Updates `orderPosition` within new status
 - Validates target status belongs to same list
 - Auto-calculates position if not provided
 
 **Code Implementation:**
+
 ```typescript
 async move(id: string, moveTaskDto: MoveTaskDto): Promise<TaskEntity> {
   const { statusId, orderPosition } = moveTaskDto;
@@ -2685,40 +2876,47 @@ async move(id: string, moveTaskDto: MoveTaskDto): Promise<TaskEntity> {
 ##### 2.4 Task Archiving
 
 **Archive Task (`archive`):**
+
 - Sets `isArchived = true`
 - Task is excluded from default queries unless `includeArchived = true`
 
 **Unarchive Task (`unarchive`):**
+
 - Sets `isArchived = false`
 - Task becomes visible in default queries
 
 ##### 2.5 Task Assignments
 
 **Assign User (`assignUser`):**
+
 - Creates assignment relationship between user and task
 - Validates user exists
 - Validates task exists
 - Prevents duplicate assignments
 
 **Unassign User (`unassignUser`):**
+
 - Removes assignment relationship
 - Validates assignment exists
 
 ##### 2.6 Task Tags
 
 **Add Tag (`addTag`):**
+
 - Adds tag to task via `TaskTag` join entity
 - Validates tag exists
 - Validates tag belongs to same workspace as task's list
 - Prevents duplicate tag assignments
 
 **Remove Tag (`removeTag`):**
+
 - Removes tag from task
 - Validates `TaskTag` relationship exists
 
 ##### 2.7 Task Endpoints
 
 **Controller Endpoints:**
+
 - `POST /tasks` - Create task
 - `GET /tasks?listId=...&statusId=...&includeArchived=...&sortField=...&sortDirection=...` - Get all tasks
 - `GET /tasks/:id` - Get single task
@@ -2735,12 +2933,14 @@ async move(id: string, moveTaskDto: MoveTaskDto): Promise<TaskEntity> {
 #### 3. Subtasks ✅
 
 **Files Created:**
+
 - `src/features/tasks/dto/create-subtask.dto.ts`
 - `src/features/tasks/dto/update-subtask.dto.ts`
 - `src/features/tasks/dto/subtask-response.dto.ts`
 - `src/features/tasks/dto/move-subtask.dto.ts`
 
 **Files Modified:**
+
 - `src/features/tasks/entities/subtask.entity.ts` (already existed)
 - `src/features/tasks/tasks.service.ts`
 - `src/features/tasks/tasks.controller.ts`
@@ -2751,6 +2951,7 @@ async move(id: string, moveTaskDto: MoveTaskDto): Promise<TaskEntity> {
 ##### 3.1 Subtask Entity
 
 **Entity Structure:**
+
 - `id: string` - UUID primary key
 - `title: string` - Subtask title
 - `isCompleted: boolean` - Completion status (default: false)
@@ -2760,29 +2961,35 @@ async move(id: string, moveTaskDto: MoveTaskDto): Promise<TaskEntity> {
 ##### 3.2 Subtask CRUD Operations
 
 **Create Subtask (`createSubtask`):**
+
 - Validates parent task exists
 - Auto-calculates `orderIndex` if not provided
 - Supports: `title`, `taskId`, `orderIndex`
 
 **Read Subtasks (`findAllSubtasks`):**
+
 - Returns all subtasks for a task
 - Ordered by `orderIndex` ascending
 
 **Read Single Subtask (`findOneSubtask`):**
+
 - Returns subtask with parent task relation
 
 **Update Subtask (`updateSubtask`):**
+
 - Updates subtask properties
 - Supports: `title`, `isCompleted`, `orderIndex`
 - Used to mark subtasks as complete/incomplete
 
 **Delete Subtask (`removeSubtask`):**
+
 - Removes subtask from task
 - Validates subtask exists
 
 ##### 3.3 Move Subtask Between Tasks
 
 **Move Subtask (`moveSubtask`):**
+
 - Moves subtask from one task to another
 - Validates both source and target tasks exist
 - Validates tasks are in the same list
@@ -2790,6 +2997,7 @@ async move(id: string, moveTaskDto: MoveTaskDto): Promise<TaskEntity> {
 - Auto-calculates position if not provided
 
 **Code Implementation:**
+
 ```typescript
 async moveSubtask(
   id: string,
@@ -2804,6 +3012,7 @@ async moveSubtask(
 ##### 3.4 Subtask Endpoints
 
 **Controller Endpoints:**
+
 - `POST /tasks/subtasks` - Create subtask
 - `GET /tasks/:taskId/subtasks` - Get all subtasks for task
 - `GET /tasks/subtasks/:id` - Get single subtask
@@ -2812,11 +3021,13 @@ async moveSubtask(
 - `PUT /tasks/subtasks/:id/move` - Move subtask to another task
 
 **Route Ordering:**
+
 - Subtask endpoints must be declared before generic `GET /tasks/:id` route to avoid routing conflicts
 
 #### 4. Task Checklists ✅
 
 **Files Created:**
+
 - `src/features/tasks/dto/create-checklist.dto.ts`
 - `src/features/tasks/dto/update-checklist.dto.ts`
 - `src/features/tasks/dto/checklist-response.dto.ts`
@@ -2826,6 +3037,7 @@ async moveSubtask(
 - `src/features/tasks/dto/reorder-checklist-items.dto.ts`
 
 **Files Modified:**
+
 - `src/features/tasks/entities/checklist.entity.ts` (already existed)
 - `src/features/tasks/entities/checklist-item.entity.ts` (already existed)
 - `src/features/tasks/tasks.service.ts`
@@ -2837,6 +3049,7 @@ async moveSubtask(
 ##### 4.1 Checklist Entity
 
 **Entity Structure:**
+
 - `id: string` - UUID primary key
 - `title: string` - Checklist title
 - `orderIndex: number` - Position within task (default: 0)
@@ -2846,57 +3059,69 @@ async moveSubtask(
 ##### 4.2 Checklist CRUD Operations
 
 **Create Checklist (`createChecklist`):**
+
 - Validates parent task exists
 - Auto-calculates `orderIndex` if not provided
 - Supports: `title`, `taskId`, `orderIndex`
 
 **Read Checklists (`findAllChecklists`):**
+
 - Returns all checklists for a task
 - Ordered by `orderIndex` ascending
 
 **Read Single Checklist (`findOneChecklist`):**
+
 - Returns checklist with checklist items relation
 
 **Update Checklist (`updateChecklist`):**
+
 - Updates checklist properties
 - Supports: `title`, `orderIndex`
 
 **Delete Checklist (`removeChecklist`):**
+
 - Removes checklist (cascade deletes all checklist items)
 - Validates checklist exists
 
 ##### 4.3 Checklist Item Operations
 
 **Create Checklist Item (`createChecklistItem`):**
+
 - Validates parent checklist exists
 - Auto-calculates `orderIndex` if not provided
 - Supports: `title`, `checklistId`, `orderIndex`
 
 **Read Checklist Items (`findAllChecklistItems`):**
+
 - Returns all items for a checklist
 - Ordered by `orderIndex` ascending
 
 **Read Single Checklist Item (`findOneChecklistItem`):**
+
 - Returns checklist item with parent checklist relation
 
 **Update Checklist Item (`updateChecklistItem`):**
+
 - Updates checklist item properties
 - Supports: `title`, `isCompleted`, `orderIndex`
 - Used to mark items as complete/incomplete
 
 **Delete Checklist Item (`removeChecklistItem`):**
+
 - Removes checklist item
 - Validates checklist item exists
 
 ##### 4.4 Reorder Checklist Items
 
 **Reorder Checklist Items (`reorderChecklistItems`):**
+
 - Bulk updates order indices for multiple checklist items
 - Validates all items belong to the checklist
 - Prevents duplicate order indices
 - Supports atomic reordering
 
 **DTO Structure:**
+
 ```typescript
 export class ChecklistItemOrderItemDto {
   @IsUUID()
@@ -2917,6 +3142,7 @@ export class ReorderChecklistItemsDto {
 ##### 4.5 Checklist Endpoints
 
 **Controller Endpoints:**
+
 - `POST /tasks/checklists` - Create checklist
 - `GET /tasks/:taskId/checklists` - Get all checklists for task
 - `GET /tasks/checklists/:id` - Get single checklist
@@ -2930,15 +3156,18 @@ export class ReorderChecklistItemsDto {
 - `PUT /tasks/checklists/:checklistId/reorder-items` - Reorder checklist items
 
 **Route Ordering:**
+
 - Checklist endpoints must be declared before generic `GET /tasks/:id` route to avoid routing conflicts
 
 #### 5. Filtering & Search ✅
 
 **Files Created:**
+
 - `src/features/tasks/dto/filter-tasks.dto.ts`
 - `src/features/tasks/dto/search-tasks.dto.ts`
 
 **Files Modified:**
+
 - `src/features/tasks/tasks.service.ts`
 - `src/features/tasks/tasks.controller.ts`
 
@@ -2947,21 +3176,25 @@ export class ReorderChecklistItemsDto {
 ##### 5.1 Filter DTOs
 
 **FilterConditionDto:**
+
 - `field: string` - Field to filter by (`assignee`, `status`, `priority`, `tag`, `dueDate`, `list`, `isArchived`)
 - `operator: FilterOperator` - Filter operator (see operators below)
 - `value?: any` - Filter value (type depends on field and operator)
 
 **FilterGroupDto:**
+
 - `logic: FilterLogic` - Group logic (`and` or `or`)
 - `conditions: FilterConditionDto[]` - Array of filter conditions
 - `groups?: FilterGroupDto[]` - Optional nested filter groups (supports unlimited nesting)
 
 **FilterTasksDto:**
+
 - `listId?: string` - Optional list filter
 - `filters?: FilterGroupDto` - Optional filter group
 - `includeArchived?: boolean` - Include archived tasks (default: false)
 
 **Filter Operators:**
+
 ```typescript
 export enum FilterOperator {
   EQUALS = 'equals',
@@ -2981,6 +3214,7 @@ export enum FilterOperator {
 ##### 5.2 Complex Filtering Implementation
 
 **Filter Tasks Method (`filterTasks`):**
+
 - Uses TypeORM QueryBuilder for dynamic query construction
 - Supports nested AND/OR logic groups
 - Applies filters recursively through nested groups
@@ -2988,39 +3222,47 @@ export enum FilterOperator {
 **Filter Field Handlers:**
 
 **Assignee Filter (`applyAssigneeFilter`):**
+
 - Joins with `assignments` and `user` tables
 - Supports `equals`, `not_equals`, `in`, `not_in`, `is_null`, `is_not_null`
 - Filters tasks by assigned users
 
 **Status Filter (`applyStatusFilter`):**
+
 - Joins with `status` table
 - Supports `equals`, `not_equals`, `in`, `not_in`
 - Filters tasks by status/column
 
 **Priority Filter (`applyPriorityFilter`):**
+
 - Joins with `priority` table
 - Supports `equals`, `not_equals`, `in`, `not_in`, `is_null`, `is_not_null`
 - Filters tasks by priority level
 
 **Tag Filter (`applyTagFilter`):**
+
 - Joins with `taskTags` and `tag` tables
 - Supports `equals`, `not_equals`, `in`, `not_in`
 - Filters tasks by tags (handles multiple tags per task)
 
 **Due Date Filter (`applyDueDateFilter`):**
+
 - Filters on `dueDate` column
 - Supports `equals`, `not_equals`, `greater_than`, `less_than`, `greater_than_or_equal`, `less_than_or_equal`, `is_null`, `is_not_null`
 - Handles date comparisons with DATE() function for equality
 
 **List Filter (`applyListFilter`):**
+
 - Filters on task's list
 - Supports `equals`, `not_equals`, `in`, `not_in`
 
 **Archived Filter (`applyArchivedFilter`):**
+
 - Filters on `isArchived` boolean field
 - Supports `equals` operator with boolean value
 
 **Code Implementation:**
+
 ```typescript
 private applyFilterGroup(
   queryBuilder: SelectQueryBuilder<TaskEntity>,
@@ -3038,12 +3280,14 @@ private applyFilterGroup(
 ##### 5.3 Full-Text Search
 
 **Search Tasks Method (`searchTasks`):**
+
 - Searches in `title` and `description` fields
 - Uses case-insensitive `LIKE` queries
 - Supports optional `listId` filter
 - Excludes archived tasks by default
 
 **Code Implementation:**
+
 ```typescript
 async searchTasks(
   searchTasksDto: SearchTasksDto,
@@ -3059,10 +3303,12 @@ async searchTasks(
 ##### 5.4 Filter & Search Endpoints
 
 **Controller Endpoints:**
+
 - `POST /tasks/filter?sortField=...&sortDirection=...` - Filter tasks with complex conditions
 - `POST /tasks/search?sortField=...&sortDirection=...` - Search tasks by title/description
 
 **Example Filter Request:**
+
 ```json
 {
   "listId": "list-uuid-here",
@@ -3103,9 +3349,11 @@ async searchTasks(
 #### 6. Sorting ✅
 
 **Files Created:**
+
 - `src/features/tasks/dto/sort-tasks.dto.ts`
 
 **Files Modified:**
+
 - `src/features/tasks/tasks.service.ts`
 - `src/features/tasks/tasks.controller.ts`
 
@@ -3114,6 +3362,7 @@ async searchTasks(
 ##### 6.1 Sort DTOs
 
 **SortField Enum:**
+
 ```typescript
 export enum SortField {
   DUE_DATE = 'dueDate',
@@ -3128,6 +3377,7 @@ export enum SortField {
 ```
 
 **SortDirection Enum:**
+
 ```typescript
 export enum SortDirection {
   ASC = 'ASC',
@@ -3138,11 +3388,13 @@ export enum SortDirection {
 ##### 6.2 Sorting Implementation
 
 **Sorting Strategy:**
+
 - Primary sort by selected field and direction
 - Secondary sort by `orderPosition` (ASC) for consistent ordering
 - NULL values handled appropriately (tasks without assignees/custom fields appear last)
 
 **Standard Field Sorting:**
+
 - `dueDate` - Sorts by due date (NULLs last)
 - `priority` - Sorts by priority's `orderIndex` (NULLs last)
 - `createdAt` - Sorts by creation timestamp
@@ -3153,12 +3405,14 @@ export enum SortDirection {
 ##### 6.3 Sort by Assignee (Complex)
 
 **Implementation:**
+
 - Handles tasks with multiple assignees
 - Uses PostgreSQL subquery: `MIN(u.name)` for ASC, `MAX(u.name)` for DESC
 - NULL handling: Tasks without assignees appear last
 - Secondary sort by `orderPosition` for consistency
 
 **Code Implementation:**
+
 ```typescript
 if (sortField === SortField.ASSIGNEE) {
   const assigneeOrderBy =
@@ -3175,6 +3429,7 @@ if (sortField === SortField.ASSIGNEE) {
 ##### 6.4 Sort by Custom Fields
 
 **Implementation:**
+
 - Requires `customFieldId` parameter
 - Validates custom field exists and belongs to list
 - Type-specific sorting:
@@ -3184,6 +3439,7 @@ if (sortField === SortField.ASSIGNEE) {
 - NULL handling: Tasks without custom field values appear last
 
 **Code Implementation:**
+
 ```typescript
 if (sortField === SortField.CUSTOM_FIELD) {
   // Verify custom field exists
@@ -3213,11 +3469,13 @@ if (sortField === SortField.CUSTOM_FIELD) {
 ##### 6.5 Sorting Integration
 
 **Integrated in Methods:**
+
 - `findAll` - Supports sorting with all fields
 - `filterTasks` - Supports sorting on filtered results
 - `searchTasks` - Supports sorting on search results
 
 **Query Parameters:**
+
 - `sortField?: SortField` - Field to sort by
 - `sortDirection?: SortDirection` - Sort direction (default: ASC)
 - `customFieldId?: string` - Required when `sortField = customField`
@@ -3225,6 +3483,7 @@ if (sortField === SortField.CUSTOM_FIELD) {
 ##### 6.6 Sorting Endpoints
 
 **Controller Endpoints:**
+
 - All task listing endpoints support sorting:
   - `GET /tasks?sortField=...&sortDirection=...`
   - `POST /tasks/filter?sortField=...&sortDirection=...&customFieldId=...`
@@ -3233,10 +3492,12 @@ if (sortField === SortField.CUSTOM_FIELD) {
 #### 7. Task Dependencies ✅
 
 **Files Created:**
+
 - `src/features/tasks/dto/create-task-dependency.dto.ts`
 - `src/features/tasks/dto/task-dependency-response.dto.ts`
 
 **Files Modified:**
+
 - `src/features/tasks/entities/task-dependency.entity.ts` (already existed)
 - `src/features/tasks/tasks.service.ts`
 - `src/features/tasks/tasks.controller.ts`
@@ -3247,6 +3508,7 @@ if (sortField === SortField.CUSTOM_FIELD) {
 ##### 7.1 Dependency Entity
 
 **Entity Structure:**
+
 - `id: string` - UUID primary key
 - `task: TaskEntity` - Dependent task (ManyToOne, CASCADE delete)
 - `dependsOnTask: TaskEntity` - Task that this task depends on (ManyToOne, CASCADE delete)
@@ -3258,6 +3520,7 @@ if (sortField === SortField.CUSTOM_FIELD) {
 ##### 7.2 Dependency Logic
 
 **Dependency Graph Interpretation:**
+
 - Directed graph where edges represent dependencies
 - `blocked_by`: If A is blocked by B, then A → B (A depends on B)
 - `blocks`: If A blocks B, then B → A (B depends on A)
@@ -3265,6 +3528,7 @@ if (sortField === SortField.CUSTOM_FIELD) {
 ##### 7.3 Create Dependency
 
 **Method: `createTaskDependency`**
+
 - Validates both tasks exist
 - Prevents self-dependency (task cannot depend on itself)
 - Validates tasks are in the same list
@@ -3272,11 +3536,13 @@ if (sortField === SortField.CUSTOM_FIELD) {
 - **Circular Dependency Detection**: Prevents creating cycles in dependency graph
 
 **Circular Dependency Detection:**
+
 - Uses BFS (Breadth-First Search) to detect cycles
 - Before adding dependency, checks if reverse path exists
 - If path from target to source exists, adding dependency would create cycle
 
 **Code Implementation:**
+
 ```typescript
 private async wouldCreateCircularDependency(
   taskId: string,
@@ -3300,11 +3566,13 @@ private async hasPathToTask(
 ##### 7.4 Find Dependencies
 
 **Method: `findAllTaskDependencies`**
+
 - Returns dependencies in both directions:
   - `blocking`: Tasks that depend on this task (this task blocks them)
   - `blockedBy`: Tasks this task depends on (this task is blocked by them)
 
 **Implementation Logic:**
+
 - Queries dependencies where task is the dependent (`blocked_by` with task=thisTask)
 - Queries dependencies where task blocks others (`blocks` with dependsOnTask=thisTask)
 - Also handles reverse relationships for complete dependency graph
@@ -3312,6 +3580,7 @@ private async hasPathToTask(
 ##### 7.5 Remove Dependency
 
 **Method: `removeTaskDependency`**
+
 - Removes dependency relationship
 - Validates dependency exists
 - No circular dependency check needed (removal cannot create cycles)
@@ -3319,6 +3588,7 @@ private async hasPathToTask(
 ##### 7.6 Dependency Endpoints
 
 **Controller Endpoints:**
+
 - `POST /tasks/dependencies` - Create dependency
   - Body: `{ taskId, dependsOnTaskId, type: 'blocks' | 'blocked_by' }`
 - `GET /tasks/:taskId/dependencies` - Get all dependencies for task
@@ -3327,21 +3597,25 @@ private async hasPathToTask(
 - `DELETE /tasks/dependencies/:id` - Delete dependency
 
 **Route Ordering:**
+
 - Dependency endpoints declared before generic `GET /tasks/:id` route to avoid conflicts
 
 #### 8. Task Custom Fields ✅
 
 **Files Created (Lists Module):**
+
 - `src/features/lists/dto/create-custom-field.dto.ts`
 - `src/features/lists/dto/update-custom-field.dto.ts`
 - `src/features/lists/dto/custom-field-response.dto.ts`
 
 **Files Created (Tasks Module):**
+
 - `src/features/tasks/dto/create-task-custom-field-value.dto.ts`
 - `src/features/tasks/dto/update-task-custom-field-value.dto.ts`
 - `src/features/tasks/dto/task-custom-field-value-response.dto.ts`
 
 **Files Modified:**
+
 - `src/features/lists/entities/custom-field.entity.ts` (already existed)
 - `src/features/tasks/entities/task-custom-field-value.entity.ts` (already existed)
 - `src/features/lists/lists.service.ts`
@@ -3356,6 +3630,7 @@ private async hasPathToTask(
 ##### 8.1 Custom Field Entity
 
 **Entity Structure:**
+
 - `id: string` - UUID primary key
 - `name: string` - Field name
 - `type: 'text' | 'number' | 'date' | 'dropdown'` - Field type
@@ -3367,28 +3642,34 @@ private async hasPathToTask(
 ##### 8.2 Custom Field CRUD (Lists Module)
 
 **Create Custom Field (`createCustomField`):**
+
 - Validates list exists
 - Supports: `name`, `type`, `listId`, `config` (optional)
 - For dropdown type, `config.options` should contain array of options
 
 **Read Custom Fields (`findAllCustomFields`):**
+
 - Returns all custom fields for a list
 - Ordered by creation date
 
 **Read Single Custom Field (`findOneCustomField`):**
+
 - Returns custom field with list relation
 
 **Update Custom Field (`updateCustomField`):**
+
 - Updates field properties
 - Supports: `name`, `type`, `config`
 
 **Delete Custom Field (`removeCustomField`):**
+
 - Removes custom field (cascade deletes all task custom field values)
 - Validates custom field exists
 
 ##### 8.3 Task Custom Field Value Entity
 
 **Entity Structure:**
+
 - `id: string` - UUID primary key
 - `value: any` - Field value stored as JSONB (flexible for different types)
 - `task: TaskEntity` - Parent task (ManyToOne, CASCADE delete)
@@ -3399,6 +3680,7 @@ private async hasPathToTask(
 ##### 8.4 Task Custom Field Value CRUD
 
 **Create Task Custom Field Value (`createTaskCustomFieldValue`):**
+
 - Validates task exists
 - Validates custom field exists
 - **List Validation**: Ensures custom field belongs to same list as task
@@ -3410,6 +3692,7 @@ private async hasPathToTask(
 - Prevents duplicate values (one value per task per custom field)
 
 **Type Validation Logic:**
+
 ```typescript
 private validateCustomFieldValue(
   value: any,
@@ -3444,24 +3727,29 @@ private validateCustomFieldValue(
 ```
 
 **Read Task Custom Field Values (`findAllTaskCustomFieldValues`):**
+
 - Returns all custom field values for a task
 - Includes custom field relation
 - Ordered by creation date
 
 **Read Single Task Custom Field Value (`findOneTaskCustomFieldValue`):**
+
 - Returns custom field value with task and custom field relations
 
 **Update Task Custom Field Value (`updateTaskCustomFieldValue`):**
+
 - Updates value with type validation
 - Supports: `value` (validated based on custom field type)
 
 **Delete Task Custom Field Value (`removeTaskCustomFieldValue`):**
+
 - Removes custom field value from task
 - Validates value exists
 
 ##### 8.5 Custom Field Endpoints
 
 **Lists Controller Endpoints:**
+
 - `POST /lists/custom-fields` - Create custom field
 - `GET /lists/custom-fields?listId=...` - Get all custom fields for list
 - `GET /lists/custom-fields/:id` - Get single custom field
@@ -3469,6 +3757,7 @@ private validateCustomFieldValue(
 - `DELETE /lists/custom-fields/:id` - Delete custom field
 
 **Tasks Controller Endpoints:**
+
 - `POST /tasks/custom-field-values` - Create task custom field value
 - `GET /tasks/:taskId/custom-field-values` - Get all custom field values for task
 - `GET /tasks/custom-field-values/:id` - Get single custom field value
@@ -3476,16 +3765,19 @@ private validateCustomFieldValue(
 - `DELETE /tasks/custom-field-values/:id` - Delete task custom field value
 
 **Route Ordering:**
+
 - Custom field value endpoints declared before generic `GET /tasks/:id` route
 
 #### 9. Save Filter Presets ✅
 
 **Files Created:**
+
 - `src/features/lists/dto/create-filter-preset.dto.ts`
 - `src/features/lists/dto/update-filter-preset.dto.ts`
 - `src/features/lists/dto/filter-preset-response.dto.ts`
 
 **Files Modified:**
+
 - `src/features/lists/entities/filter-preset.entity.ts` (already existed)
 - `src/features/lists/lists.service.ts`
 - `src/features/lists/lists.controller.ts`
@@ -3496,6 +3788,7 @@ private validateCustomFieldValue(
 ##### 9.1 Filter Preset Entity
 
 **Entity Structure:**
+
 - `id: string` - UUID primary key
 - `name: string` - Preset name
 - `filterConfig: Record<string, any>` - Filter configuration stored as JSONB
@@ -3508,34 +3801,40 @@ private validateCustomFieldValue(
 ##### 9.2 Filter Preset CRUD
 
 **Create Filter Preset (`createFilterPreset`):**
+
 - Validates list exists
 - Stores filter configuration and `includeArchived` flag as JSON
 - User-scoped (linked to authenticated user via `@CurrentUser`)
 - Supports: `name`, `listId`, `filterConfig` (FilterGroupDto), `includeArchived` (optional)
 
 **Read Filter Presets (`findAllFilterPresets`):**
+
 - Returns all filter presets for authenticated user
 - Optional `listId` filter to get presets for specific list
 - Ordered by creation date (newest first)
 - Includes list relation
 
 **Read Single Filter Preset (`findOneFilterPreset`):**
+
 - Returns filter preset with user and list relations
 - **Security**: Only returns preset if it belongs to authenticated user
 
 **Update Filter Preset (`updateFilterPreset`):**
+
 - Updates preset properties
 - Supports: `name`, `filterConfig`, `includeArchived`
 - Properly merges filter configuration when updating
 - **Security**: Only updates preset if it belongs to authenticated user
 
 **Delete Filter Preset (`removeFilterPreset`):**
+
 - Removes filter preset
 - **Security**: Only deletes preset if it belongs to authenticated user
 
 ##### 9.3 Filter Preset Endpoints
 
 **Controller Endpoints:**
+
 - `POST /lists/filter-presets` - Create filter preset (requires authentication)
 - `GET /lists/filter-presets?listId=...` - Get all filter presets for user (optionally filtered by list)
 - `GET /lists/filter-presets/:id` - Get single filter preset
@@ -3543,9 +3842,11 @@ private validateCustomFieldValue(
 - `DELETE /lists/filter-presets/:id` - Delete filter preset
 
 **Route Ordering:**
+
 - Filter preset endpoints declared before templates routes to avoid conflicts
 
 **Security:**
+
 - All endpoints use `JwtAuthGuard`
 - All endpoints use `@CurrentUser` decorator
 - Users can only access/modify their own filter presets
@@ -3610,6 +3911,7 @@ src/features/lists/
 ### Module Configuration
 
 **TasksModule:**
+
 ```typescript
 @Module({
   imports: [
@@ -3637,6 +3939,7 @@ src/features/lists/
 ```
 
 **ListsModule:**
+
 ```typescript
 @Module({
   imports: [
@@ -3658,11 +3961,13 @@ src/features/lists/
 ### REST Client Endpoints
 
 **File Modified:**
+
 - `rest_client.http`
 
 **New/Updated Sections:**
 
 **Tasks – CRUD & Operations:**
+
 - `POST /tasks` – Create task
 - `GET /tasks?listId=...&statusId=...&includeArchived=...&sortField=...&sortDirection=...&customFieldId=...` – Get tasks
 - `GET /tasks/:id` – Get task by ID
@@ -3677,6 +3982,7 @@ src/features/lists/
 - `DELETE /tasks/:id/tags/:tagId` – Remove tag from task
 
 **Subtasks:**
+
 - `POST /tasks/subtasks` – Create subtask
 - `GET /tasks/:taskId/subtasks` – Get all subtasks for task
 - `GET /tasks/subtasks/:id` – Get subtask by ID
@@ -3685,6 +3991,7 @@ src/features/lists/
 - `PUT /tasks/subtasks/:id/move` – Move subtask to another task
 
 **Task Checklists:**
+
 - `POST /tasks/checklists` – Create checklist
 - `GET /tasks/:taskId/checklists` – Get all checklists for task
 - `GET /tasks/checklists/:id` – Get checklist by ID
@@ -3698,16 +4005,19 @@ src/features/lists/
 - `PUT /tasks/checklists/:checklistId/reorder-items` – Reorder checklist items
 
 **Filtering & Search:**
+
 - `POST /tasks/filter?sortField=...&sortDirection=...&customFieldId=...` – Filter tasks with complex conditions
 - `POST /tasks/search?sortField=...&sortDirection=...&customFieldId=...` – Search tasks by title/description
 
 **Task Dependencies:**
+
 - `POST /tasks/dependencies` – Create dependency (blocked_by or blocks)
 - `GET /tasks/:taskId/dependencies` – Get all dependencies for task
 - `GET /tasks/dependencies/:id` – Get dependency by ID
 - `DELETE /tasks/dependencies/:id` – Delete dependency
 
 **Custom Fields (Lists):**
+
 - `POST /lists/custom-fields` – Create custom field
 - `GET /lists/custom-fields?listId=...` – Get all custom fields for list
 - `GET /lists/custom-fields/:id` – Get custom field by ID
@@ -3715,6 +4025,7 @@ src/features/lists/
 - `DELETE /lists/custom-fields/:id` – Delete custom field
 
 **Task Custom Field Values:**
+
 - `POST /tasks/custom-field-values` – Create task custom field value
 - `GET /tasks/:taskId/custom-field-values` – Get all custom field values for task
 - `GET /tasks/custom-field-values/:id` – Get custom field value by ID
@@ -3722,6 +4033,7 @@ src/features/lists/
 - `DELETE /tasks/custom-field-values/:id` – Delete task custom field value
 
 **Filter Presets:**
+
 - `POST /lists/filter-presets` – Create filter preset
 - `GET /lists/filter-presets?listId=...` – Get all filter presets for user
 - `GET /lists/filter-presets/:id` – Get filter preset by ID
@@ -3733,34 +4045,40 @@ All examples use `Authorization: Bearer {{accessToken}}` and realistic JSON payl
 ### Key Implementation Highlights
 
 **1. Complex Querying:**
+
 - TypeORM QueryBuilder for dynamic filtering
 - Recursive filter group processing with AND/OR logic
 - Nested filter groups with unlimited depth
 - Efficient joins for related entity filtering
 
 **2. Circular Dependency Prevention:**
+
 - BFS algorithm for cycle detection
 - Prevents invalid dependency graphs
 - Handles both `blocks` and `blocked_by` relationship types
 
 **3. Type-Specific Validation:**
+
 - Custom field values validated based on field type
 - JSONB storage for flexible value types
 - Dropdown option validation
 - Date type handling (string or Date object)
 
 **4. Advanced Sorting:**
+
 - Subquery-based sorting for complex fields (assignee, custom fields)
 - Type-specific sorting for custom fields (text, number, date)
 - NULL value handling (unassigned tasks/fields appear last)
 - Secondary sorting by `orderPosition` for consistency
 
 **5. Route Ordering:**
+
 - Specific routes declared before generic parameter routes
 - Prevents routing conflicts (e.g., `subtasks/:id` vs `:id`)
 - Dependency, subtask, and checklist routes properly ordered
 
 **6. Security & Validation:**
+
 - JWT authentication on all endpoints
 - User-scoped filter presets
 - List validation for custom fields and dependencies
@@ -3769,6 +4087,7 @@ All examples use `Authorization: Bearer {{accessToken}}` and realistic JSON payl
 ### Benefits
 
 **1. Feature Completeness:**
+
 - Complete task management system with rich metadata
 - Hierarchical task breakdown (subtasks)
 - Flexible checklist system
@@ -3776,24 +4095,28 @@ All examples use `Authorization: Bearer {{accessToken}}` and realistic JSON payl
 - Multi-field sorting with complex field support
 
 **2. Data Integrity:**
+
 - Circular dependency prevention
 - Type validation for custom fields
 - Cascade delete handling
 - List-level validation for cross-entity operations
 
 **3. User Experience:**
+
 - Saved filter presets for quick access
 - Flexible custom fields per list
 - Multiple sorting options
 - Comprehensive search capabilities
 
 **4. Extensibility:**
+
 - Custom field system supports new field types
 - Filter system supports new filter fields
 - Sorting system supports new sort fields
 - Dependency system ready for Gantt chart visualization
 
 **5. Performance:**
+
 - Efficient querying with TypeORM QueryBuilder
 - Proper indexing on foreign keys (handled by TypeORM)
 - Optimized joins for related entities
@@ -3816,7 +4139,7 @@ After completing Phase 8, the application has:
 
 ## Phase 9: Collaborative Features ✅
 
-**Status:** Completed  
+**Status:** Completed
 **Date Completed:** January 2026
 
 ### Overview
@@ -3840,9 +4163,11 @@ This module enables users to share lists with team members, managing access thro
 ##### 1.1 List Members Entity
 
 **Files Created:**
+
 - `src/features/lists/entities/list-member.entity.ts` (Existing entity, reviewed and utilized)
 
 **Entity Structure:**
+
 ```typescript
 @Entity('list_members')
 export class ListMemberEntity {
@@ -3869,6 +4194,7 @@ export class ListMemberEntity {
 ```
 
 **Key Features:**
+
 - Many-to-Many relationship between Users and Lists
 - Three permission levels: `owner`, `editor`, `viewer`
 - Automatic cascade deletion when user or list is deleted
@@ -3876,22 +4202,26 @@ export class ListMemberEntity {
 ##### 1.2 Permission System
 
 **Files Created:**
+
 - `src/features/lists/dto/invite-user-to-list.dto.ts`
 - `src/features/lists/dto/update-list-member-role.dto.ts`
 - `src/features/lists/dto/list-member-response.dto.ts`
 - `src/features/lists/dto/list-permissions-response.dto.ts`
 
 **Permission Levels:**
+
 - **Owner**: Full access (view, edit, delete, invite, manage members)
 - **Editor**: Can view and edit (cannot delete list or manage member roles to owner)
 - **Viewer**: Read-only access (cannot modify list or tasks)
 
 **Permission Logic:**
+
 - Workspace owners automatically have full access to all lists in their workspace
 - Permission inheritance: workspace owner > list owner > list editor > list viewer
 - Explicit list membership required for non-workspace-owners
 
 **Code Implementation:**
+
 ```typescript
 // Permission checking logic
 async checkUserPermission(
@@ -3922,11 +4252,13 @@ async checkUserPermission(
 **Service Method:** `inviteUserToList`
 
 **Files Modified:**
+
 - `src/features/lists/lists.service.ts`
 - `src/features/lists/lists.controller.ts`
 - `src/features/lists/lists.module.ts`
 
 **Implementation Details:**
+
 - Invites users by email address
 - Validates inviter has edit permission (owner or editor)
 - Prevents duplicate invitations
@@ -3934,11 +4266,13 @@ async checkUserPermission(
 - Creates `ListMember` record with specified role
 
 **Validation Rules:**
+
 - Only owners and editors can invite users
 - Cannot invite user who is already a member
 - Email must belong to an existing user account
 
 **Code Implementation:**
+
 ```typescript
 async inviteUserToList(
   listId: string,
@@ -3977,24 +4311,28 @@ async inviteUserToList(
 ##### 1.4 List Member Management
 
 **Service Methods:**
+
 - `findAllListMembers(listId: string)` - Get all members of a list
 - `findOneListMember(id: string)` - Get single member by ID
 - `updateListMemberRole(id, updaterUserId, role)` - Update member's role
 - `removeListMember(id, removerUserId)` - Remove member from list
 
 **Role Update Rules:**
+
 - Only owners can assign `owner` role
 - Cannot change own role if you're the only owner
 - Editors can change roles to `editor` or `viewer` (not `owner`)
 - Must have edit permission to update roles
 
 **Removal Rules:**
+
 - Cannot remove the last owner of a list
 - Cannot remove yourself if you're the only owner
 - Requires edit permission to remove members
 - Self-removal allowed if not the last owner
 
 **Code Implementation:**
+
 ```typescript
 async updateListMemberRole(
   id: string,
@@ -4028,6 +4366,7 @@ async updateListMemberRole(
 ```
 
 **Endpoints:**
+
 - `POST /lists/:id/members/invite` - Invite user to list
 - `GET /lists/:id/members` - Get all list members
 - `GET /lists/members/:id` - Get single list member
@@ -4046,6 +4385,7 @@ This module enables users to comment on tasks, extract @mentions, and track all 
 ##### 2.1 Comments Module
 
 **Files Created:**
+
 - `src/features/comments/dto/create-comment.dto.ts`
 - `src/features/comments/dto/update-comment.dto.ts`
 - `src/features/comments/dto/comment-response.dto.ts`
@@ -4053,6 +4393,7 @@ This module enables users to comment on tasks, extract @mentions, and track all 
 **Entity:** `CommentEntity` (existing, reviewed)
 
 **Comment Entity Structure:**
+
 ```typescript
 @Entity('comments')
 export class CommentEntity {
@@ -4083,6 +4424,7 @@ export class CommentEntity {
 **Service Methods:**
 
 **Create Comment (`create`):**
+
 - Validates task exists
 - Validates user exists
 - Creates comment with content
@@ -4090,6 +4432,7 @@ export class CommentEntity {
 - Returns comment with attachments array
 
 **Get Comments (`findAllByTask`):**
+
 - Retrieves all comments for a task
 - Orders by creation date (ASC)
 - Includes user information
@@ -4098,22 +4441,26 @@ export class CommentEntity {
 - Uses parallel fetching for attachments (Promise.all)
 
 **Get Single Comment (`findOne`):**
+
 - Retrieves comment by ID
 - Includes user information
 - Includes extracted mentions
 - Includes attachments array
 
 **Update Comment (`update`):**
+
 - Validates user can modify comment (author, list owner/editor, or workspace owner)
 - Updates content if provided
 - Re-extracts mentions from updated content
 - Returns updated comment with attachments
 
 **Delete Comment (`remove`):**
+
 - Validates user can modify comment
 - Deletes comment (cascade deletes attachments)
 
 **Permission Checking:**
+
 ```typescript
 private async canUserModifyComment(
   commentId: string,
@@ -4148,12 +4495,14 @@ private async canUserModifyComment(
 ##### 2.3 @Mentions Extraction
 
 **Implementation:**
+
 - Extracts user mentions from comment content using regex patterns
 - Supports two formats:
   - `@userId` - UUID format (e.g., `@550e8400-e29b-41d4-a716-446655440000`)
   - `@email` - Email format (e.g., `@user@example.com`)
 
 **Code Implementation:**
+
 ```typescript
 private extractMentions(content: string): string[] {
   const mentions: string[] = [];
@@ -4180,6 +4529,7 @@ private extractMentions(content: string): string[] {
 
 **Response Format:**
 Comments include a `mentions` array in the response:
+
 ```typescript
 {
   id: string;
@@ -4198,10 +4548,12 @@ Comments include a `mentions` array in the response:
 ##### 2.4 Activity Tracking System
 
 **Files Created:**
+
 - `src/features/tasks/services/activities.service.ts`
 - `src/features/tasks/dto/activity-response.dto.ts`
 
 **Activity Entity Structure:**
+
 ```typescript
 @Entity('activities')
 export class ActivityEntity {
@@ -4231,10 +4583,12 @@ export class ActivityEntity {
 ```
 
 **Activities Service:**
+
 - `createActivity(taskId, userId, actionType, oldValue, newValue)` - Creates activity record
 - `findAllByTask(taskId)` - Retrieves all activities for a task (ordered by creation date DESC)
 
 **Activity Types Tracked:**
+
 - `task_created` - Task creation
 - `task_updated` - Task updates (granular tracking for title, description, status, priority, dueDate, orderPosition)
 - `task_deleted` - Task deletion
@@ -4254,11 +4608,13 @@ export class ActivityEntity {
 **Activity Tracking Integration:**
 
 Activity tracking is integrated into `TasksService` methods:
+
 - All task modification methods accept optional `userId` parameter
 - Activities are created with old and new values for change tracking
 - Granular tracking for individual field changes
 
 **Example Implementation:**
+
 ```typescript
 async update(
   id: string,
@@ -4283,9 +4639,11 @@ async update(
 ```
 
 **Activity Feed Endpoint:**
+
 - `GET /tasks/:taskId/activities` - Get activity feed for a task
 
 **Activity Response Format:**
+
 ```typescript
 {
   id: string;
@@ -4301,6 +4659,7 @@ async update(
 ```
 
 **Endpoints:**
+
 - `POST /comments` - Create comment
 - `GET /comments/task/:taskId` - Get all comments for task
 - `GET /comments/:id` - Get single comment
@@ -4319,9 +4678,11 @@ This module provides comprehensive file attachment functionality supporting both
 ##### 3.1 Attachment Entity
 
 **Files Modified:**
+
 - `src/features/attachments/entities/attachment.entity.ts`
 
 **Entity Structure:**
+
 ```typescript
 @Entity('attachments')
 export class AttachmentEntity {
@@ -4361,6 +4722,7 @@ export class AttachmentEntity {
 ```
 
 **Key Features:**
+
 - Supports both task and comment attachments (nullable relationships)
 - Automatic cascade deletion when task, comment, or user is deleted
 - Stores original filename, unique storage URL, MIME type, and file size
@@ -4371,6 +4733,7 @@ export class AttachmentEntity {
 **Service Method:** `uploadFile(taskId, userId, file)`
 
 **Implementation Details:**
+
 - Validates task exists
 - Validates user exists
 - Validates file (size and MIME type)
@@ -4381,6 +4744,7 @@ export class AttachmentEntity {
 - Returns attachment metadata
 
 **File Validation:**
+
 - **Size Limit:** 10MB maximum
 - **Allowed MIME Types:**
   - Images: `image/jpeg`, `image/jpg`, `image/png`, `image/gif`, `image/webp`, `image/svg+xml`
@@ -4388,12 +4752,14 @@ export class AttachmentEntity {
   - Archives: `application/zip`, `application/x-zip-compressed`, `application/x-rar-compressed`
 
 **File Storage:**
+
 - Default upload path: `process.cwd()/uploads`
 - Configurable via `UPLOAD_PATH` environment variable
 - Upload directory created automatically if it doesn't exist
 - Unique filename format: `{uuid}_{sanitized-original-name}.{ext}`
 
 **Code Implementation:**
+
 ```typescript
 async uploadFile(
   taskId: string,
@@ -4445,6 +4811,7 @@ async uploadFile(
 **Service Method:** `uploadFileToComment(commentId, userId, file)`
 
 **Implementation Details:**
+
 - Validates comment exists
 - Loads comment's task for activity tracking
 - Validates user exists
@@ -4456,6 +4823,7 @@ async uploadFile(
 - Returns attachment metadata
 
 **Code Implementation:**
+
 ```typescript
 async uploadFileToComment(
   commentId: string,
@@ -4503,23 +4871,27 @@ async uploadFileToComment(
 **Service Methods:**
 
 **Get All Attachments for Task (`findAllByTask`):**
+
 - Validates task exists
 - Retrieves all attachments where `task_id` matches
 - Orders by creation date (DESC)
 - Returns array of `AttachmentResponseDto`
 
 **Get All Attachments for Comment (`findAllByComment`):**
+
 - Validates comment exists
 - Retrieves all attachments where `comment_id` matches
 - Orders by creation date (DESC)
 - Returns array of `AttachmentResponseDto`
 
 **Get Single Attachment (`findOne`):**
+
 - Retrieves attachment by ID
 - Includes user and task/comment relations
 - Returns `AttachmentResponseDto`
 
 **Response DTO:**
+
 ```typescript
 export class AttachmentResponseDto {
   id: string;
@@ -4542,24 +4914,28 @@ export class AttachmentResponseDto {
 **Service Method:** `getFileBuffer(id)`
 
 **Implementation:**
+
 - Retrieves attachment by ID
 - Extracts filename from URL
 - Reads file from filesystem
 - Returns buffer, original filename, and MIME type
 
 **Download Endpoint:**
+
 - `GET /attachments/:id/download`
 - Sets `Content-Disposition: attachment` (forces download)
 - Sets appropriate `Content-Type` header
 - Sets `Content-Length` header
 
 **Preview Endpoint:**
+
 - `GET /attachments/:id/preview`
 - Sets `Content-Disposition: inline` (displays in browser)
 - Sets appropriate `Content-Type` header
 - Sets `Content-Length` header
 
 **Code Implementation:**
+
 ```typescript
 async getFileBuffer(id: string): Promise<{
   buffer: Buffer;
@@ -4586,6 +4962,7 @@ async getFileBuffer(id: string): Promise<{
 **Service Method:** `remove(id, userId?)`
 
 **Implementation:**
+
 - Retrieves attachment with relations (task, comment, comment.task)
 - Extracts taskId from either direct task relationship or comment's task
 - Deletes file from filesystem (continues if file doesn't exist)
@@ -4594,6 +4971,7 @@ async getFileBuffer(id: string): Promise<{
 - Uses appropriate activity type based on attachment type (`task_attachment_deleted` or `comment_attachment_deleted`)
 
 **Code Implementation:**
+
 ```typescript
 async remove(id: string, userId?: string): Promise<void> {
   const attachment = await this.attachmentRepository.findOne({
@@ -4639,11 +5017,13 @@ async remove(id: string, userId?: string): Promise<void> {
 **Integration with Comments:**
 
 Comments automatically include attachments in responses:
+
 - All comment endpoints return `attachments` array
 - Attachments are fetched in parallel using `Promise.all` for efficiency
 - Helper method `getCommentAttachments` safely handles attachment retrieval failures
 
 **Code Implementation:**
+
 ```typescript
 private async getCommentAttachments(commentId: string) {
   try {
@@ -4667,6 +5047,7 @@ const commentsWithAttachments = await Promise.all(
 ```
 
 **Endpoints:**
+
 - `POST /attachments/task/:taskId/upload` - Upload file to task
 - `POST /attachments/comment/:commentId/upload` - Upload file to comment
 - `GET /attachments/task/:taskId` - Get all attachments for task
@@ -4679,11 +5060,13 @@ const commentsWithAttachments = await Promise.all(
 ##### 3.8 File Validation
 
 **Validation Rules:**
+
 - **Maximum File Size:** 10MB (10 * 1024 * 1024 bytes)
 - **MIME Type Validation:** Only allowed MIME types are accepted
 - **Error Messages:** Clear error messages indicating what validation failed
 
 **Code Implementation:**
+
 ```typescript
 private validateFile(file: { size: number; mimetype?: string }): void {
   // Check file size
@@ -4707,36 +5090,44 @@ private validateFile(file: { size: number; mimetype?: string }): void {
 #### Lists Module Updates
 
 **Files Modified:**
+
 - `src/features/lists/lists.module.ts`
 
 **Additions:**
+
 - Added `ListMemberEntity` and `UserEntity` to `TypeOrmModule.forFeature`
 - Enabled list member repository injection
 
 #### Comments Module Configuration
 
 **Files Modified:**
+
 - `src/features/comments/comments.module.ts`
 
 **Additions:**
+
 - Added `AttachmentsModule` to imports (to access `AttachmentsService`)
 - All necessary entities already included
 
 #### Attachments Module Configuration
 
 **Files Modified:**
+
 - `src/features/attachments/attachments.module.ts`
 
 **Additions:**
+
 - Added `CommentEntity` to `TypeOrmModule.forFeature`
 - Already includes `TasksModule` import for `ActivitiesService` access
 
 #### Tasks Module Updates
 
 **Files Modified:**
+
 - `src/features/tasks/tasks.module.ts`
 
 **Additions:**
+
 - Added `ActivityEntity` and `UserEntity` to `TypeOrmModule.forFeature`
 - Added `ActivitiesService` to providers and exports
 
@@ -4779,6 +5170,7 @@ private validateFile(file: { size: number; mimetype?: string }): void {
 ### REST Client Examples
 
 **List Members:**
+
 ```http
 ### Invite User to List
 POST http://localhost:3000/lists/:id/members/invite
@@ -4800,6 +5192,7 @@ Authorization: Bearer {{accessToken}}
 ```
 
 **Comments:**
+
 ```http
 ### Create Comment
 POST http://localhost:3000/comments
@@ -4817,6 +5210,7 @@ Authorization: Bearer {{accessToken}}
 ```
 
 **Attachments:**
+
 ```http
 ### Upload File to Task
 POST http://localhost:3000/attachments/task/:taskId/upload
@@ -4842,6 +5236,7 @@ Authorization: Bearer {{accessToken}}
 ```
 
 **Activity Feed:**
+
 ```http
 ### Get Task Activity Feed
 GET http://localhost:3000/tasks/:taskId/activities
@@ -4864,7 +5259,7 @@ After completing Phase 9, the application has:
 
 ## Phase 10: Notifications & Real-time Updates ✅
 
-**Status:** Completed  
+**Status:** Completed
 **Scope:** In-app notifications, optional email delivery, user notification preferences, WebSocket-based real-time updates (tasks, comments), user presence per list, and live collaboration via room subscriptions.
 
 ---
@@ -4875,16 +5270,16 @@ After completing Phase 9, the application has:
 
 **NotificationEntity** (`src/features/notifications/entities/notification.entity.ts`)
 
-| Column       | Type       | Notes                                      |
-|-------------|------------|--------------------------------------------|
-| `id`        | UUID       | Primary key                                |
-| `type`      | text       | Notification type (see §10.1.3)            |
-| `title`     | text       | Short title                                |
-| `message`   | text       | Body text                                  |
-| `related_id`| text, null | Optional related entity ID (task, comment) |
-| `is_read`   | boolean    | Default `false`                            |
-| `user_id`   | UUID       | FK → `users`                               |
-| `created_at`| timestamp  | CreateDateColumn                           |
+| Column         | Type       | Notes                                      |
+| -------------- | ---------- | ------------------------------------------ |
+| `id`         | UUID       | Primary key                                |
+| `type`       | text       | Notification type (see §10.1.3)           |
+| `title`      | text       | Short title                                |
+| `message`    | text       | Body text                                  |
+| `related_id` | text, null | Optional related entity ID (task, comment) |
+| `is_read`    | boolean    | Default `false`                          |
+| `user_id`    | UUID       | FK →`users`                             |
+| `created_at` | timestamp  | CreateDateColumn                           |
 
 - **Relationship:** Many-To-One `user` → `UserEntity` (CASCADE delete).
 - **Table:** `notifications`.
@@ -4942,14 +5337,14 @@ User overrides come from `UserSettingsEntity.notificationPreferences` (JSONB). M
 
 **Routes (order matters — static before `:id`):**
 
-| Method | Path                | Handler         | Description                                |
-|--------|---------------------|-----------------|--------------------------------------------|
-| GET    | `/`                 | `findAll`       | List notifications; `?isRead=true\|false`  |
-| GET    | `/unread-count`     | `getUnreadCount`| Unread count                               |
-| PATCH  | `/mark-all-read`    | `markAllAsRead` | Mark all as read                           |
-| GET    | `/:id`              | `findOne`       | Get one                                    |
-| PATCH  | `/:id`              | `update`        | Update (e.g. `isRead`)                     |
-| DELETE | `/:id`              | `remove`        | Delete                                     |
+| Method | Path               | Handler            | Description                               |
+| ------ | ------------------ | ------------------ | ----------------------------------------- |
+| GET    | `/`              | `findAll`        | List notifications;`?isRead=true\|false` |
+| GET    | `/unread-count`  | `getUnreadCount` | Unread count                              |
+| PATCH  | `/mark-all-read` | `markAllAsRead`  | Mark all as read                          |
+| GET    | `/:id`           | `findOne`        | Get one                                   |
+| PATCH  | `/:id`           | `update`         | Update (e.g.`isRead`)                   |
+| DELETE | `/:id`           | `remove`         | Delete                                    |
 
 **Note:** `rest_client.http` contains sample HTTP requests for all of the above (including `POST /tasks/due-reminders/process` under the Tasks section). All require `Authorization: Bearer <JWT>`.
 
@@ -5046,18 +5441,18 @@ Email sending runs only when `MAIL_ENABLED=true`, SMTP is configured, and the us
 
 **Methods:**
 
-| Method | Rooms | Event | Payload |
-|--------|-------|-------|---------|
-| `emitTaskCreated(listId, task)` | `list:{listId}` | `task_created` | `{ listId, task }` |
-| `emitTaskUpdated(listId, taskId, task)` | `list`, `task` | `task_updated` | `{ listId, taskId, task }` |
-| `emitTaskMoved(listId, taskId, task)` | `list`, `task` | `task_moved` | `{ listId, taskId, task }` |
-| `emitTaskDeleted(listId, taskId)` | `list`, `task` | `task_deleted` | `{ listId, taskId }` |
-| `emitTaskAssigned(listId, taskId, userId)` | `list`, `task` | `task_assigned` | `{ listId, taskId, userId }` |
-| `emitTaskUnassigned(listId, taskId, userId)` | `list`, `task` | `task_unassigned` | `{ listId, taskId, userId }` |
-| `emitCommentCreated(listId, taskId, comment)` | `list`, `task` | `comment_created` | `{ listId, taskId, comment }` |
-| `emitCommentUpdated(listId, taskId, comment)` | `list`, `task` | `comment_updated` | `{ listId, taskId, comment }` |
-| `emitCommentDeleted(listId, taskId, commentId)` | `list`, `task` | `comment_deleted` | `{ listId, taskId, commentId }` |
-| `emitPresenceUpdated(listId, userIds)` | `presence:list:{listId}` | `presence_updated` | `{ listId, userIds }` |
+| Method                                            | Rooms                      | Event                | Payload                           |
+| ------------------------------------------------- | -------------------------- | -------------------- | --------------------------------- |
+| `emitTaskCreated(listId, task)`                 | `list:{listId}`          | `task_created`     | `{ listId, task }`              |
+| `emitTaskUpdated(listId, taskId, task)`         | `list`, `task`         | `task_updated`     | `{ listId, taskId, task }`      |
+| `emitTaskMoved(listId, taskId, task)`           | `list`, `task`         | `task_moved`       | `{ listId, taskId, task }`      |
+| `emitTaskDeleted(listId, taskId)`               | `list`, `task`         | `task_deleted`     | `{ listId, taskId }`            |
+| `emitTaskAssigned(listId, taskId, userId)`      | `list`, `task`         | `task_assigned`    | `{ listId, taskId, userId }`    |
+| `emitTaskUnassigned(listId, taskId, userId)`    | `list`, `task`         | `task_unassigned`  | `{ listId, taskId, userId }`    |
+| `emitCommentCreated(listId, taskId, comment)`   | `list`, `task`         | `comment_created`  | `{ listId, taskId, comment }`   |
+| `emitCommentUpdated(listId, taskId, comment)`   | `list`, `task`         | `comment_updated`  | `{ listId, taskId, comment }`   |
+| `emitCommentDeleted(listId, taskId, commentId)` | `list`, `task`         | `comment_deleted`  | `{ listId, taskId, commentId }` |
+| `emitPresenceUpdated(listId, userIds)`          | `presence:list:{listId}` | `presence_updated` | `{ listId, userIds }`           |
 
 Task payloads use `toTaskPayload` (see §10.3.6). Comment payloads include full comment shape (e.g. `id`, `taskId`, `userId`, `content`, `mentions`, `attachments`, `createdAt`, `updatedAt`); dates as ISO strings in emitted payload.
 
@@ -5145,7 +5540,7 @@ Clients use a Socket.IO client (e.g. browser or Node), connect to the namespace 
 
 ## Phase 11: Views & Customization ✅
 
-**Status:** Completed  
+**Status:** Completed
 **Scope:** Multiple board views (Kanban, Table, Calendar, Timeline), view CRUD and configuration (columns, filters, sorting, default view per list), tasks-by-view and calendar endpoints, and filter-by-custom-fields in task filtering.
 
 ---
@@ -5156,16 +5551,16 @@ Clients use a Socket.IO client (e.g. browser or Node), connect to the namespace 
 
 **ViewEntity** (`src/features/lists/entities/view.entity.ts`)
 
-| Column      | Type      | Notes                                        |
-|------------|-----------|----------------------------------------------|
-| `id`       | UUID      | Primary key                                  |
-| `name`     | text      | User-defined view name                       |
-| `type`     | text      | `'kanban' \| 'table' \| 'calendar' \| 'timeline'` |
-| `config`   | jsonb, null | View configuration (see §11.2.1)          |
-| `list_id`  | UUID      | FK → `lists` (CASCADE delete)                |
-| `user_id`  | UUID      | FK → `users` (CASCADE delete)                |
-| `created_at` | timestamp | CreateDateColumn                          |
-| `updated_at` | timestamp | UpdateDateColumn                          |
+| Column         | Type        | Notes                                            |
+| -------------- | ----------- | ------------------------------------------------ |
+| `id`         | UUID        | Primary key                                      |
+| `name`       | text        | User-defined view name                           |
+| `type`       | text        | `'kanban' \| 'table' \| 'calendar' \| 'timeline'` |
+| `config`     | jsonb, null | View configuration (see §11.2.1)                |
+| `list_id`    | UUID        | FK →`lists` (CASCADE delete)                  |
+| `user_id`    | UUID        | FK →`users` (CASCADE delete)                  |
+| `created_at` | timestamp   | CreateDateColumn                                 |
+| `updated_at` | timestamp   | UpdateDateColumn                                 |
 
 - **Relationships:** Many-To-One `list` → `ListEntity`, Many-To-One `user` → `UserEntity`. `ListEntity` has `OneToMany` `views`; `UserEntity` has `OneToMany` `views`.
 - **Table:** `views`.
@@ -5204,14 +5599,14 @@ All view access is **user-scoped**: users only see and manage their own views.
 
 **Route order:** View routes are declared **before** `:id` and other parameterized list routes so that `views`, `views/:id`, `views/:id/tasks` are matched correctly.
 
-| Method | Path                | Handler         | Description                                  |
-|--------|---------------------|-----------------|----------------------------------------------|
-| POST   | `/views`            | `createView`    | Create view (body: CreateViewDto)            |
-| GET    | `/views`            | `findAllViews`  | List views; optional `?listId=`              |
-| GET    | `/views/:id/tasks`  | `getTasksForView` | Tasks for view (filtered/sorted by config) §11.2.4 |
-| GET    | `/views/:id`        | `findOneView`   | Get one view                                 |
-| PUT    | `/views/:id`        | `updateView`    | Update view (body: UpdateViewDto)            |
-| DELETE | `/views/:id`        | `removeView`    | Delete view                                  |
+| Method | Path                 | Handler             | Description                                         |
+| ------ | -------------------- | ------------------- | --------------------------------------------------- |
+| POST   | `/views`           | `createView`      | Create view (body: CreateViewDto)                   |
+| GET    | `/views`           | `findAllViews`    | List views; optional `?listId=`                   |
+| GET    | `/views/:id/tasks` | `getTasksForView` | Tasks for view (filtered/sorted by config) §11.2.4 |
+| GET    | `/views/:id`       | `findOneView`     | Get one view                                        |
+| PUT    | `/views/:id`       | `updateView`      | Update view (body: UpdateViewDto)                   |
+| DELETE | `/views/:id`       | `removeView`      | Delete view                                         |
 
 `GET /views/:id/tasks` is declared **before** `GET /views/:id` so that `.../views/xyz/tasks` is not captured as `.../views/:id` with `id = 'xyz/tasks'`.
 
@@ -5238,21 +5633,21 @@ All view access is **user-scoped**: users only see and manage their own views.
 
 Used in `ViewEntity.config`, list `defaultViewConfig`, and when resolving tasks for a view. All properties optional.
 
-| Property         | Type              | Validation              | Description                                                                 |
-|------------------|-------------------|-------------------------|-----------------------------------------------------------------------------|
-| `columns`        | `Record<string, boolean>` | `@IsObject`        | Column visibility for table view. Keys: `title`, `description`, `status`, `priority`, `assignee`, `dueDate`, `tags`, `createdAt`, `updatedAt`, or `customField:{uuid}`. |
-| `filters`        | `FilterGroupDto`  | `@ValidateNested`       | Same structure as task filters (logic, conditions, groups).                 |
-| `sortField`      | `SortField`       | `@IsEnum(SortField)`    | `dueDate`, `priority`, `createdAt`, `updatedAt`, `title`, `orderPosition`, `assignee`, `customField`. |
-| `sortDirection`  | `SortDirection`   | `@IsEnum(SortDirection)`| `ASC` \| `DESC`.                                                            |
-| `customFieldId`  | UUID              | `@IsUUID`               | Required when `sortField === 'customField'`.                                |
-| `includeArchived`| boolean           | `@IsBoolean`            | Include archived tasks when applying view.                                  |
-| `startOfWeek`    | number            | `@IsInt` `@Min(0)` `@Max(6)` | Calendar: 0 = Sunday, 6 = Saturday.                    |
+| Property            | Type                        | Validation                         | Description                                                                                                                                                                                |
+| ------------------- | --------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `columns`         | `Record<string, boolean>` | `@IsObject`                      | Column visibility for table view. Keys:`title`, `description`, `status`, `priority`, `assignee`, `dueDate`, `tags`, `createdAt`, `updatedAt`, or `customField:{uuid}`. |
+| `filters`         | `FilterGroupDto`          | `@ValidateNested`                | Same structure as task filters (logic, conditions, groups).                                                                                                                                |
+| `sortField`       | `SortField`               | `@IsEnum(SortField)`             | `dueDate`, `priority`, `createdAt`, `updatedAt`, `title`, `orderPosition`, `assignee`, `customField`.                                                                      |
+| `sortDirection`   | `SortDirection`           | `@IsEnum(SortDirection)`         | `ASC` \| `DESC`.                                                                                                                                                                       |
+| `customFieldId`   | UUID                        | `@IsUUID`                        | Required when `sortField === 'customField'`.                                                                                                                                             |
+| `includeArchived` | boolean                     | `@IsBoolean`                     | Include archived tasks when applying view.                                                                                                                                                 |
+| `startOfWeek`     | number                      | `@IsInt` `@Min(0)` `@Max(6)` | Calendar: 0 = Sunday, 6 = Saturday.                                                                                                                                                        |
 
 **DefaultViewConfigDto** extends `ViewConfigDto` and adds:
 
-| Property | Type     | Validation | Description                    |
-|----------|----------|------------|--------------------------------|
-| `type`   | string   | `@IsIn(VIEW_TYPES)` | `'kanban' \| 'table' \| 'calendar' \| 'timeline'`. |
+| Property | Type   | Validation            | Description                                       |
+| -------- | ------ | --------------------- | ------------------------------------------------- |
+| `type` | string | `@IsIn(VIEW_TYPES)` | `'kanban' \| 'table' \| 'calendar' \| 'timeline'`. |
 
 `VIEW_TYPES = ['kanban','table','calendar','timeline'] as const` in the same file.
 
@@ -5382,6 +5777,361 @@ All relevant requests use `Authorization: Bearer {{accessToken}}`.
 **Filter by Custom Fields:** FilterConditionDto supports `field: 'customField'` and `customFieldId`. Filter pipeline collects custom field IDs, validates list membership and existence, builds a context map, and applies custom-field predicates via `applyCustomFieldFilter` (EXISTS subqueries, type-specific comparison). Filter presets and view config filters both support custom-field conditions.
 
 **Files touched:** Lists (ViewEntity; view-config, create-view, update-view, view-response DTOs; create-list, update-list, list-response, list-template DTOs/entities for defaultViewConfig; ListsService view methods + getTasksForView; ListsController view routes; ListsModule ViewEntity + TasksModule); Tasks (filter-tasks DTO customField/customFieldId; filterTasks custom-field context, collectCustomFieldIds, applyFilterGroup/applyFilterCondition/applyCustomFieldFilter; getTasksForCalendar; TasksController GET calendar); rest_client (Views, Calendar, Filter by custom field, Filter preset with custom field); BACKEND_TODO (Phase 11 completed).
+
+---
+
+## Phase 12: API & Integrations ✅
+
+**Status:** Complete  
+**Scope:** REST API (Swagger/OpenAPI, versioning, rate limiting), Webhooks, and Export/Import.
+
+---
+
+### 12.1 API Documentation (Swagger/OpenAPI)
+
+#### 12.1.1 Swagger CLI Plugin (`nest-cli.json`)
+
+- **Path:** `nest-cli.json` → `compilerOptions.plugins`.
+- **Plugin:** `{ "name": "@nestjs/swagger", "options": { "classValidatorShim": true, "introspectComments": true } }`.
+- **Effect:**
+  - **classValidatorShim:** `true` — class-validator decorators (e.g. `@IsEmail()`, `@Min()`, `@Max()`) are reflected into the OpenAPI schema (format, min/max, etc.).
+  - **introspectComments:** `true` — JSDoc comments on DTO properties and controller methods are used for `description` / `summary` in the generated spec.
+- **File scope:** The plugin analyzes files with suffixes `.dto.ts` and `.entity.ts` (default). DTOs and entities are introspected for `@ApiProperty`-like metadata; when absent, types and optionality are inferred from TypeScript.
+
+#### 12.1.2 DocumentBuilder (`src/main.ts`)
+
+- **Title:** `"Hayah API"`.
+- **Description:** `"REST API for Hayah (task management). Auth via JWT; use **Authorize** for protected routes. Versioned under \`/api/v1\`."`
+- **Version:** `"1"`.
+- **Bearer auth:** `addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' }, 'access-token')`. The schema key `access-token` is used by controllers via `@ApiBearerAuth('access-token')`.
+- **Tags (in order):**
+
+| Tag            | Description                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| `auth`         | Register, login, password reset, email verification                         |
+| `users`        | Profile, settings                                                           |
+| `folders`      | Folder hierarchy                                                            |
+| `lists`        | Lists, views, filter presets, custom fields, members                        |
+| `tasks`        | Tasks, statuses, dependencies, custom field values, filter, search, calendar|
+| `comments`     | Task comments                                                               |
+| `attachments`  | File uploads                                                                |
+| `notifications`| In-app notifications                                                        |
+| `tags`         | Tags                                                                        |
+| `statuses`     | List statuses                                                               |
+| `webhooks`     | Outgoing webhooks for task events (create, update, delete)                  |
+| `export-import`| Export lists/tasks (JSON, CSV), import tasks from CSV, bulk operations      |
+| `root`         | Health / hello                                                              |
+
+#### 12.1.3 Swagger UI and OpenAPI JSON
+
+- **Setup:** `SwaggerModule.setup('docs', app, document, { swaggerOptions: { persistAuthorization: true } })`.
+- **Path:** Swagger UI is served at `docs` (relative to the app base). With global prefix `api` (see §12.2), the full path is typically `http://localhost:3000/api/docs`; without prefix on docs, `http://localhost:3000/docs`. Implementation may vary by how the prefix is applied to non-versioned routes.
+- **OpenAPI JSON:** Usually at `.../docs-json` (NestJS Swagger default).
+- **persistAuthorization:** `true` — Swagger UI persists the Bearer token in session storage after "Authorize", so reloads keep it.
+
+#### 12.1.4 Controller-Level Swagger Decorators
+
+| Controller           | `@ApiTags`      | `@ApiBearerAuth('access-token')` | Notes                                                                 |
+|----------------------|-----------------|-----------------------------------|-----------------------------------------------------------------------|
+| `AppController`      | `root`          | No                                | `@ApiOperation({ summary: 'Health / hello' })` on `GET /` only.       |
+| `AuthController`     | `auth`          | No (controller-level)             | `@ApiBearerAuth('access-token')` only on `GET /auth/me`.              |
+| `UsersController`    | `users`         | Yes                               | All routes protected.                                                 |
+| `FoldersController`  | `folders`       | Yes                               | All routes protected.                                                 |
+| `ListsController`    | `lists`         | Yes                               | All routes protected.                                                 |
+| `TasksController`    | `tasks`         | Yes                               | All routes protected.                                                 |
+| `CommentsController` | `comments`      | Yes                               | All routes protected.                                                 |
+| `AttachmentsController` | `attachments` | Yes                               | All routes protected.                                                 |
+| `NotificationsController` | `notifications` | Yes                            | All routes protected.                                                 |
+| `TagsController`     | `tags`          | No                                | No JWT guard on controller.                                           |
+| `StatusesController` | `statuses`      | Yes                               | All routes protected.                                                 |
+| `WebhooksController` | `webhooks`      | Yes                               | All routes protected.                                                 |
+| `ExportImportController` | `export-import` | Yes                            | All routes protected.                                                 |
+
+---
+
+### 12.2 API Versioning
+
+#### 12.2.1 Configuration (`src/main.ts`)
+
+- **Global prefix:** `app.setGlobalPrefix('api')`. All HTTP routes are prefixed with `/api`.
+- **Versioning:** `app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1', prefix: 'v' })`.
+  - **Type:** `VersioningType.URI` — version in the path.
+  - **defaultVersion:** `'1'` — controllers without an explicit `@Version()` use version `1`.
+  - **prefix:** `'v'` — version segment is `v` + version number, i.e. `v1`.
+
+#### 12.2.2 Effective Paths
+
+- **Base:** `http://localhost:3000/api/v1`.
+- **Examples:** `/api/v1/auth/login`, `/api/v1/lists`, `/api/v1/tasks`, `/api/v1/webhooks`, `/api/v1/export-import/lists/:listId/export`, etc.
+- **Root:** `AppController` uses `@Controller()` (no path). The single route `GET /` is versioned as `/api/v1` (health/hello). Previously `@Controller('api/v1')` was used; that was changed to rely on global prefix + versioning.
+
+---
+
+### 12.3 Rate Limiting
+
+#### 12.3.1 ThrottlerModule (`AppModule`)
+
+- **Package:** `@nestjs/throttler`.
+- **Config:** `ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 100 }] })`.
+  - **ttl:** 60 000 ms (1 minute).
+  - **limit:** 100 requests per TTL window per client (by IP or similar).
+
+#### 12.3.2 ThrottlerDocsSkipGuard
+
+- **Path:** `src/common/guards/throttler-docs-skip.guard.ts`.
+- **Base:** Extends `ThrottlerGuard` from `@nestjs/throttler`.
+- **Skip paths:**  
+  `SKIP_PATHS = ['/docs', '/docs-json', '/api/docs', '/api/docs-json']`.
+- **Logic:** `canActivate`:
+  1. Gets `Request` from `context.switchToHttp().getRequest<Request>()`.
+  2. `path = request.path ?? request.url?.split('?')[0] ?? ''`.
+  3. If `path === p` or `path.startsWith(p + '/')` for any `p` in `SKIP_PATHS`, returns `true` (skip throttling).
+  4. Otherwise `return super.canActivate(context)` (apply throttling).
+
+#### 12.3.3 Global Guard
+
+- **Registration:** `{ provide: APP_GUARD, useClass: ThrottlerDocsSkipGuard }` in `AppModule` `providers`.
+- **Effect:** All HTTP routes are rate-limited except Swagger UI and OpenAPI JSON at the skip paths above.
+
+---
+
+### 12.4 REST Client and BACKEND_TODO (REST API)
+
+- **rest_client.http:** All request URLs use base `http://localhost:3000/api/v1/`. A header comment documents REST base, Swagger UI URL (`http://localhost:3000/api/docs`), and JWT usage for protected routes.
+- **BACKEND_TODO:** The "REST API" subsection (API documentation, versioning, rate limiting) is marked complete.
+
+---
+
+### 12.5 Webhooks ✅
+
+#### 12.5.1 WebhookEntity
+
+- **Table:** `webhooks`.
+- **Columns:**
+
+| Column       | Type      | Notes                                                                 |
+|--------------|-----------|-----------------------------------------------------------------------|
+| `id`         | UUID      | PK, generated.                                                        |
+| `user_id`    | UUID      | FK → `users`, CASCADE on delete. Creator/owner.                       |
+| `list_id`    | UUID      | FK → `lists`, CASCADE on delete. Webhook is scoped to this list.      |
+| `url`        | text      | Destination URL for POST.                                             |
+| `secret`     | text      | HMAC-SHA256 secret for `X-Hayah-Webhook-Signature`. Stored as-is.     |
+| `events`     | jsonb     | Array of `'task.created' | 'task.updated' | 'task.deleted'`. Default `[]`.   |
+| `enabled`    | boolean   | Default `true`. When `false`, deliveries are not sent.                |
+| `created_at` | timestamp | CreateDateColumn.                                                     |
+| `updated_at` | timestamp | UpdateDateColumn.                                                     |
+
+- **Relations:** `ManyToOne` → `UserEntity`, `ListEntity`; `OneToMany` → `WebhookDeliveryEntity`.
+- **WEBHOOK_EVENTS:** `['task.created', 'task.updated', 'task.deleted']` exported as `const`; `WebhookEventType` = union of those strings.
+
+#### 12.5.2 WebhookDeliveryEntity
+
+- **Table:** `webhook_deliveries`.
+- **Columns:**
+
+| Column                | Type      | Notes                                                                 |
+|-----------------------|-----------|-----------------------------------------------------------------------|
+| `id`                  | UUID      | PK, generated.                                                        |
+| `webhook_id`          | UUID      | FK → `webhooks`, CASCADE.                                             |
+| `event`               | text      | Event name (e.g. `task.created`).                                     |
+| `payload`             | jsonb     | Full request body sent (or to send) to the webhook URL.               |
+| `attempt`             | int       | Default 1. Incremented on each retry.                                 |
+| `status`              | text      | `'pending' | 'success' | 'failed'`. Default `'pending'`.                    |
+| `response_status_code`| int       | Nullable. HTTP status from endpoint.                                  |
+| `error_message`       | text      | Nullable. Error or status text on failure.                            |
+| `next_retry_at`       | timestamp | Nullable. When to retry; `null` when no retry.                        |
+| `created_at`          | timestamp | CreateDateColumn.                                                     |
+
+#### 12.5.3 DTOs
+
+- **CreateWebhookDto:** `url` (`@IsUrl({ require_tld: false })`), `listId` (`@IsUUID()`), `events` (`@IsArray()`, `@IsIn(WEBHOOK_EVENTS, { each: true })`), `secret?` (`@IsOptional()`, `@IsString()`, `@MinLength(16)`), `enabled?` (`@IsOptional()`, `@IsBoolean()`). If `secret` is omitted, a random 32-byte hex is generated.
+- **UpdateWebhookDto:** `url?`, `events?`, `enabled?`, `secret?` (all optional; `secret` min length 16 when provided).
+
+#### 12.5.4 WebhooksService
+
+- **Dependencies:** `WebhookEntity`, `WebhookDeliveryEntity`, `ListEntity`, `ListMemberEntity` repositories; `HttpService` (`@nestjs/axios`).
+
+**Constants:**
+
+- `WEBHOOK_SIGNATURE_HEADER` = `'x-hayah-webhook-signature'`.
+- `DELIVERY_TIMEOUT_MS` = 15 000.
+- `MAX_ATTEMPTS` = 5.
+- `RETRY_BACKOFF_MS` = `[60_000, 300_000, 900_000, 3_600_000, 14_400_000]` (1m, 5m, 15m, 1h, 4h).
+
+**Helpers:**
+
+- **ensureListAccess(userId, listId):** Loads list with `relations: ['workspace', 'workspace.owner']`. If `workspace.owner.id === userId`, returns. Else looks up `ListMemberEntity` for `(listId, userId)`. If none, throws `NotFoundException('List not found')`. No `ListsModule` import; uses only `ListEntity` / `ListMemberEntity` repos.
+- **sign(secret, body):** `createHmac('sha256', secret).update(body).digest('hex')`.
+
+**CRUD:**
+
+- **create(userId, dto):** Ensures list access. Secret = `dto.secret` if length ≥ 16, else `randomBytes(32).toString('hex')`. Creates and saves `WebhookEntity` (`enabled` default `true`). Returns saved entity.
+- **findAll(userId, listId?):** QueryBuilder on `webhooks` with `leftJoinAndSelect('w.list')`, `where('w.user_id = :userId')`. If `listId` provided, `andWhere('w.list_id = :listId')`. `orderBy('w.created_at', 'DESC')`. Returns entities.
+- **findOne(id, userId):** Loads webhook with `relations: ['list', 'user']`. If not found, `NotFoundException`. If `user.id !== userId`, calls `ensureListAccess(userId, listId)` (allows list members). Returns entity.
+- **update(id, userId, dto):** `findOne` then applies `url`, `events`, `enabled`, `secret` (only if `dto.secret` length ≥ 16). Saves and returns.
+- **remove(id, userId):** `findOne` then `remove`.
+
+**Delivery:**
+
+- **deliverTaskEvent(event, listId, payload):** Finds webhooks with `list.id = listId`, `enabled = true`. Filters to those whose `events` includes `event`. Builds `body = { event, listId, ...payload }`. For each, calls `deliverOne(hook, body)` inside try/catch; delivery errors do not throw.
+- **deliverOne(hook, body):** `raw = JSON.stringify(body)`, `sig = sign(hook.secret, raw)`. Creates `WebhookDeliveryEntity` (`event`, `payload`, `attempt: 1`, `status: 'pending'`), saves it, then `doSend(hook, raw, sig, delivery)`.
+- **doSend(hook, raw, sig, delivery):** POST to `hook.url` with `Content-Type: application/json`, `x-hayah-webhook-signature: sha256=${sig}`, `timeout: 15_000`, `validateStatus: () => true`. Uses RxJS `timeout`, `catchError`; on network error returns `{ status: 0, statusText }`. Sets `delivery.responseStatusCode`, `delivery.status`, `delivery.errorMessage`, `delivery.nextRetryAt`. **2xx:** `success`, `errorMessage = null`, `nextRetryAt = null`. **4xx:** `failed`, no retry (`nextRetryAt = null`). **5xx or network error:** `failed`, `scheduleRetry(delivery)`. Saves `delivery`.
+- **scheduleRetry(delivery):** If `attempt >= MAX_ATTEMPTS`, sets `nextRetryAt = null` and returns. Else `idx = min(attempt - 1, RETRY_BACKOFF_MS.length - 1)`, `nextRetryAt = now + RETRY_BACKOFF_MS[idx]`.
+
+**Retries:**
+
+- **processRetries:** `@Cron('* * * * *')` (every minute). QueryBuilder: `webhook_deliveries` with `leftJoinAndSelect('d.webhook')`, `status = 'failed'`, `next_retry_at IS NOT NULL`, `next_retry_at <= :now`, `attempt < MAX_ATTEMPTS`. For each, increments `attempt`, `raw = JSON.stringify(payload)`, `sig = sign(webhook.secret, raw)`, `doSend(webhook, raw, sig, d)`. Returns count of processed deliveries.
+
+**Deliveries list:**
+
+- **findDeliveries(webhookId, userId, limit = 50):** `findOne(webhookId, userId)` then returns deliveries for that webhook, `order: { createdAt: 'DESC' }`, `take: limit`. No HTTP route in the current controller; service method exists for possible future use.
+
+#### 12.5.5 WebhooksController
+
+- **Base path:** `/webhooks` (versioned → `/api/v1/webhooks`).
+- **Guard:** `@UseGuards(JwtAuthGuard)` on controller. All handlers use `@CurrentUser() user: { userId: string }`.
+- **Swagger:** `@ApiTags('webhooks')`, `@ApiBearerAuth('access-token')`.
+
+**Routes:**
+
+| Method | Path       | Handler   | Description                                  |
+|--------|------------|-----------|----------------------------------------------|
+| POST   | `/`        | `create`  | Body: `CreateWebhookDto`. Creates webhook.   |
+| GET    | `/`        | `findAll` | Query: `listId?`. Lists webhooks for user.   |
+| GET    | `/:id`     | `findOne` | Get one webhook by ID.                       |
+| PUT    | `/:id`     | `update`  | Body: `UpdateWebhookDto`. Updates webhook.   |
+| DELETE | `/:id`     | `remove`  | Deletes webhook.                             |
+
+There is no `GET /:id/deliveries` route in the current implementation; `findDeliveries` is implemented in the service only.
+
+#### 12.5.6 TasksService Integration
+
+- **TasksModule** imports **WebhooksModule**; **TasksService** injects **WebhooksService**.
+- **create:** After `emitTaskCreated`, inside try/catch, `webhooksService.deliverTaskEvent('task.created', listId, { task: toTaskPayload(savedTask, listId) })`. Failures are caught and do not affect create.
+- **update:** Only `emitTaskUpdated` is called (Socket.IO). **No** `deliverTaskEvent('task.updated', ...)` call in the current implementation.
+- **remove:** After `emitTaskDeleted`, inside try/catch, `webhooksService.deliverTaskEvent('task.deleted', listId, { taskId: id })`. Failures are caught and do not affect delete.
+
+So **task.created** and **task.deleted** trigger webhook delivery; **task.updated** is supported in entity/DTOs but not invoked from `TasksService.update`.
+
+#### 12.5.7 WebhooksModule
+
+- **Imports:** `TypeOrmModule.forFeature([WebhookEntity, WebhookDeliveryEntity, ListEntity, ListMemberEntity])`, `HttpModule.register({ timeout: 15_000, maxRedirects: 0 })`, `AuthModule`.
+- **Controllers:** `WebhooksController`.
+- **Providers:** `WebhooksService`.
+- **Exports:** `WebhooksService`.
+- **AppModule:** Imports `WebhooksModule`. **TasksModule** also imports `WebhooksModule` to use `WebhooksService`.
+
+---
+
+### 12.6 Export/Import ✅
+
+#### 12.6.1 Overview
+
+- **Export:** List + its tasks as JSON or CSV. User must have list access.
+- **Import:** CSV file → create tasks in a list. Same access check.
+- **Bulk:** Bulk create, bulk update (same list), bulk delete (same list).
+
+#### 12.6.2 Export
+
+- **Endpoint:** `GET /export-import/lists/:listId/export?format=json|csv` (versioned → `/api/v1/...`). Default `format` is `json` if omitted.
+- **Access:** `ExportImportService.ensureListAccess(listId, userId)` → `ListsService.checkUserPermission(listId, userId)`.
+- **Data:** `ListsService.findOne(listId)` for list; `TasksService.findAll(listId, undefined, true, undefined, SortDirection.ASC, undefined)` for tasks (includes archived). `StatusesService.findAll(listId)` and `TaskPriorityEntity` repo for status/priority names.
+- **List payload:** `id`, `name`, `description`, `isArchived`, `visibility`.
+- **Task payload (per task):** `id`, `title`, `description`, `status` (name or null), `priority` (name or null), `dueDate` (ISO date slice `YYYY-MM-DD` or null), `orderPosition`, `isArchived`, `createdAt`, `updatedAt` (dates as ISO strings).
+- **JSON:** `body = { list, tasks }`, `contentType = 'application/json'`, `filename = '<baseName>-tasks.json'`. Controller uses `JSON.stringify(body, null, 2)`, sets `Content-Type` and `Content-Disposition: attachment; filename="..."`, sends body.
+- **CSV:** Rows built from `tasksPayload`. Columns (in order): `title`, `description`, `status`, `priority`, `dueDate`, `orderPosition`, `isArchived`. `Papa.unparse(rows, { columns: CSV_EXPORT_COLUMNS })`. `contentType = 'text/csv'`, `filename = '<baseName>-tasks.csv'`. Controller sends CSV string with same header pattern.
+- **Filename sanitization:** `sanitizeFilename(name)` → replace `[^\\w\\s-]` with `''`, collapse whitespace to `'-'`, slice to 80 chars; if empty, `'export'`. Base name used for both JSON and CSV filenames.
+
+#### 12.6.3 Import CSV
+
+- **Endpoint:** `POST /export-import/lists/:listId/import/tasks`. Multipart form field `file` (CSV). Max file size 5 MB (`FileInterceptor` limits).
+- **Access:** Same `ensureListAccess` as export.
+- **Parsing:** `Papa.parse(csvContent, { header: true, skipEmptyLines: true, transformHeader: (h) => h.trim().toLowerCase() })`. Headers normalized to lowercase (e.g. `title`, `description`, `duedate` or `due date`, `orderposition` or `order position`).
+- **Columns:** `title` (required), `description`, `status`, `priority`, `dueDate` (or `due date`), `orderPosition` (or `order position`). `isArchived` is not used on import.
+- **Matching:** Status by name (case-insensitive) against list statuses; priority by name against global `TaskPriorityEntity`. Maps `statusByName`, `priorityByName` (keys lowercased).
+- **Per-row:** Missing `title` → skip, push `{ row, message: 'Missing title' }`. Unknown `status` → skip, push `Unknown status "..."`. Unknown `priority` → skip, push `Unknown priority "..."`. `dueDate` kept only if the regex `/^\d{4}-\d{2}-\d{2}/` matches. `orderPosition` parsed as int; NaN → `undefined`.
+- **Create:** For each valid row, `TasksService.create(dto, userId)`. On success, `created++`. On throw, push `{ row, message }` from error. Response: `{ created, failed, errors }` (`failed` = `errors.length`).
+
+#### 12.6.4 Bulk Create
+
+- **Endpoint:** `POST /export-import/tasks/bulk`. Body: `BulkCreateTasksDto`.
+- **BulkCreateTasksDto:** `listId` (`@IsUUID()`), `tasks` (`@IsArray()`, `@ValidateNested({ each: true })`, `@Type(() => BulkCreateTaskItemDto)`).
+- **BulkCreateTaskItemDto:** `title` (`@IsString()`, `@MinLength(1)`), `description?`, `status?`, `priority?`, `dueDate?` (`@IsDateString()`), `orderPosition?` (`@IsInt()`, `@Min(0)`).
+- **Logic:** `ensureListAccess` for `listId`. Same status/priority name resolution as CSV import. For each item, build `CreateTaskDto`, `TasksService.create(..., userId)`. Collect `{ index, message }` on failure. Return `{ success, failed, errors }`.
+
+#### 12.6.5 Bulk Update
+
+- **Endpoint:** `PATCH /export-import/tasks/bulk`. Body: `BulkUpdateTasksDto`.
+- **BulkUpdateTasksDto:** `taskIds` (`@IsArray()`, `@ArrayMinSize(1)`, `@IsUUID(undefined, { each: true })`), `statusId?`, `priorityId?`, `dueDate?` (`@IsDateString()`).
+- **Logic:** Load each task by id (`findOne`); ignore not-found. Collect `valid` tasks. All must belong to the same list; otherwise `BadRequestException('All tasks must belong to the same list')`. If no valid tasks, `NotFoundException('No valid tasks found')`. `ensureListAccess(listId, userId)`. Build `UpdateTaskDto` from provided `statusId`, `priorityId`, `dueDate`. For each valid task, `TasksService.update(id, updateDto, userId)`. Collect `{ taskId, message }` on failure. Return `{ success, failed, errors }`. Empty `taskIds` yields `{ success: 0, failed: 0 }`.
+
+#### 12.6.6 Bulk Delete
+
+- **Endpoint:** `POST /export-import/tasks/bulk-delete`. Body: `BulkDeleteTasksDto`.
+- **BulkDeleteTasksDto:** `taskIds` (`@IsArray()`, `@ArrayMinSize(1)`, `@IsUUID(undefined, { each: true })`).
+- **Logic:** Same list + access check as bulk update. For each valid task, `TasksService.remove(id, userId)`. Collect `{ taskId, message }` on failure. Return `{ success, failed, errors }`.
+
+#### 12.6.7 ExportImportController
+
+- **Base path:** `export-import` (→ `/api/v1/export-import`).
+- **Guard:** `@UseGuards(JwtAuthGuard)`. All handlers use `@CurrentUser() user: { userId: string }`.
+- **Swagger:** `@ApiTags('export-import')`, `@ApiBearerAuth('access-token')`.
+
+**Routes:**
+
+| Method | Path                            | Handler            | Notes                                                                 |
+|--------|---------------------------------|--------------------|-----------------------------------------------------------------------|
+| GET    | `lists/:listId/export`          | `exportList`       | Query `format`: `json` \| `csv`. Default `json`. Uses `@Res({ passthrough: false })`, sets headers, `res.send(body)`. |
+| POST   | `lists/:listId/import/tasks`    | `importTasksFromCsv`| `FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 5*1024*1024 } })`. `@UploadedFile() file`. BadRequest if no file. |
+| POST   | `tasks/bulk`                    | `bulkCreate`       | Body: `BulkCreateTasksDto`.                                           |
+| PATCH  | `tasks/bulk`                    | `bulkUpdate`       | Body: `BulkUpdateTasksDto`.                                           |
+| POST   | `tasks/bulk-delete`             | `bulkDelete`       | Body: `BulkDeleteTasksDto`.                                           |
+
+#### 12.6.8 ExportImportModule
+
+- **Imports:** `TypeOrmModule.forFeature([TaskPriorityEntity])`, `AuthModule`, `ListsModule`, `TasksModule`, `StatusesModule`.
+- **Controllers:** `ExportImportController`.
+- **Providers:** `ExportImportService`.
+- **Exports:** None. **AppModule** imports `ExportImportModule`.
+
+#### 12.6.9 rest_client.http and BACKEND_TODO
+
+- **rest_client.http:** Examples for export (JSON, CSV), import (comment describing multipart + CSV columns), bulk create, bulk update, bulk delete. All use `/api/v1/...`.
+- **BACKEND_TODO:** Export/Import subsection (export lists/tasks JSON–CSV, import from CSV, bulk operations) marked complete.
+
+---
+
+### 12.7 Dependencies and Module Summary
+
+**NPM packages used in Phase 12:**
+
+- `@nestjs/throttler` — rate limiting.
+- `@nestjs/axios`, `axios` — webhook HTTP delivery.
+- `@nestjs/schedule` — cron for webhook retries.
+- `papaparse` — CSV export (`unparse`) and import (`parse`). `@types/papaparse` in dev.
+
+**AppModule:**
+
+- Imports: `ScheduleModule.forRoot()`, `ThrottlerModule.forRoot(...)`, `ConfigModule`, `TypeOrmModule`, `EmailModule`, plus all feature modules including `WebhooksModule`, `ExportImportModule`.
+- Providers: `AppService`, `APP_GUARD` → `ThrottlerDocsSkipGuard`.
+
+**main.ts:**
+
+- `ValidationPipe` (whitelist, forbidNonWhitelisted, transform), `AllExceptionsFilter`, `setGlobalPrefix('api')`, `enableVersioning(...)`, `DocumentBuilder` + `SwaggerModule.setup('docs', ...)`, `useWebSocketAdapter(IoAdapter)`.
+
+---
+
+### 12.8 Summary and Files Touched
+
+**REST API:** Swagger CLI plugin, DocumentBuilder, tags, Bearer auth, controller decorators; global prefix `api`, URI versioning `v1`; ThrottlerModule, ThrottlerDocsSkipGuard, skip paths for docs.
+
+**Webhooks:** `WebhookEntity`, `WebhookDeliveryEntity`; Create/Update DTOs; WebhooksService (CRUD, ensureListAccess, deliverTaskEvent, deliverOne, doSend, scheduleRetry, processRetries, findDeliveries); WebhooksController; WebhooksModule; TasksService integration for `task.created` and `task.deleted`.
+
+**Export/Import:** Export list+tasks JSON/CSV; import CSV; bulk create/update/delete; DTOs; ExportImportService; ExportImportController; ExportImportModule.
+
+**Files touched:** `nest-cli.json`, `src/main.ts`, `src/app.module.ts`, `src/app.controller.ts`, `src/common/guards/throttler-docs-skip.guard.ts`; `src/features/webhooks/*` (entities, DTOs, service, controller, module); `src/features/export-import/*` (DTOs, service, controller, module); `src/features/tasks/*` (TasksService, TasksModule); `src/features/auth/auth.controller.ts` and other controllers for Swagger decorators; `rest_client.http`; `tasks/BACKEND_TODO.md`; `documentation.md`.
+
+**Note:** Run `npm install` so `@nestjs/throttler`, `@nestjs/axios`, `axios`, and `@nestjs/schedule` are available. Export/Import uses `papaparse` (and `@types/papaparse` in dev).
 
 ---
 

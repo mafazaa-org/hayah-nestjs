@@ -44,6 +44,7 @@ import {
   NotificationType,
 } from '../notifications/notifications.service';
 import { EventsEmitterService } from '../events/events-emitter.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 
 @Injectable()
 export class TasksService {
@@ -77,6 +78,7 @@ export class TasksService {
     private readonly activitiesService: ActivitiesService,
     private readonly notificationsService: NotificationsService,
     private readonly eventsEmitter: EventsEmitterService,
+    private readonly webhooksService: WebhooksService,
   ) {}
 
   async create(
@@ -171,6 +173,15 @@ export class TasksService {
       this.eventsEmitter.emitTaskCreated(listId, this.toTaskPayload(savedTask, listId));
     } catch {
       // Real-time emit must not break create
+    }
+    try {
+      await this.webhooksService.deliverTaskEvent(
+        'task.created',
+        listId,
+        { task: this.toTaskPayload(savedTask, listId) },
+      );
+    } catch {
+      // Webhook delivery must not break create
     }
 
     return savedTask;
@@ -602,6 +613,13 @@ export class TasksService {
       this.eventsEmitter.emitTaskDeleted(listId, id);
     } catch {
       // Real-time emit must not break delete
+    }
+    try {
+      await this.webhooksService.deliverTaskEvent('task.deleted', listId, {
+        taskId: id,
+      });
+    } catch {
+      // Webhook delivery must not break delete
     }
   }
 
