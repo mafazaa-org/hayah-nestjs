@@ -31,7 +31,12 @@ import { SortField, SortDirection } from './dto/sort-tasks.dto';
 import { CreateTaskDependencyDto } from './dto/create-task-dependency.dto';
 import { CreateTaskCustomFieldValueDto } from './dto/create-task-custom-field-value.dto';
 import { UpdateTaskCustomFieldValueDto } from './dto/update-task-custom-field-value.dto';
+import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
+import { UpdateTaskTemplateDto } from './dto/update-task-template.dto';
+import { CreateTaskFromTemplateDto } from './dto/create-task-from-template.dto';
+import { CreateTemplateFromTaskDto } from './dto/create-template-from-task.dto';
 import { TaskEntity } from './entities/task.entity';
+import { TaskTemplateEntity } from './entities/task-template.entity';
 import { AssignmentEntity } from './entities/assignment.entity';
 import { TaskTagEntity } from './entities/task-tag.entity';
 import { SubtaskEntity } from './entities/subtask.entity';
@@ -386,5 +391,81 @@ export class TasksController {
       newValue: activity.newValue,
       createdAt: activity.createdAt,
     }));
+  }
+
+  // Task Template endpoints - must come before :id route to avoid conflicts
+  @Post('templates')
+  createTaskTemplate(
+    @CurrentUser() user: { userId: string },
+    @Body() createTemplateDto: CreateTaskTemplateDto,
+  ): Promise<TaskTemplateEntity> {
+    return this.tasksService.createTaskTemplate(user.userId, createTemplateDto);
+  }
+
+  @Post('templates/from-task/:taskId')
+  createTemplateFromTask(
+    @CurrentUser() user: { userId: string },
+    @Param('taskId') taskId: string,
+    @Body() createTemplateDto: CreateTemplateFromTaskDto,
+  ): Promise<TaskTemplateEntity> {
+    return this.tasksService.createTemplateFromTask(
+      taskId,
+      user.userId,
+      createTemplateDto,
+    );
+  }
+
+  @Get('templates')
+  findAllTaskTemplates(
+    @CurrentUser() user: { userId: string },
+    @Query('workspaceId') workspaceId?: string,
+    @Query('includePublic') includePublic?: string,
+  ): Promise<TaskTemplateEntity[]> {
+    const includePublicFlag =
+      includePublic === 'true' || includePublic === undefined;
+    return this.tasksService.findAllTaskTemplates(
+      user.userId,
+      workspaceId,
+      includePublicFlag,
+    );
+  }
+
+  @Get('templates/:id')
+  findTaskTemplate(@Param('id') id: string): Promise<TaskTemplateEntity> {
+    return this.tasksService.findTaskTemplate(id);
+  }
+
+  @Put('templates/:id')
+  updateTaskTemplate(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+    @Body() updateTemplateDto: UpdateTaskTemplateDto,
+  ): Promise<TaskTemplateEntity> {
+    return this.tasksService.updateTaskTemplate(
+      id,
+      user.userId,
+      updateTemplateDto,
+    );
+  }
+
+  @Delete('templates/:id')
+  removeTaskTemplate(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.tasksService.removeTaskTemplate(id, user.userId);
+  }
+
+  @Post('templates/:id/create-task')
+  createTaskFromTemplate(
+    @CurrentUser() user: { userId: string },
+    @Param('id') templateId: string,
+    @Body() createFromTemplateDto: CreateTaskFromTemplateDto,
+  ): Promise<TaskEntity> {
+    return this.tasksService.createTaskFromTemplate(
+      templateId,
+      createFromTemplateDto,
+      user.userId,
+    );
   }
 }

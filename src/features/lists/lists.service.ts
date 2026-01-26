@@ -14,6 +14,8 @@ import { StatusEntity } from '../statuses/entities/status.entity';
 import { ListTemplateEntity } from './entities/list-template.entity';
 import { CreateListTemplateDto } from './dto/create-list-template.dto';
 import { CreateListFromTemplateDto } from './dto/create-list-from-template.dto';
+import { UpdateListTemplateDto } from './dto/update-list-template.dto';
+import { CreateTemplateFromListDto } from './dto/create-template-from-list.dto';
 import { CustomFieldEntity } from './entities/custom-field.entity';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
@@ -312,43 +314,46 @@ export class ListsService {
     workspaceId?: string,
     includePublic: boolean = true,
   ): Promise<ListTemplateEntity[]> {
-    const where: any = {};
+    const templateMap = new Map<string, ListTemplateEntity>();
 
+    // Get user's own templates
     if (userId) {
-      where.user = { id: userId };
-    }
+      const userWhere: any = { user: { id: userId } };
+      if (workspaceId) {
+        userWhere.workspace = { id: workspaceId };
+      }
 
-    if (workspaceId) {
-      where.workspace = { id: workspaceId };
-    }
-
-    const templates = await this.listTemplateRepository.find({
-      where,
-      relations: ['user', 'workspace'],
-      order: { createdAt: 'DESC' },
-    });
-
-    // Filter public templates if requested
-    if (includePublic && userId) {
-      const publicTemplates = await this.listTemplateRepository.find({
-        where: { isPublic: true },
+      const userTemplates = await this.listTemplateRepository.find({
+        where: userWhere,
         relations: ['user', 'workspace'],
         order: { createdAt: 'DESC' },
       });
 
-      // Merge and deduplicate
-      const templateMap = new Map<string, ListTemplateEntity>();
-      templates.forEach((t) => templateMap.set(t.id, t));
+      userTemplates.forEach((t) => templateMap.set(t.id, t));
+    }
+
+    // Get public templates if requested
+    if (includePublic) {
+      const publicWhere: any = { isPublic: true };
+      if (workspaceId) {
+        publicWhere.workspace = { id: workspaceId };
+      }
+
+      const publicTemplates = await this.listTemplateRepository.find({
+        where: publicWhere,
+        relations: ['user', 'workspace'],
+        order: { createdAt: 'DESC' },
+      });
+
+      // Add public templates that aren't already in the map
       publicTemplates.forEach((t) => {
         if (!templateMap.has(t.id)) {
           templateMap.set(t.id, t);
         }
       });
-
-      return Array.from(templateMap.values());
     }
 
-    return templates;
+    return Array.from(templateMap.values());
   }
 
   async findTemplate(id: string): Promise<ListTemplateEntity> {
@@ -398,6 +403,7 @@ export class ListsService {
         const statusEntity = this.statusRepository.create({
           name: statusConfig.name,
           orderIndex: statusConfig.orderIndex,
+          color: statusConfig.color || null,
           list: savedList,
         });
         return this.statusRepository.save(statusEntity);
@@ -429,6 +435,115 @@ export class ListsService {
 
     // Reload with relationships
     return this.findOne(savedList.id);
+  }
+
+  async updateTemplate(
+    id: string,
+    userId: string,
+    updateTemplateDto: UpdateListTemplateDto,
+  ): Promise<ListTemplateEntity> {
+    const template = await this.listTemplateRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+
+    if (!template) {
+      throw new NotFoundException('Template not found or you do not have permission to update it');
+    }
+
+    if (updateTemplateDto.name !== undefined) {
+      template.name = updateTemplateDto.name;
+    }
+
+    if (updateTemplateDto.description !== undefined) {
+      template.description = updateTemplateDto.description || null;
+    }
+
+    if (updateTemplateDto.isPublic !== undefined) {
+      template.isPublic = updateTemplateDto.isPublic;
+    }
+
+    if (updateTemplateDto.templateConfig !== undefined) {
+      template.templateConfig = updateTemplateDto.templateConfig;
+    }
+
+    return this.listTemplateRepository.save(template);
+  }
+
+  async removeTemplate(id: string, userId: string): Promise<void> {
+    const template = await this.listTemplateRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+
+    if (!template) {
+      throw new NotFoundException('Template not found or you do not have permission to delete it');
+    }
+
+    await this.listTemplateRepository.remove(template);
+  }
+
+  async createTemplateFromList(
+    listId: string,
+    userId: string,
+    createTemplateDto: CreateTemplateFromListDto,
+  ): Promise<ListTemplateEntity> {
+    const list = await this.listRepository.findOne({
+      where: { id: listId },
+      relations: ['statuses', 'customFields', 'workspace'],
+    });
+
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    // Check if user has permission to create template from this list
+    const permission = await this.checkUserPermission(listId, userId);
+    if (!permission.canView) {
+      throw new ForbiddenException('You do not have permission to create a template from this list');
+    }
+
+    // Build template config from list
+    const templateConfig: CreateListTemplateDto['templateConfig'] = {
+      statuses: list.statuses
+        ?.sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((status) => ({
+          name: status.name,
+          orderIndex: status.orderIndex,
+          color: status.color || undefined,
+        })),
+      customFields: list.customFields?.map((field) => ({
+        name: field.name,
+        type: field.type as 'text' | 'number' | 'date' | 'dropdown' | 'checkbox',
+        config: field.config,
+      })),
+      defaultViewConfig: list.defaultViewConfig !== null ? list.defaultViewConfig : undefined,
+      visibility: list.visibility,
+    };
+
+    const template = this.listTemplateRepository.create({
+      name: createTemplateDto.name,
+      description: createTemplateDto.description || null,
+      isPublic: createTemplateDto.isPublic ?? false,
+      templateConfig,
+      user: { id: userId } as any,
+      workspace: createTemplateDto.workspaceId
+        ? ({ id: createTemplateDto.workspaceId } as any)
+        : list.workspace ? ({ id: list.workspace.id } as any) : null,
+    });
+
+    return this.listTemplateRepository.save(template);
+  }
+
+  async findPublicTemplates(
+    limit?: number,
+    offset?: number,
+  ): Promise<ListTemplateEntity[]> {
+    return this.listTemplateRepository.find({
+      where: { isPublic: true },
+      relations: ['user', 'workspace'],
+      order: { createdAt: 'DESC' },
+      take: limit,
+      skip: offset,
+    });
   }
 
   // Custom Field methods

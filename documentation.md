@@ -6135,6 +6135,669 @@ So **task.created** and **task.deleted** trigger webhook delivery; **task.update
 
 ---
 
+## Phase 13: Templates & Automation ✅
+
+**Status:** Complete  
+**Scope:** List Templates and Task Templates for reusable configurations and automation.
+
+---
+
+### 13.1 List Templates ✅
+
+#### 13.1.1 Overview
+
+List Templates allow users to save and reuse list configurations, including default statuses, custom fields, view configurations, and visibility settings. Templates can be private (user-specific) or public (shared in a marketplace).
+
+#### 13.1.2 ListTemplateEntity
+
+**File:** `src/features/lists/entities/list-template.entity.ts`
+
+**Table:** `list_templates`
+
+**Columns:**
+- `id` (UUID, Primary Key)
+- `name` (text) - Template name
+- `description` (text, nullable) - Template description
+- `isPublic` (boolean, default: false) - Whether template is publicly available
+- `template_config` (jsonb) - Template configuration (see structure below)
+- `user_id` (UUID, Foreign Key) - Owner of the template
+- `workspace_id` (UUID, Foreign Key, nullable) - Workspace association (optional)
+- `created_at` (timestamp)
+- `updated_at` (timestamp)
+
+**Relationships:**
+- Many-To-One: `user` → `UserEntity` (CASCADE delete)
+- Many-To-One: `workspace` → `WorkspaceEntity` (CASCADE delete, nullable)
+
+**Template Config Structure:**
+```typescript
+{
+  statuses?: Array<{
+    name: string;
+    orderIndex: number;
+    color?: string;
+  }>;
+  customFields?: Array<{
+    name: string;
+    type: 'text' | 'number' | 'date' | 'dropdown' | 'checkbox';
+    config?: any;
+  }>;
+  defaultViewConfig?: {
+    type?: 'kanban' | 'table' | 'calendar' | 'timeline';
+    [key: string]: any;
+  };
+  visibility?: 'private' | 'shared';
+  [key: string]: any;
+}
+```
+
+#### 13.1.3 List Template DTOs
+
+**Files Created:**
+- `src/features/lists/dto/create-list-template.dto.ts`
+- `src/features/lists/dto/update-list-template.dto.ts`
+- `src/features/lists/dto/create-list-from-template.dto.ts`
+- `src/features/lists/dto/create-template-from-list.dto.ts`
+- `src/features/lists/dto/list-template-response.dto.ts` (already existed)
+
+**CreateListTemplateDto:**
+- `name` (string, required, minLength: 1)
+- `description` (string, optional)
+- `isPublic` (boolean, optional)
+- `workspaceId` (UUID, optional)
+- `templateConfig` (object, required) - Full template configuration
+
+**UpdateListTemplateDto:**
+- `name` (string, optional, minLength: 1)
+- `description` (string, optional)
+- `isPublic` (boolean, optional)
+- `templateConfig` (object, optional) - Partial template configuration
+
+**CreateListFromTemplateDto:**
+- `name` (string, required, minLength: 1)
+- `description` (string, optional)
+- `workspaceId` (UUID, required)
+- `folderId` (UUID, optional)
+
+**CreateTemplateFromListDto:**
+- `name` (string, required, minLength: 1)
+- `description` (string, optional)
+- `isPublic` (boolean, optional)
+- `workspaceId` (UUID, optional)
+
+#### 13.1.4 ListsService Template Methods
+
+**File Modified:** `src/features/lists/lists.service.ts`
+
+##### 13.1.4.1 Create Template (`createTemplate`)
+
+- **Signature:** `createTemplate(userId: string, createTemplateDto: CreateListTemplateDto): Promise<ListTemplateEntity>`
+- **Logic:**
+  - Creates a new `ListTemplateEntity` with provided configuration
+  - Associates template with user (owner)
+  - Optionally associates with workspace if `workspaceId` provided
+  - Sets `isPublic` to `false` by default if not provided
+  - Saves and returns the template
+
+##### 13.1.4.2 Find All Templates (`findAllTemplates`)
+
+- **Signature:** `findAllTemplates(userId?: string, workspaceId?: string, includePublic: boolean = true): Promise<ListTemplateEntity[]>`
+- **Logic:**
+  - If `userId` provided: Fetches user's own templates (optionally filtered by `workspaceId`)
+  - If `includePublic` is `true`: Fetches all public templates (optionally filtered by `workspaceId`)
+  - Merges and deduplicates templates using a Map
+  - Returns templates ordered by `createdAt` descending
+  - Loads relations: `user`, `workspace`
+
+##### 13.1.4.3 Find Template (`findTemplate`)
+
+- **Signature:** `findTemplate(id: string): Promise<ListTemplateEntity>`
+- **Logic:**
+  - Finds template by ID with relations: `user`, `workspace`
+  - Throws `NotFoundException('Template not found')` if missing
+  - Returns the template
+
+##### 13.1.4.4 Update Template (`updateTemplate`)
+
+- **Signature:** `updateTemplate(id: string, userId: string, updateTemplateDto: UpdateListTemplateDto): Promise<ListTemplateEntity>`
+- **Logic:**
+  - Finds template by ID and user ID (ensures ownership)
+  - Throws `NotFoundException` if template not found or user doesn't own it
+  - Updates provided fields: `name`, `description`, `isPublic`, `templateConfig`
+  - Saves and returns updated template
+
+##### 13.1.4.5 Remove Template (`removeTemplate`)
+
+- **Signature:** `removeTemplate(id: string, userId: string): Promise<void>`
+- **Logic:**
+  - Finds template by ID and user ID (ensures ownership)
+  - Throws `NotFoundException` if template not found or user doesn't own it
+  - Removes the template (CASCADE delete handled by database)
+
+##### 13.1.4.6 Create From Template (`createFromTemplate`)
+
+- **Signature:** `createFromTemplate(templateId: string, createFromTemplateDto: CreateListFromTemplateDto): Promise<ListEntity>`
+- **Logic:**
+  - Loads template by ID
+  - Checks if template is public or user has access (currently allows any template)
+  - Creates new list with:
+    - Name and description from DTO
+    - Workspace and folder from DTO
+    - Visibility from template config (defaults to 'private')
+    - Default view config from template config
+  - Creates statuses from template config (if provided), otherwise creates default statuses
+  - Creates custom fields from template config (if provided)
+  - Returns the created list with all relations loaded
+
+##### 13.1.4.7 Create Template From List (`createTemplateFromList`)
+
+- **Signature:** `createTemplateFromList(listId: string, userId: string, createTemplateDto: CreateTemplateFromListDto): Promise<ListTemplateEntity>`
+- **Logic:**
+  - Loads list with relations: `statuses`, `customFields`, `workspace`
+  - Checks user permission to view the list (via `checkUserPermission`)
+  - Builds template config from list:
+    - Statuses: sorted by `orderIndex`, includes `name`, `orderIndex`, `color`
+    - Custom fields: includes `name`, `type`, `config`
+    - Default view config: from list's `defaultViewConfig` (converts `null` to `undefined`)
+    - Visibility: from list's `visibility`
+  - Creates template with:
+    - Name and description from DTO
+    - `isPublic` from DTO (defaults to `false`)
+    - Template config built from list
+    - User association
+    - Workspace from DTO or list's workspace
+  - Saves and returns the template
+
+##### 13.1.4.8 Find Public Templates (`findPublicTemplates`)
+
+- **Signature:** `findPublicTemplates(limit?: number, offset?: number): Promise<ListTemplateEntity[]>`
+- **Logic:**
+  - Finds all templates where `isPublic = true`
+  - Supports pagination via `limit` and `offset`
+  - Loads relations: `user`, `workspace`
+  - Returns templates ordered by `createdAt` descending
+
+#### 13.1.5 ListsController Template Endpoints
+
+**File Modified:** `src/features/lists/lists.controller.ts`
+
+**Base Path:** `/lists/templates` (→ `/api/v1/lists/templates`)
+
+**Guard:** `@UseGuards(JwtAuthGuard)` (all endpoints)
+
+**Swagger:** `@ApiTags('lists')`, `@ApiBearerAuth('access-token')`
+
+**Routes:**
+
+| Method | Path                          | Handler                | Notes                                                                 |
+|--------|-------------------------------|------------------------|-----------------------------------------------------------------------|
+| POST   | `/templates`                  | `createTemplate`       | Body: `CreateListTemplateDto`. Uses `@CurrentUser()`.                |
+| POST   | `/templates/from-list/:listId`| `createTemplateFromList`| Body: `CreateTemplateFromListDto`. Creates template from existing list. |
+| GET    | `/templates`                  | `findAllTemplates`     | Query: `workspaceId?`, `includePublic?` (default: 'true').          |
+| GET    | `/templates/public`            | `findPublicTemplates`  | Query: `limit?`, `offset?`. Public marketplace endpoint.             |
+| GET    | `/templates/:id`               | `findTemplate`         | Get template by ID.                                                   |
+| PUT    | `/templates/:id`               | `updateTemplate`       | Body: `UpdateListTemplateDto`. Owner-only.                            |
+| DELETE | `/templates/:id`               | `removeTemplate`       | Owner-only deletion.                                                  |
+| POST   | `/templates/:id/create-list`   | `createFromTemplate`   | Body: `CreateListFromTemplateDto`. Creates list from template.        |
+
+**Route Ordering:** Template routes are placed after member routes but before the generic `:id` route to avoid route conflicts.
+
+#### 13.1.6 ListsModule Registration
+
+**File Modified:** `src/features/lists/lists.module.ts`
+
+- **TypeOrmModule.forFeature:** Added `ListTemplateEntity` to the entities array
+- **No additional imports required** - Uses existing `UserEntity` and `WorkspaceEntity` already registered
+
+---
+
+### 13.2 Task Templates ✅
+
+#### 13.2.1 Overview
+
+Task Templates allow users to save and reuse task configurations, including title, description, priority, due dates (as offsets), subtasks, checklists with items, tags, and custom field values. Templates can be private (user-specific) or public (shared).
+
+#### 13.2.2 TaskTemplateEntity
+
+**File:** `src/features/tasks/entities/task-template.entity.ts`
+
+**Table:** `task_templates`
+
+**Columns:**
+- `id` (UUID, Primary Key)
+- `name` (text) - Template name
+- `description` (text, nullable) - Template description
+- `isPublic` (boolean, default: false) - Whether template is publicly available
+- `template_config` (jsonb) - Template configuration (see structure below)
+- `user_id` (UUID, Foreign Key) - Owner of the template
+- `workspace_id` (UUID, Foreign Key, nullable) - Workspace association (optional)
+- `created_at` (timestamp)
+- `updated_at` (timestamp)
+
+**Relationships:**
+- Many-To-One: `user` → `UserEntity` (CASCADE delete)
+- Many-To-One: `workspace` → `WorkspaceEntity` (CASCADE delete, nullable)
+
+**Template Config Structure:**
+```typescript
+{
+  title: string; // Required when creating from template
+  description?: string;
+  priorityId?: string; // Resolved when creating task
+  dueDateOffsetDays?: number; // Days from creation (e.g., 7 = 7 days from now)
+  subtasks?: Array<{
+    title: string;
+    orderIndex: number;
+  }>;
+  checklists?: Array<{
+    title: string;
+    orderIndex: number;
+    items?: Array<{
+      title: string;
+      orderIndex: number;
+    }>;
+  }>;
+  tagNames?: string[]; // Resolved by name in workspace
+  customFieldValues?: Array<{
+    customFieldName: string; // Resolved by name in list
+    value: any;
+  }>;
+  [key: string]: any;
+}
+```
+
+#### 13.2.3 Task Template DTOs
+
+**Files Created:**
+- `src/features/tasks/dto/create-task-template.dto.ts`
+- `src/features/tasks/dto/update-task-template.dto.ts`
+- `src/features/tasks/dto/create-task-from-template.dto.ts`
+- `src/features/tasks/dto/create-template-from-task.dto.ts`
+
+**CreateTaskTemplateDto:**
+- `name` (string, required, minLength: 1)
+- `description` (string, optional)
+- `isPublic` (boolean, optional)
+- `workspaceId` (UUID, optional)
+- `templateConfig` (object, required) - Full template configuration with `title` required
+
+**UpdateTaskTemplateDto:**
+- `name` (string, optional, minLength: 1)
+- `description` (string, optional)
+- `isPublic` (boolean, optional)
+- `templateConfig` (object, optional) - Partial template configuration
+
+**CreateTaskFromTemplateDto:**
+- `listId` (UUID, required)
+- `statusId` (UUID, optional)
+- `title` (string, optional, minLength: 1) - Overrides template title if provided
+
+**CreateTemplateFromTaskDto:**
+- `name` (string, required, minLength: 1)
+- `description` (string, optional)
+- `isPublic` (boolean, optional)
+- `workspaceId` (UUID, optional)
+
+#### 13.2.4 TasksService Template Methods
+
+**File Modified:** `src/features/tasks/tasks.service.ts`
+
+**Repositories Injected:**
+- `taskTemplateRepository: Repository<TaskTemplateEntity>`
+- `userRepository: Repository<UserEntity>`
+- `workspaceRepository: Repository<WorkspaceEntity>`
+
+##### 13.2.4.1 Create Task Template (`createTaskTemplate`)
+
+- **Signature:** `createTaskTemplate(userId: string, createTemplateDto: CreateTaskTemplateDto): Promise<TaskTemplateEntity>`
+- **Logic:**
+  - Creates a new `TaskTemplateEntity` with provided configuration
+  - Associates template with user (owner)
+  - Optionally associates with workspace if `workspaceId` provided
+  - Sets `isPublic` to `false` by default if not provided
+  - Saves and returns the template
+
+##### 13.2.4.2 Find All Task Templates (`findAllTaskTemplates`)
+
+- **Signature:** `findAllTaskTemplates(userId?: string, workspaceId?: string, includePublic: boolean = true): Promise<TaskTemplateEntity[]>`
+- **Logic:**
+  - If `userId` provided: Fetches user's own templates (optionally filtered by `workspaceId`)
+  - If `includePublic` is `true`: Fetches all public templates (optionally filtered by `workspaceId`)
+  - Merges and deduplicates templates using a Map
+  - Returns templates ordered by `createdAt` descending
+  - Loads relations: `user`, `workspace`
+
+##### 13.2.4.3 Find Task Template (`findTaskTemplate`)
+
+- **Signature:** `findTaskTemplate(id: string): Promise<TaskTemplateEntity>`
+- **Logic:**
+  - Finds template by ID with relations: `user`, `workspace`
+  - Throws `NotFoundException('Task template not found')` if missing
+  - Returns the template
+
+##### 13.2.4.4 Update Task Template (`updateTaskTemplate`)
+
+- **Signature:** `updateTaskTemplate(id: string, userId: string, updateTemplateDto: UpdateTaskTemplateDto): Promise<TaskTemplateEntity>`
+- **Logic:**
+  - Finds template by ID and user ID (ensures ownership)
+  - Throws `NotFoundException` with message about permission if template not found or user doesn't own it
+  - Updates provided fields: `name`, `description`, `isPublic`, `templateConfig`
+  - Saves and returns updated template
+
+##### 13.2.4.5 Remove Task Template (`removeTaskTemplate`)
+
+- **Signature:** `removeTaskTemplate(id: string, userId: string): Promise<void>`
+- **Logic:**
+  - Finds template by ID and user ID (ensures ownership)
+  - Throws `NotFoundException` with message about permission if template not found or user doesn't own it
+  - Removes the template (CASCADE delete handled by database)
+
+##### 13.2.4.6 Create Task From Template (`createTaskFromTemplate`)
+
+- **Signature:** `createTaskFromTemplate(templateId: string, createFromTemplateDto: CreateTaskFromTemplateDto, userId?: string): Promise<TaskEntity>`
+- **Logic:**
+  - Loads template by ID
+  - Checks if template is public or user owns it; throws `ForbiddenException` if not accessible
+  - Verifies list exists
+  - Verifies status exists and belongs to list (if `statusId` provided)
+  - Calculates due date if `dueDateOffsetDays` is provided in template config
+  - Creates task using `TasksService.create()` with:
+    - Title from DTO (if provided) or template config
+    - Description from template config
+    - List ID from DTO
+    - Status ID from DTO or `null`
+    - Priority ID from template config
+    - Due date calculated from offset
+  - Creates subtasks from template config (if provided):
+    - Maps each subtask config to `CreateSubtaskDto`
+    - Calls `createSubtask()` for each
+  - Creates checklists from template config (if provided):
+    - For each checklist config:
+      - Creates checklist using `createChecklist()`
+      - Creates checklist items using `createChecklistItem()` for each item in checklist
+  - Attaches tags by name (if provided):
+    - For each tag name:
+      - Finds tag by name in the list's workspace
+      - Skips if tag doesn't exist
+      - Checks if tag already assigned to task
+      - Calls `addTag()` if not already assigned
+  - Sets custom field values (if provided):
+    - For each custom field value config:
+      - Finds custom field by name in the list
+      - Skips if custom field doesn't exist
+      - Checks if value already exists for task and custom field
+      - Calls `createTaskCustomFieldValue()` if not already exists
+  - Returns the created task with all relations loaded via `findOne()`
+
+##### 13.2.4.7 Create Template From Task (`createTemplateFromTask`)
+
+- **Signature:** `createTemplateFromTask(taskId: string, userId: string, createTemplateDto: CreateTemplateFromTaskDto): Promise<TaskTemplateEntity>`
+- **Logic:**
+  - Loads task with extensive relations:
+    - `list`, `list.workspace`
+    - `priority`
+    - `subtasks`
+    - `checklists`, `checklists.checklistItems` (note: relation name is `checklistItems`, not `items`)
+    - `taskTags`, `taskTags.tag`
+    - `taskCustomFieldValues`, `taskCustomFieldValues.customField`
+  - Throws `NotFoundException('Task not found')` if missing
+  - Builds template config from task:
+    - Title: from task's `title`
+    - Description: from task's `description` (converts `null` to `undefined`)
+    - Priority ID: from task's `priority?.id`
+    - Due date offset: Calculates days from now if `dueDate` exists
+    - Subtasks: Sorted by `orderIndex`, includes `title`, `orderIndex`
+    - Checklists: Sorted by `orderIndex`, includes:
+      - `title`, `orderIndex`
+      - Items: Sorted by `orderIndex`, includes `title`, `orderIndex` (uses `checklist.checklistItems`)
+    - Tag names: Extracted from `task.taskTags` → `taskTag.tag.name`
+    - Custom field values: Extracted from `task.taskCustomFieldValues`, includes `customFieldName` (from `value.customField.name`) and `value`
+  - Creates template with:
+    - Name and description from DTO
+    - `isPublic` from DTO (defaults to `false`)
+    - Template config built from task
+    - User association
+    - Workspace from DTO or task's list workspace
+  - Saves and returns the template
+
+#### 13.2.5 TasksController Template Endpoints
+
+**File Modified:** `src/features/tasks/tasks.controller.ts`
+
+**Base Path:** `/tasks/templates` (→ `/api/v1/tasks/templates`)
+
+**Guard:** `@UseGuards(JwtAuthGuard)` (all endpoints)
+
+**Swagger:** `@ApiTags('tasks')`, `@ApiBearerAuth('access-token')`
+
+**Routes:**
+
+| Method | Path                          | Handler                | Notes                                                                 |
+|--------|-------------------------------|------------------------|-----------------------------------------------------------------------|
+| POST   | `/templates`                  | `createTaskTemplate`   | Body: `CreateTaskTemplateDto`. Uses `@CurrentUser()`.                |
+| POST   | `/templates/from-task/:taskId`| `createTemplateFromTask`| Body: `CreateTemplateFromTaskDto`. Creates template from existing task. |
+| GET    | `/templates`                  | `findAllTaskTemplates` | Query: `workspaceId?`, `includePublic?` (default: 'true').          |
+| GET    | `/templates/:id`               | `findTaskTemplate`     | Get template by ID.                                                   |
+| PUT    | `/templates/:id`               | `updateTaskTemplate`   | Body: `UpdateTaskTemplateDto`. Owner-only.                            |
+| DELETE | `/templates/:id`               | `removeTaskTemplate`   | Owner-only deletion.                                                  |
+| POST   | `/templates/:id/create-task`  | `createTaskFromTemplate`| Body: `CreateTaskFromTemplateDto`. Creates task from template.        |
+
+**Route Ordering:** Template routes are placed before the generic `:id` route to avoid route conflicts (after dependency, custom-field-value, subtask, and checklist routes).
+
+#### 13.2.6 TasksModule Registration
+
+**File Modified:** `src/features/tasks/tasks.module.ts`
+
+- **TypeOrmModule.forFeature:** Added `TaskTemplateEntity`, `UserEntity`, and `WorkspaceEntity` to the entities array
+- **No additional module imports required** - Uses existing repositories
+
+---
+
+### 13.3 Key Implementation Details
+
+#### 13.3.1 Template Access Control
+
+- **List Templates:**
+  - `createFromTemplate`: Currently allows creation from any template (public or private)
+  - `updateTemplate` / `removeTemplate`: Owner-only (checked via `user.id`)
+
+- **Task Templates:**
+  - `createTaskFromTemplate`: Checks if template is public OR user owns it; throws `ForbiddenException` if neither
+  - `updateTaskTemplate` / `removeTaskTemplate`: Owner-only (checked via `user.id`)
+
+#### 13.3.2 Template Config Type Handling
+
+- **List Templates:**
+  - `defaultViewConfig`: Converts `null` to `undefined` when creating template from list (line 518 in `lists.service.ts`)
+
+- **Task Templates:**
+  - `description`: Converts `null` to `undefined` when creating template from task
+  - `checklistItems`: Uses correct relation name `checklistItems` (not `items`) when loading task for template creation
+
+#### 13.3.3 Name-Based Resolution
+
+- **Task Templates:**
+  - **Tags:** Resolved by name within the list's workspace. If tag doesn't exist, it's skipped (not created automatically).
+  - **Custom Fields:** Resolved by name within the list. If custom field doesn't exist, it's skipped.
+
+#### 13.3.4 Due Date Calculation
+
+- **Task Templates:**
+  - `dueDateOffsetDays`: When creating task from template, calculates due date as: `new Date()` + `offsetDays` days
+  - When creating template from task, calculates offset as: `Math.ceil((task.dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))`
+
+#### 13.3.5 Template Marketplace
+
+- **List Templates:**
+  - `GET /lists/templates/public`: Public marketplace endpoint with pagination support (`limit`, `offset`)
+  - Returns all templates where `isPublic = true`
+
+- **Task Templates:**
+  - No dedicated public marketplace endpoint (can use `GET /tasks/templates?includePublic=true`)
+
+---
+
+### 13.4 Database Schema
+
+#### 13.4.1 List Templates Table
+
+**Table:** `list_templates`
+
+**Columns:**
+- `id` UUID PRIMARY KEY
+- `name` TEXT NOT NULL
+- `description` TEXT
+- `is_public` BOOLEAN DEFAULT false
+- `template_config` JSONB NOT NULL
+- `user_id` UUID NOT NULL REFERENCES `users(id)` ON DELETE CASCADE
+- `workspace_id` UUID REFERENCES `workspaces(id)` ON DELETE CASCADE
+- `created_at` TIMESTAMP
+- `updated_at` TIMESTAMP
+
+#### 13.4.2 Task Templates Table
+
+**Table:** `task_templates`
+
+**Columns:**
+- `id` UUID PRIMARY KEY
+- `name` TEXT NOT NULL
+- `description` TEXT
+- `is_public` BOOLEAN DEFAULT false
+- `template_config` JSONB NOT NULL
+- `user_id` UUID NOT NULL REFERENCES `users(id)` ON DELETE CASCADE
+- `workspace_id` UUID REFERENCES `workspaces(id)` ON DELETE CASCADE
+- `created_at` TIMESTAMP
+- `updated_at` TIMESTAMP
+
+---
+
+### 13.5 API Endpoints Summary
+
+#### 13.5.1 List Templates
+
+| Method | Endpoint                              | Description                          |
+|--------|---------------------------------------|--------------------------------------|
+| POST   | `/api/v1/lists/templates`              | Create list template                 |
+| POST   | `/api/v1/lists/templates/from-list/:listId` | Create template from list          |
+| GET    | `/api/v1/lists/templates`              | List templates (user's + public)    |
+| GET    | `/api/v1/lists/templates/public`       | Public template marketplace         |
+| GET    | `/api/v1/lists/templates/:id`         | Get template by ID                   |
+| PUT    | `/api/v1/lists/templates/:id`         | Update template (owner-only)        |
+| DELETE | `/api/v1/lists/templates/:id`         | Delete template (owner-only)        |
+| POST   | `/api/v1/lists/templates/:id/create-list` | Create list from template        |
+
+#### 13.5.2 Task Templates
+
+| Method | Endpoint                              | Description                          |
+|--------|---------------------------------------|--------------------------------------|
+| POST   | `/api/v1/tasks/templates`              | Create task template                 |
+| POST   | `/api/v1/tasks/templates/from-task/:taskId` | Create template from task         |
+| GET    | `/api/v1/tasks/templates`              | List templates (user's + public)    |
+| GET    | `/api/v1/tasks/templates/:id`          | Get template by ID                   |
+| PUT    | `/api/v1/tasks/templates/:id`          | Update template (owner-only)        |
+| DELETE | `/api/v1/tasks/templates/:id`          | Delete template (owner-only)        |
+| POST   | `/api/v1/tasks/templates/:id/create-task` | Create task from template        |
+
+---
+
+### 13.6 Files Touched
+
+#### 13.6.1 List Templates
+
+**New Files:**
+- `src/features/lists/entities/list-template.entity.ts` (already existed, enhanced)
+- `src/features/lists/dto/update-list-template.dto.ts`
+- `src/features/lists/dto/create-template-from-list.dto.ts`
+
+**Modified Files:**
+- `src/features/lists/lists.service.ts` (added template methods)
+- `src/features/lists/lists.controller.ts` (added template endpoints)
+- `src/features/lists/lists.module.ts` (registered `ListTemplateEntity`)
+
+**Existing Files Used:**
+- `src/features/lists/dto/create-list-template.dto.ts`
+- `src/features/lists/dto/create-list-from-template.dto.ts`
+- `src/features/lists/dto/list-template-response.dto.ts`
+
+#### 13.6.2 Task Templates
+
+**New Files:**
+- `src/features/tasks/entities/task-template.entity.ts`
+- `src/features/tasks/dto/create-task-template.dto.ts`
+- `src/features/tasks/dto/update-task-template.dto.ts`
+- `src/features/tasks/dto/create-task-from-template.dto.ts`
+- `src/features/tasks/dto/create-template-from-task.dto.ts`
+
+**Modified Files:**
+- `src/features/tasks/tasks.service.ts` (added template methods, injected repositories)
+- `src/features/tasks/tasks.controller.ts` (added template endpoints)
+- `src/features/tasks/tasks.module.ts` (registered `TaskTemplateEntity`, `UserEntity`, `WorkspaceEntity`)
+
+---
+
+### 13.7 Dependencies
+
+**No new NPM packages required** - Uses existing TypeORM, NestJS, and class-validator dependencies.
+
+---
+
+### 13.8 Testing Considerations
+
+#### 13.8.1 List Templates
+
+- Test template creation with various configurations
+- Test creating list from template with statuses, custom fields, view config
+- Test creating template from list (captures all list structure)
+- Test public vs private templates
+- Test template marketplace pagination
+- Test owner-only update/delete operations
+- Test workspace filtering
+
+#### 13.8.2 Task Templates
+
+- Test template creation with subtasks, checklists, tags, custom fields
+- Test creating task from template with all components
+- Test due date offset calculation
+- Test tag resolution by name (existing vs non-existing tags)
+- Test custom field resolution by name (existing vs non-existing fields)
+- Test creating template from task (captures all task structure)
+- Test public vs private templates
+- Test owner-only update/delete operations
+- Test workspace filtering
+- Test access control (public template vs owned template)
+
+---
+
+### 13.9 Summary
+
+**Phase 13: Templates & Automation** implements a comprehensive template system for both lists and tasks, enabling users to:
+
+1. **Save configurations** as reusable templates
+2. **Create new items** from templates with all configured settings
+3. **Share templates** publicly or keep them private
+4. **Build templates** from existing lists/tasks
+5. **Manage templates** (create, read, update, delete)
+
+**List Templates** support:
+- Default statuses with colors
+- Custom fields configuration
+- Default view configuration
+- Visibility settings
+- Template marketplace
+
+**Task Templates** support:
+- Title and description
+- Priority
+- Due date offsets
+- Subtasks
+- Checklists with items
+- Tags (by name)
+- Custom field values (by field name)
+
+Both template systems include proper access control, error handling, and integration with existing services. The implementation follows NestJS best practices and maintains consistency with the rest of the codebase.
+
+---
+
 ## Notes
 
 - All completed phases are marked with ✅

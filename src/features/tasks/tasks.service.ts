@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -45,6 +46,13 @@ import {
 } from '../notifications/notifications.service';
 import { EventsEmitterService } from '../events/events-emitter.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { TaskTemplateEntity } from './entities/task-template.entity';
+import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
+import { UpdateTaskTemplateDto } from './dto/update-task-template.dto';
+import { CreateTaskFromTemplateDto } from './dto/create-task-from-template.dto';
+import { CreateTemplateFromTaskDto } from './dto/create-template-from-task.dto';
+import { UserEntity } from '../users/entities/user.entity';
+import { WorkspaceEntity } from '../workspaces/entities/workspace.entity';
 
 @Injectable()
 export class TasksService {
@@ -75,6 +83,12 @@ export class TasksService {
     private readonly taskCustomFieldValueRepository: Repository<TaskCustomFieldValueEntity>,
     @InjectRepository(CustomFieldEntity)
     private readonly customFieldRepository: Repository<CustomFieldEntity>,
+    @InjectRepository(TaskTemplateEntity)
+    private readonly taskTemplateRepository: Repository<TaskTemplateEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(WorkspaceEntity)
+    private readonly workspaceRepository: Repository<WorkspaceEntity>,
     private readonly activitiesService: ActivitiesService,
     private readonly notificationsService: NotificationsService,
     private readonly eventsEmitter: EventsEmitterService,
@@ -2577,5 +2591,400 @@ export class TasksService {
       }
     }
     return { processed };
+  }
+
+  /**
+   * Task Template Management Methods
+   */
+
+  async createTaskTemplate(
+    userId: string,
+    createTemplateDto: CreateTaskTemplateDto,
+  ): Promise<TaskTemplateEntity> {
+    const { name, description, isPublic, workspaceId, templateConfig } =
+      createTemplateDto;
+
+    const template = this.taskTemplateRepository.create({
+      name,
+      description: description || null,
+      isPublic: isPublic ?? false,
+      templateConfig,
+      user: { id: userId } as any,
+      workspace: workspaceId ? ({ id: workspaceId } as any) : null,
+    });
+
+    return this.taskTemplateRepository.save(template);
+  }
+
+  async findAllTaskTemplates(
+    userId?: string,
+    workspaceId?: string,
+    includePublic: boolean = true,
+  ): Promise<TaskTemplateEntity[]> {
+    const templateMap = new Map<string, TaskTemplateEntity>();
+
+    // Get user's own templates
+    if (userId) {
+      const userWhere: any = { user: { id: userId } };
+      if (workspaceId) {
+        userWhere.workspace = { id: workspaceId };
+      }
+
+      const userTemplates = await this.taskTemplateRepository.find({
+        where: userWhere,
+        relations: ['user', 'workspace'],
+        order: { createdAt: 'DESC' },
+      });
+
+      userTemplates.forEach((t) => templateMap.set(t.id, t));
+    }
+
+    // Get public templates if requested
+    if (includePublic) {
+      const publicWhere: any = { isPublic: true };
+      if (workspaceId) {
+        publicWhere.workspace = { id: workspaceId };
+      }
+
+      const publicTemplates = await this.taskTemplateRepository.find({
+        where: publicWhere,
+        relations: ['user', 'workspace'],
+        order: { createdAt: 'DESC' },
+      });
+
+      // Add public templates that aren't already in the map
+      publicTemplates.forEach((t) => {
+        if (!templateMap.has(t.id)) {
+          templateMap.set(t.id, t);
+        }
+      });
+    }
+
+    return Array.from(templateMap.values());
+  }
+
+  async findTaskTemplate(id: string): Promise<TaskTemplateEntity> {
+    const template = await this.taskTemplateRepository.findOne({
+      where: { id },
+      relations: ['user', 'workspace'],
+    });
+
+    if (!template) {
+      throw new NotFoundException('Task template not found');
+    }
+
+    return template;
+  }
+
+  async updateTaskTemplate(
+    id: string,
+    userId: string,
+    updateTemplateDto: UpdateTaskTemplateDto,
+  ): Promise<TaskTemplateEntity> {
+    const template = await this.taskTemplateRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+
+    if (!template) {
+      throw new NotFoundException(
+        'Task template not found or you do not have permission to update it',
+      );
+    }
+
+    if (updateTemplateDto.name !== undefined) {
+      template.name = updateTemplateDto.name;
+    }
+
+    if (updateTemplateDto.description !== undefined) {
+      template.description = updateTemplateDto.description || null;
+    }
+
+    if (updateTemplateDto.isPublic !== undefined) {
+      template.isPublic = updateTemplateDto.isPublic;
+    }
+
+    if (updateTemplateDto.templateConfig !== undefined) {
+      template.templateConfig = updateTemplateDto.templateConfig;
+    }
+
+    return this.taskTemplateRepository.save(template);
+  }
+
+  async removeTaskTemplate(id: string, userId: string): Promise<void> {
+    const template = await this.taskTemplateRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+
+    if (!template) {
+      throw new NotFoundException(
+        'Task template not found or you do not have permission to delete it',
+      );
+    }
+
+    await this.taskTemplateRepository.remove(template);
+  }
+
+  async createTaskFromTemplate(
+    templateId: string,
+    createFromTemplateDto: CreateTaskFromTemplateDto,
+    userId?: string,
+  ): Promise<TaskEntity> {
+    const template = await this.findTaskTemplate(templateId);
+
+    // Check if template is public or user has access
+    if (!template.isPublic && template.user.id !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to use this template',
+      );
+    }
+
+    const { listId, statusId, title } = createFromTemplateDto;
+    const { templateConfig } = template;
+
+    // Verify list exists
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    // Verify status exists if provided
+    let status: StatusEntity | null = null;
+    const finalStatusId = statusId || null;
+    if (finalStatusId) {
+      status = await this.statusRepository.findOne({
+        where: { id: finalStatusId },
+        relations: ['list'],
+      });
+      if (!status) {
+        throw new NotFoundException('Status not found');
+      }
+      if (status.list.id !== listId) {
+        throw new BadRequestException(
+          'Status does not belong to the specified list',
+        );
+      }
+    }
+
+    // Calculate due date if offset is provided
+    let dueDate: Date | null = null;
+    if (templateConfig.dueDateOffsetDays !== undefined) {
+      const offsetDays = templateConfig.dueDateOffsetDays;
+      dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + offsetDays);
+    }
+
+    // Create the task
+    const taskTitle = title || templateConfig.title;
+    const createTaskDto: CreateTaskDto = {
+      title: taskTitle,
+      description: templateConfig.description,
+      listId,
+      statusId: finalStatusId || undefined,
+      priorityId: templateConfig.priorityId,
+      dueDate: dueDate ? dueDate.toISOString() : undefined,
+    };
+
+    const savedTask = await this.create(createTaskDto, userId);
+
+    // Create subtasks from template
+    if (templateConfig.subtasks && templateConfig.subtasks.length > 0) {
+      const subtaskPromises = templateConfig.subtasks.map((subtaskConfig) => {
+        const createSubtaskDto: CreateSubtaskDto = {
+          taskId: savedTask.id,
+          title: subtaskConfig.title,
+          orderIndex: subtaskConfig.orderIndex,
+        };
+        return this.createSubtask(createSubtaskDto);
+      });
+      await Promise.all(subtaskPromises);
+    }
+
+    // Create checklists from template
+    if (templateConfig.checklists && templateConfig.checklists.length > 0) {
+      for (const checklistConfig of templateConfig.checklists) {
+        const createChecklistDto: CreateChecklistDto = {
+          taskId: savedTask.id,
+          title: checklistConfig.title,
+          orderIndex: checklistConfig.orderIndex,
+        };
+        const savedChecklist = await this.createChecklist(createChecklistDto);
+
+        // Create checklist items
+        if (checklistConfig.items && checklistConfig.items.length > 0) {
+          const itemPromises = checklistConfig.items.map((itemConfig) => {
+            const createItemDto: CreateChecklistItemDto = {
+              checklistId: savedChecklist.id,
+              title: itemConfig.title,
+              orderIndex: itemConfig.orderIndex,
+            };
+            return this.createChecklistItem(createItemDto);
+          });
+          await Promise.all(itemPromises);
+        }
+      }
+    }
+
+    // Attach tags by name
+    if (templateConfig.tagNames && templateConfig.tagNames.length > 0) {
+      // Reload list with workspace relation if not already loaded
+      const listWithWorkspace = await this.listRepository.findOne({
+        where: { id: listId },
+        relations: ['workspace'],
+      });
+
+      if (listWithWorkspace && listWithWorkspace.workspace) {
+        const tagPromises = templateConfig.tagNames.map(async (tagName) => {
+          // Find tag by name in the workspace
+          const tag = await this.tagRepository.findOne({
+            where: {
+              name: tagName,
+              workspace: { id: listWithWorkspace.workspace.id },
+            },
+          });
+
+          if (!tag) {
+            // Tag doesn't exist, skip it (or could create it, but that might be unexpected)
+            return;
+          }
+
+          // Check if tag is already assigned
+          const existingTaskTag = await this.taskTagRepository.findOne({
+            where: {
+              task: { id: savedTask.id },
+              tag: { id: tag.id },
+            },
+          });
+
+          if (!existingTaskTag) {
+            const addTagDto: AddTagToTaskDto = { tagId: tag.id };
+            await this.addTag(savedTask.id, addTagDto, userId);
+          }
+        });
+        await Promise.all(tagPromises);
+      }
+    }
+
+    // Set custom field values
+    if (
+      templateConfig.customFieldValues &&
+      templateConfig.customFieldValues.length > 0
+    ) {
+      const customFieldPromises = templateConfig.customFieldValues.map(
+        async (fieldValueConfig) => {
+          // Find custom field by name in the list
+          const customField = await this.customFieldRepository.findOne({
+            where: {
+              name: fieldValueConfig.customFieldName,
+              list: { id: listId },
+            },
+          });
+
+          if (!customField) {
+            // Custom field doesn't exist, skip it
+            return;
+          }
+
+          // Check if value already exists
+          const existingValue = await this.taskCustomFieldValueRepository.findOne(
+            {
+              where: {
+                task: { id: savedTask.id },
+                customField: { id: customField.id },
+              },
+            },
+          );
+
+          if (!existingValue) {
+            const createValueDto: CreateTaskCustomFieldValueDto = {
+              taskId: savedTask.id,
+              customFieldId: customField.id,
+              value: fieldValueConfig.value,
+            };
+            await this.createTaskCustomFieldValue(createValueDto);
+          }
+        },
+      );
+      await Promise.all(customFieldPromises);
+    }
+
+    // Reload task with all relations
+    return this.findOne(savedTask.id);
+  }
+
+  async createTemplateFromTask(
+    taskId: string,
+    userId: string,
+    createTemplateDto: CreateTemplateFromTaskDto,
+  ): Promise<TaskTemplateEntity> {
+    const task = await this.taskRepository.findOne({
+      where: { id: taskId },
+      relations: [
+        'list',
+        'list.workspace',
+        'priority',
+        'subtasks',
+        'checklists',
+        'checklists.checklistItems',
+        'taskTags',
+        'taskTags.tag',
+        'taskCustomFieldValues',
+        'taskCustomFieldValues.customField',
+      ],
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    // Build template config from task
+    const templateConfig: CreateTaskTemplateDto['templateConfig'] = {
+      title: task.title,
+      description: task.description || undefined,
+      priorityId: task.priority?.id,
+      dueDateOffsetDays: task.dueDate
+        ? Math.ceil(
+            (task.dueDate.getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24),
+          )
+        : undefined,
+      subtasks: task.subtasks
+        ?.sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((subtask) => ({
+          title: subtask.title,
+          orderIndex: subtask.orderIndex,
+        })),
+      checklists: task.checklists
+        ?.sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((checklist) => ({
+          title: checklist.title,
+          orderIndex: checklist.orderIndex,
+          items: checklist.checklistItems
+            ?.sort((a, b) => a.orderIndex - b.orderIndex)
+            .map((item) => ({
+              title: item.title,
+              orderIndex: item.orderIndex,
+            })),
+        })),
+      tagNames: task.taskTags?.map((taskTag) => taskTag.tag.name),
+      customFieldValues: task.taskCustomFieldValues?.map((value) => ({
+        customFieldName: value.customField.name,
+        value: value.value,
+      })),
+    };
+
+    const template = this.taskTemplateRepository.create({
+      name: createTemplateDto.name,
+      description: createTemplateDto.description || null,
+      isPublic: createTemplateDto.isPublic ?? false,
+      templateConfig,
+      user: { id: userId } as any,
+      workspace: createTemplateDto.workspaceId
+        ? ({ id: createTemplateDto.workspaceId } as any)
+        : task.list.workspace
+          ? ({ id: task.list.workspace.id } as any)
+          : null,
+    });
+
+    return this.taskTemplateRepository.save(template);
   }
 }

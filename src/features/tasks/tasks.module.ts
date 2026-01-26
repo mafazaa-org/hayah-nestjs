@@ -17,7 +17,9 @@ import { SubtaskEntity } from './entities/subtask.entity';
 import { TaskCustomFieldValueEntity } from './entities/task-custom-field-value.entity';
 import { CustomFieldEntity } from '../lists/entities/custom-field.entity';
 import { ActivityEntity } from './entities/activity.entity';
+import { TaskTemplateEntity } from './entities/task-template.entity';
 import { UserEntity } from '../users/entities/user.entity';
+import { WorkspaceEntity } from '../workspaces/entities/workspace.entity';
 import { ActivitiesService } from './services/activities.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EventsModule } from '../events/events.module';
@@ -40,7 +42,9 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
       TaskCustomFieldValueEntity,
       CustomFieldEntity,
       ActivityEntity,
+      TaskTemplateEntity,
       UserEntity,
+      WorkspaceEntity,
     ]),
     AuthModule,
     NotificationsModule,

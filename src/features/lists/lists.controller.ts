@@ -17,6 +17,8 @@ import { UpdateListDto } from './dto/update-list.dto';
 import { DuplicateListDto } from './dto/duplicate-list.dto';
 import { CreateListTemplateDto } from './dto/create-list-template.dto';
 import { CreateListFromTemplateDto } from './dto/create-list-from-template.dto';
+import { UpdateListTemplateDto } from './dto/update-list-template.dto';
+import { CreateTemplateFromListDto } from './dto/create-template-from-list.dto';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
 import { CreateFilterPresetDto } from './dto/create-filter-preset.dto';
@@ -279,6 +281,19 @@ export class ListsController {
     return this.listsService.createTemplate(user.userId, createTemplateDto);
   }
 
+  @Post('templates/from-list/:listId')
+  createTemplateFromList(
+    @CurrentUser() user: { userId: string },
+    @Param('listId') listId: string,
+    @Body() createTemplateDto: CreateTemplateFromListDto,
+  ): Promise<ListTemplateEntity> {
+    return this.listsService.createTemplateFromList(
+      listId,
+      user.userId,
+      createTemplateDto,
+    );
+  }
+
   @Get('templates')
   findAllTemplates(
     @CurrentUser() user: { userId: string },
@@ -294,9 +309,36 @@ export class ListsController {
     );
   }
 
+  @Get('templates/public')
+  findPublicTemplates(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ): Promise<ListTemplateEntity[]> {
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    const offsetNum = offset ? parseInt(offset, 10) : undefined;
+    return this.listsService.findPublicTemplates(limitNum, offsetNum);
+  }
+
   @Get('templates/:id')
   findTemplate(@Param('id') id: string): Promise<ListTemplateEntity> {
     return this.listsService.findTemplate(id);
+  }
+
+  @Put('templates/:id')
+  updateTemplate(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+    @Body() updateTemplateDto: UpdateListTemplateDto,
+  ): Promise<ListTemplateEntity> {
+    return this.listsService.updateTemplate(id, user.userId, updateTemplateDto);
+  }
+
+  @Delete('templates/:id')
+  removeTemplate(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.listsService.removeTemplate(id, user.userId);
   }
 
   @Post('templates/:id/create-list')
