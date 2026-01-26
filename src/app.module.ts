@@ -21,6 +21,7 @@ import { EmailModule } from './common/email/email.module';
 import { EventsModule } from './features/events/events.module';
 import { WebhooksModule } from './features/webhooks/webhooks.module';
 import { ExportImportModule } from './features/export-import/export-import.module';
+import { SearchModule } from './features/search/search.module';
 import databaseConfig from './config/database.config';
 
 @Module({
@@ -55,6 +56,7 @@ import databaseConfig from './config/database.config';
     EventsModule,
     WebhooksModule,
     ExportImportModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [

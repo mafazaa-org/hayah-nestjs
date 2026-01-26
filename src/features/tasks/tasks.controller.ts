@@ -35,6 +35,7 @@ import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
 import { UpdateTaskTemplateDto } from './dto/update-task-template.dto';
 import { CreateTaskFromTemplateDto } from './dto/create-task-from-template.dto';
 import { CreateTemplateFromTaskDto } from './dto/create-template-from-task.dto';
+import { QuickCreateTaskDto } from '../search/dto/quick-create-task.dto';
 import { TaskEntity } from './entities/task.entity';
 import { TaskTemplateEntity } from './entities/task-template.entity';
 import { AssignmentEntity } from './entities/assignment.entity';
@@ -64,6 +65,14 @@ export class TasksController {
     @Body() createTaskDto: CreateTaskDto,
   ): Promise<TaskEntity> {
     return this.tasksService.create(createTaskDto, user.userId);
+  }
+
+  @Post('quick')
+  quickCreate(
+    @CurrentUser() user: { userId: string },
+    @Body() quickCreateDto: QuickCreateTaskDto,
+  ): Promise<TaskEntity> {
+    return this.tasksService.quickCreate(quickCreateDto, user.userId);
   }
 
   @Get()

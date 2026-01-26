@@ -16,6 +16,7 @@ import { CreateListTemplateDto } from './dto/create-list-template.dto';
 import { CreateListFromTemplateDto } from './dto/create-list-from-template.dto';
 import { UpdateListTemplateDto } from './dto/update-list-template.dto';
 import { CreateTemplateFromListDto } from './dto/create-template-from-list.dto';
+import { QuickCreateListDto } from '../search/dto/quick-create-list.dto';
 import { CustomFieldEntity } from './entities/custom-field.entity';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
@@ -75,6 +76,31 @@ export class ListsService {
       folder: folderId ? ({ id: folderId } as any) : null,
       visibility: visibility || 'private',
       defaultViewConfig: defaultViewConfig || null,
+      isArchived: false,
+    });
+
+    const savedList = await this.listRepository.save(list);
+
+    // Create default statuses for the new list
+    await this.createDefaultStatuses(savedList.id);
+
+    // Reload with relationships
+    return this.findOne(savedList.id);
+  }
+
+  /**
+   * Quick list creation with minimal fields and smart defaults
+   */
+  async quickCreate(quickCreateDto: QuickCreateListDto): Promise<ListEntity> {
+    const { name, workspaceId, folderId } = quickCreateDto;
+
+    const list = this.listRepository.create({
+      name,
+      description: null,
+      workspace: { id: workspaceId } as any,
+      folder: folderId ? ({ id: folderId } as any) : null,
+      visibility: 'private',
+      defaultViewConfig: null,
       isArchived: false,
     });
 

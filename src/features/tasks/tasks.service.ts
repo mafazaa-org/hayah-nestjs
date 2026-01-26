@@ -51,6 +51,7 @@ import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
 import { UpdateTaskTemplateDto } from './dto/update-task-template.dto';
 import { CreateTaskFromTemplateDto } from './dto/create-task-from-template.dto';
 import { CreateTemplateFromTaskDto } from './dto/create-template-from-task.dto';
+import { QuickCreateTaskDto } from '../search/dto/quick-create-task.dto';
 import { UserEntity } from '../users/entities/user.entity';
 import { WorkspaceEntity } from '../workspaces/entities/workspace.entity';
 
@@ -166,6 +167,82 @@ export class TasksService {
       status: statusId ? ({ id: statusId } as any) : null,
       priority: priorityId ? ({ id: priorityId } as any) : null,
       dueDate: dueDate ? new Date(dueDate) : null,
+      orderPosition: finalOrderPosition,
+      isArchived: false,
+    });
+
+    const savedTask = await this.taskRepository.save(task);
+
+    // Track activity
+    if (userId) {
+      await this.activitiesService.createActivity(
+        savedTask.id,
+        userId,
+        'task_created',
+        null,
+        { title: savedTask.title },
+      );
+    }
+
+    try {
+      this.eventsEmitter.emitTaskCreated(listId, this.toTaskPayload(savedTask, listId));
+    } catch {
+      // Real-time emit must not break create
+    }
+    try {
+      await this.webhooksService.deliverTaskEvent(
+        'task.created',
+        listId,
+        { task: this.toTaskPayload(savedTask, listId) },
+      );
+    } catch {
+      // Webhook delivery must not break create
+    }
+
+    return savedTask;
+  }
+
+  /**
+   * Quick task creation with minimal fields and smart defaults
+   */
+  async quickCreate(
+    quickCreateDto: QuickCreateTaskDto,
+    userId?: string,
+  ): Promise<TaskEntity> {
+    const { title, listId } = quickCreateDto;
+
+    // Verify list exists
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    // Get first status (by orderIndex) for the list as default
+    const firstStatus = await this.statusRepository.findOne({
+      where: { list: { id: listId } },
+      order: { orderIndex: 'ASC' },
+    });
+
+    // Calculate orderPosition for the status (or 0 if no status)
+    let finalOrderPosition = 0;
+    if (firstStatus) {
+      const existingTasks = await this.taskRepository.find({
+        where: { status: { id: firstStatus.id } },
+        order: { orderPosition: 'DESC' },
+        take: 1,
+      });
+
+      finalOrderPosition =
+        existingTasks.length > 0 ? existingTasks[0].orderPosition + 1 : 0;
+    }
+
+    const task = this.taskRepository.create({
+      title,
+      description: null,
+      list: { id: listId } as any,
+      status: firstStatus ? ({ id: firstStatus.id } as any) : null,
+      priority: null,
+      dueDate: null,
       orderPosition: finalOrderPosition,
       isArchived: false,
     });

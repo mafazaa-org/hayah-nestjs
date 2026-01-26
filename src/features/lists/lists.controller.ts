@@ -19,6 +19,7 @@ import { CreateListTemplateDto } from './dto/create-list-template.dto';
 import { CreateListFromTemplateDto } from './dto/create-list-from-template.dto';
 import { UpdateListTemplateDto } from './dto/update-list-template.dto';
 import { CreateTemplateFromListDto } from './dto/create-template-from-list.dto';
+import { QuickCreateListDto } from '../search/dto/quick-create-list.dto';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
 import { CreateFilterPresetDto } from './dto/create-filter-preset.dto';
@@ -48,6 +49,11 @@ export class ListsController {
   @Post()
   create(@Body() createListDto: CreateListDto): Promise<ListEntity> {
     return this.listsService.create(createListDto);
+  }
+
+  @Post('quick')
+  quickCreate(@Body() quickCreateDto: QuickCreateListDto): Promise<ListEntity> {
+    return this.listsService.quickCreate(quickCreateDto);
   }
 
   @Get()

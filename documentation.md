@@ -6798,6 +6798,626 @@ Both template systems include proper access control, error handling, and integra
 
 ---
 
+## Phase 14: Search & Discovery ✅
+
+**Status:** Complete  
+**Scope:** Global Search across all lists/tasks/comments with filters, search history, and Quick Actions for rapid task/list creation.
+
+---
+
+### 14.1 Global Search ✅
+
+#### 14.1.1 Overview
+
+Global Search enables users to search across all accessible lists and tasks, including searching in task titles, descriptions, and comments. The search respects user permissions and only returns results from lists the user has access to. Search history is automatically tracked for quick access to recent searches.
+
+#### 14.1.2 SearchHistoryEntity
+
+**File:** `src/features/search/entities/search-history.entity.ts`
+
+**Table:** `search_history`
+
+**Columns:**
+- `id` (UUID, Primary Key)
+- `query` (text) - The search query string
+- `filters` (jsonb, nullable) - Search filters applied (see structure below)
+- `user_id` (UUID, Foreign Key) - User who performed the search
+- `created_at` (timestamp) - When the search was performed
+
+**Relationships:**
+- Many-To-One: `user` → `UserEntity` (CASCADE delete)
+
+**Filters Structure:**
+```typescript
+{
+  assigneeId?: string;
+  statusId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  workspaceId?: string;
+  listId?: string;
+} | null
+```
+
+#### 14.1.3 Global Search DTOs
+
+**Files Created:**
+- `src/features/search/dto/global-search.dto.ts`
+- `src/features/search/dto/global-search-result.dto.ts`
+- `src/features/search/dto/search-history-response.dto.ts`
+
+**GlobalSearchDto:**
+- `query` (string, required, minLength: 1) - Search query string
+- `assigneeId` (UUID, optional) - Filter by assignee
+- `statusId` (UUID, optional) - Filter by status
+- `dateFrom` (date string, optional) - Filter tasks with due date from this date
+- `dateTo` (date string, optional) - Filter tasks with due date to this date
+- `workspaceId` (UUID, optional) - Limit search to specific workspace
+- `listId` (UUID, optional) - Limit search to specific list
+
+**GlobalSearchResultDto:**
+- `tasks` (TaskEntity[]) - Matching tasks
+- `lists` (ListEntity[]) - Matching lists
+- `totalTasks` (number) - Count of matching tasks
+- `totalLists` (number) - Count of matching lists
+- `query` (string) - The search query used
+
+**SearchHistoryResponseDto:**
+- `id` (string) - Search history entry ID
+- `query` (string) - The search query
+- `filters` (object | null) - Applied filters
+- `createdAt` (Date) - When the search was performed
+
+#### 14.1.4 SearchService Implementation
+
+**File:** `src/features/search/search.service.ts`
+
+**Repositories Injected:**
+- `taskRepository: Repository<TaskEntity>`
+- `listRepository: Repository<ListEntity>`
+- `commentRepository: Repository<CommentEntity>`
+- `searchHistoryRepository: Repository<SearchHistoryEntity>`
+- `listMemberRepository: Repository<ListMemberEntity>`
+- `workspaceRepository: Repository<WorkspaceEntity>`
+
+**Services Injected:**
+- `listsService: ListsService` (for permission checking, though not directly used in current implementation)
+
+##### 14.1.4.1 Get Accessible List IDs (`getAccessibleListIds`)
+
+- **Signature:** `private async getAccessibleListIds(userId: string): Promise<string[]>`
+- **Logic:**
+  - Uses a `Set<string>` to collect unique list IDs
+  - **Workspace-owned lists:** Queries lists from workspaces where user is owner:
+    - Uses QueryBuilder: `listRepository.createQueryBuilder('list').innerJoin('list.workspace', 'workspace').where('workspace.owner.id = :userId')`
+    - Selects only `list.id` for efficiency
+    - Adds all found list IDs to the Set
+  - **Member lists:** Queries lists where user is a member:
+    - Uses QueryBuilder: `listMemberRepository.createQueryBuilder('listMember').innerJoin('listMember.list', 'list').where('listMember.user.id = :userId')`
+    - Selects only `list.id` for efficiency
+    - Adds all found list IDs to the Set
+  - Returns `Array.from(accessibleListIds)` to convert Set to array
+- **Purpose:** Efficiently determines which lists the user can access without loading full entities
+
+##### 14.1.4.2 Global Search (`globalSearch`)
+
+- **Signature:** `async globalSearch(userId: string, searchDto: GlobalSearchDto): Promise<GlobalSearchResultDto>`
+- **Logic:**
+  - Extracts search parameters: `query`, `assigneeId`, `statusId`, `dateFrom`, `dateTo`, `workspaceId`, `listId`
+  - Gets accessible list IDs via `getAccessibleListIds(userId)`
+  - **Workspace filtering:** If `workspaceId` provided:
+    - Loads workspace with `lists` relation
+    - Filters accessible list IDs to only those in the workspace
+    - If workspace not found or has no lists, sets accessible list IDs to empty array
+  - **List filtering:** If `listId` provided:
+    - Checks if `listId` is in accessible list IDs
+    - If yes, sets accessible list IDs to `[listId]` only
+    - If no (user doesn't have access), sets accessible list IDs to empty array
+  - **Early return:** If no accessible lists, returns empty results immediately
+  - **Task search query:**
+    - Creates QueryBuilder with joins: `list`, `status`, `priority`, `assignments`, `assignee`, `taskTags`, `tag`
+    - Filters by accessible list IDs: `task.list.id IN (:...listIds)`
+    - Excludes archived tasks: `task.isArchived = false`
+    - **Search in title, description, and comments:**
+      - Uses case-insensitive LIKE: `LOWER(task.title) LIKE LOWER(:query)`
+      - Uses case-insensitive LIKE: `LOWER(task.description) LIKE LOWER(:query)`
+      - Uses EXISTS subquery for comments: `EXISTS (SELECT 1 FROM comments c WHERE c.task_id = task.id AND LOWER(c.content) LIKE LOWER(:query))`
+      - Search pattern: `%${query}%` (wrapped with wildcards)
+    - **Apply filters:**
+      - **Assignee filter:** If `assigneeId` provided, adds EXISTS subquery: `EXISTS (SELECT 1 FROM assignments a WHERE a.task_id = task.id AND a.user_id = :assigneeId)`
+      - **Status filter:** If `statusId` provided, adds: `task.status.id = :statusId`
+      - **Date range filter:** 
+        - If `dateFrom` provided, adds: `task.dueDate >= :dateFrom` (converts string to Date)
+        - If `dateTo` provided, adds: `task.dueDate <= :dateTo` (converts string to Date)
+    - Orders by `task.createdAt DESC`
+    - Executes query and gets results
+  - **List search query:**
+    - Creates QueryBuilder with joins: `workspace`, `folder`
+    - Filters by accessible list IDs: `list.id IN (:...listIds)`
+    - Excludes archived lists: `list.isArchived = false`
+    - **Search in name and description:**
+      - Uses case-insensitive LIKE: `LOWER(list.name) LIKE LOWER(:query) OR LOWER(list.description) LIKE LOWER(:query)`
+      - Uses same search pattern: `%${query}%`
+    - **Workspace filter:** If `workspaceId` provided, adds: `list.workspace.id = :workspaceId`
+    - Orders by `list.createdAt DESC`
+    - Executes query and gets results
+  - **Save search history:** Calls `saveSearchHistory(userId, searchDto)`
+  - Returns `GlobalSearchResultDto` with tasks, lists, counts, and query
+
+##### 14.1.4.3 Save Search History (`saveSearchHistory`)
+
+- **Signature:** `private async saveSearchHistory(userId: string, searchDto: GlobalSearchDto): Promise<void>`
+- **Logic:**
+  - Builds filters object from search DTO:
+    - Only includes filters that are provided (not undefined)
+    - Filters object structure matches `SearchHistoryEntity['filters']` type
+  - Creates `SearchHistoryEntity`:
+    - `query`: from `searchDto.query`
+    - `filters`: filters object if it has any keys, otherwise `null`
+    - `user`: reference to user via `{ id: userId }`
+  - Saves search history entry
+  - **History cleanup:** Keeps only last 50 searches per user:
+    - Finds all searches for user, ordered by `createdAt DESC`
+    - If more than 50, removes entries beyond the 50th (using `slice(50)`)
+    - This ensures search history doesn't grow unbounded
+
+##### 14.1.4.4 Get Recent Searches (`getRecentSearches`)
+
+- **Signature:** `async getRecentSearches(userId: string, limit: number = 10): Promise<SearchHistoryEntity[]>`
+- **Logic:**
+  - Finds search history entries for user
+  - Orders by `createdAt DESC` (most recent first)
+  - Limits results to `limit` (default: 10)
+  - Returns array of `SearchHistoryEntity`
+
+##### 14.1.4.5 Clear Search History (`clearSearchHistory`)
+
+- **Signature:** `async clearSearchHistory(userId: string): Promise<void>`
+- **Logic:**
+  - Finds all search history entries for user
+  - Removes all entries
+  - Used to clear user's entire search history
+
+#### 14.1.5 SearchController Endpoints
+
+**File:** `src/features/search/search.controller.ts`
+
+**Base Path:** `/search` (→ `/api/v1/search`)
+
+**Guard:** `@UseGuards(JwtAuthGuard)` (all endpoints)
+
+**Swagger:** `@ApiTags('search')`, `@ApiBearerAuth('access-token')`
+
+**Routes:**
+
+| Method | Path              | Handler              | Notes                                                                 |
+|--------|-------------------|----------------------|-----------------------------------------------------------------------|
+| POST   | `/global`         | `globalSearch`       | Body: `GlobalSearchDto`. Uses `@CurrentUser()`. Returns `GlobalSearchResultDto`. |
+| GET    | `/recent`         | `getRecentSearches`  | Query: `limit?` (default: 10). Returns `SearchHistoryResponseDto[]`. Maps entity to response DTO. |
+| DELETE | `/history`         | `clearSearchHistory` | Clears all search history for current user.                          |
+
+**Implementation Details:**
+- `getRecentSearches`: Maps `SearchHistoryEntity[]` to `SearchHistoryResponseDto[]` in controller (extracts `id`, `query`, `filters`, `createdAt`)
+- All endpoints use `@CurrentUser() user: { userId: string }` to get authenticated user
+
+#### 14.1.6 SearchModule
+
+**File:** `src/features/search/search.module.ts`
+
+**Imports:**
+- `TypeOrmModule.forFeature([TaskEntity, ListEntity, CommentEntity, SearchHistoryEntity, ListMemberEntity, WorkspaceEntity])`
+- `AuthModule` (for JwtAuthGuard)
+- `ListsModule` (for ListsService, though not directly used in current implementation)
+
+**Controllers:** `SearchController`
+
+**Providers:** `SearchService`
+
+**Exports:** `SearchService`
+
+**AppModule Registration:** `SearchModule` is imported in `AppModule`
+
+---
+
+### 14.2 Quick Actions ✅
+
+#### 14.2.1 Overview
+
+Quick Actions provide simplified endpoints for rapid creation of tasks and lists with minimal required fields and smart defaults. These endpoints are optimized for speed and support keyboard shortcut workflows on the frontend.
+
+#### 14.2.2 Quick Task Creation
+
+##### 14.2.2.1 QuickCreateTaskDto
+
+**File:** `src/features/search/dto/quick-create-task.dto.ts`
+
+**Fields:**
+- `title` (string, required, minLength: 1) - Task title
+- `listId` (UUID, required) - List to create task in
+
+**Note:** Only two fields required - all other fields use smart defaults.
+
+##### 14.2.2.2 TasksService.quickCreate
+
+**File Modified:** `src/features/tasks/tasks.service.ts`
+
+**Signature:** `async quickCreate(quickCreateDto: QuickCreateTaskDto, userId?: string): Promise<TaskEntity>`
+
+**Logic:**
+- Extracts `title` and `listId` from DTO
+- Verifies list exists (throws `NotFoundException` if not)
+- **Smart default: First status:**
+  - Finds first status for the list by `orderIndex ASC`
+  - Uses this status as default (or `null` if no statuses exist)
+- **Smart default: Order position:**
+  - If first status exists, finds existing tasks in that status
+  - Gets highest `orderPosition` and adds 1 (or 0 if no tasks)
+  - If no status, uses `orderPosition = 0`
+- Creates task with:
+  - `title`: from DTO
+  - `description`: `null`
+  - `list`: reference to list
+  - `status`: first status if exists, otherwise `null`
+  - `priority`: `null`
+  - `dueDate`: `null`
+  - `orderPosition`: calculated value
+  - `isArchived`: `false`
+- Saves task
+- **Activity tracking:** If `userId` provided, creates activity with type `'task_created'`
+- **Real-time events:** Emits `task.created` event via `eventsEmitter.emitTaskCreated()`
+- **Webhooks:** Delivers `task.created` webhook event via `webhooksService.deliverTaskEvent()`
+- Returns saved task
+
+**Differences from regular `create`:**
+- No description, priority, or due date
+- Automatically selects first status
+- Simpler validation (only title and listId required)
+
+##### 14.2.2.3 TasksController Quick Create Endpoint
+
+**File Modified:** `src/features/tasks/tasks.controller.ts`
+
+**Route:** `POST /tasks/quick`
+
+**Handler:** `quickCreate(@CurrentUser() user: { userId: string }, @Body() quickCreateDto: QuickCreateTaskDto): Promise<TaskEntity>`
+
+**Implementation:**
+- Uses `@CurrentUser()` to get authenticated user
+- Calls `tasksService.quickCreate(quickCreateDto, user.userId)`
+- Returns `TaskEntity` with all relations loaded
+
+**Route Ordering:** Placed after regular `POST /tasks` endpoint, before other task-specific routes.
+
+#### 14.2.3 Quick List Creation
+
+##### 14.2.3.1 QuickCreateListDto
+
+**File:** `src/features/search/dto/quick-create-list.dto.ts`
+
+**Fields:**
+- `name` (string, required, minLength: 1) - List name
+- `workspaceId` (UUID, required) - Workspace to create list in
+- `folderId` (UUID, optional) - Optional folder for organization
+
+**Note:** Only name and workspaceId required - all other fields use smart defaults.
+
+##### 14.2.3.2 ListsService.quickCreate
+
+**File Modified:** `src/features/lists/lists.service.ts`
+
+**Signature:** `async quickCreate(quickCreateDto: QuickCreateListDto): Promise<ListEntity>`
+
+**Logic:**
+- Extracts `name`, `workspaceId`, and optional `folderId` from DTO
+- Creates list with:
+  - `name`: from DTO
+  - `description`: `null`
+  - `workspace`: reference to workspace
+  - `folder`: reference to folder if `folderId` provided, otherwise `null`
+  - `visibility`: `'private'` (default)
+  - `defaultViewConfig`: `null`
+  - `isArchived`: `false`
+- Saves list
+- **Smart default: Creates default statuses:**
+  - Calls `createDefaultStatuses(savedList.id)`
+  - Creates: `Todo` (orderIndex: 0), `Doing` (orderIndex: 1), `Done` (orderIndex: 2)
+- Reloads list with relationships via `findOne(savedList.id)`
+- Returns list with all relations loaded
+
+**Differences from regular `create`:**
+- No description or default view config
+- Visibility always set to 'private'
+- Simpler validation (only name and workspaceId required)
+
+##### 14.2.3.3 ListsController Quick Create Endpoint
+
+**File Modified:** `src/features/lists/lists.controller.ts`
+
+**Route:** `POST /lists/quick`
+
+**Handler:** `quickCreate(@Body() quickCreateDto: QuickCreateListDto): Promise<ListEntity>`
+
+**Implementation:**
+- No `@CurrentUser()` required (workspace ownership handled by workspace system)
+- Calls `listsService.quickCreate(quickCreateDto)`
+- Returns `ListEntity` with all relations loaded
+
+**Route Ordering:** Placed after regular `POST /lists` endpoint, before other list-specific routes.
+
+#### 14.2.4 Keyboard Shortcuts Support
+
+**Backend Support:**
+- Quick action endpoints are optimized for fast response times
+- Minimal request payloads reduce network overhead
+- Endpoints return full entities with relations for immediate use
+
+**Frontend Implementation:**
+- Frontend can implement keyboard shortcuts (e.g., `Ctrl+K` for quick task, `Ctrl+L` for quick list)
+- Backend endpoints are ready to be called from keyboard shortcut handlers
+- Response times are optimized for quick user feedback
+
+**Example Keyboard Shortcut Mappings:**
+- `Ctrl+K` or `Cmd+K` → Quick task creation modal/endpoint
+- `Ctrl+L` or `Cmd+L` → Quick list creation modal/endpoint
+- `Ctrl+/` or `Cmd+/` → Global search modal/endpoint
+
+---
+
+### 14.3 Key Implementation Details
+
+#### 14.3.1 Permission-Based Search
+
+- **Access Control:**
+  - Only searches lists user has access to (workspace owner or list member)
+  - Uses efficient QueryBuilder to get list IDs without loading full entities
+  - Filters results by accessible lists before executing search queries
+
+- **Workspace Filtering:**
+  - If `workspaceId` provided, further filters to lists in that workspace
+  - Validates workspace exists and loads lists relation
+  - If workspace not found or has no lists, returns empty results
+
+- **List Filtering:**
+  - If `listId` provided, validates user has access to that list
+  - If user doesn't have access, returns empty results (doesn't leak information)
+
+#### 14.3.2 Search Query Optimization
+
+- **Task Search:**
+  - Uses EXISTS subquery for comment search (more efficient than JOIN)
+  - Case-insensitive search using `LOWER()` function
+  - Wildcard pattern: `%${query}%` for partial matching
+  - Excludes archived tasks by default
+
+- **List Search:**
+  - Searches in both `name` and `description` fields
+  - Case-insensitive search
+  - Excludes archived lists by default
+
+- **Filter Application:**
+  - All filters are optional and can be combined
+  - Assignee filter uses EXISTS subquery (handles multiple assignees per task)
+  - Date filters convert string dates to Date objects for comparison
+  - Status filter uses direct join (already loaded in query)
+
+#### 14.3.3 Search History Management
+
+- **Automatic Saving:**
+  - Every global search is automatically saved to history
+  - Only saves filters that are provided (not undefined)
+  - Stores filters as JSONB for flexible structure
+
+- **History Limits:**
+  - Keeps only last 50 searches per user
+  - Automatically removes older searches when limit exceeded
+  - Cleanup happens after each search save
+
+- **History Retrieval:**
+  - Returns most recent searches first (`createdAt DESC`)
+  - Supports configurable limit (default: 10)
+  - Can be used for search suggestions/autocomplete
+
+#### 14.3.4 Quick Actions Smart Defaults
+
+- **Quick Task Creation:**
+  - Automatically selects first status (by `orderIndex ASC`)
+  - Calculates `orderPosition` based on existing tasks in status
+  - No priority, due date, or description (can be added later via update)
+  - Full activity tracking and real-time events still work
+
+- **Quick List Creation:**
+  - Automatically creates default statuses (Todo, Doing, Done)
+  - Sets visibility to 'private' by default
+  - No description or view config (can be added later via update)
+  - Optional folder for organization
+
+#### 14.3.5 Error Handling
+
+- **Global Search:**
+  - Returns empty results if no accessible lists (doesn't throw error)
+  - Validates workspace/list access before searching
+  - Handles missing workspaces/lists gracefully
+
+- **Quick Actions:**
+  - Validates list/workspace exists before creation
+  - Throws `NotFoundException` if list/workspace not found
+  - Handles missing statuses gracefully (uses `null` if no statuses)
+
+---
+
+### 14.4 Database Schema
+
+#### 14.4.1 Search History Table
+
+**Table:** `search_history`
+
+**Columns:**
+- `id` UUID PRIMARY KEY
+- `query` TEXT NOT NULL
+- `filters` JSONB
+- `user_id` UUID NOT NULL REFERENCES `users(id)` ON DELETE CASCADE
+- `created_at` TIMESTAMP
+
+**Indexes:**
+- Recommended: Index on `user_id` and `created_at` for efficient history retrieval
+
+---
+
+### 14.5 API Endpoints Summary
+
+#### 14.5.1 Global Search
+
+| Method | Endpoint                    | Description                          |
+|--------|-----------------------------|--------------------------------------|
+| POST   | `/api/v1/search/global`     | Global search across lists/tasks     |
+| GET    | `/api/v1/search/recent`     | Get recent searches (limit optional) |
+| DELETE | `/api/v1/search/history`    | Clear search history                 |
+
+#### 14.5.2 Quick Actions
+
+| Method | Endpoint                    | Description                          |
+|--------|-----------------------------|--------------------------------------|
+| POST   | `/api/v1/tasks/quick`       | Quick task creation (title + listId) |
+| POST   | `/api/v1/lists/quick`       | Quick list creation (name + workspaceId) |
+
+---
+
+### 14.6 Files Touched
+
+#### 14.6.1 Global Search
+
+**New Files:**
+- `src/features/search/entities/search-history.entity.ts`
+- `src/features/search/dto/global-search.dto.ts`
+- `src/features/search/dto/global-search-result.dto.ts`
+- `src/features/search/dto/search-history-response.dto.ts`
+- `src/features/search/search.service.ts`
+- `src/features/search/search.controller.ts`
+- `src/features/search/search.module.ts`
+
+**Modified Files:**
+- `src/app.module.ts` (registered `SearchModule`)
+
+#### 14.6.2 Quick Actions
+
+**New Files:**
+- `src/features/search/dto/quick-create-task.dto.ts`
+- `src/features/search/dto/quick-create-list.dto.ts`
+
+**Modified Files:**
+- `src/features/tasks/tasks.service.ts` (added `quickCreate` method)
+- `src/features/tasks/tasks.controller.ts` (added `quickCreate` endpoint)
+- `src/features/lists/lists.service.ts` (added `quickCreate` method)
+- `src/features/lists/lists.controller.ts` (added `quickCreate` endpoint)
+
+---
+
+### 14.7 Dependencies
+
+**No new NPM packages required** - Uses existing TypeORM, NestJS, and class-validator dependencies.
+
+---
+
+### 14.8 Testing Considerations
+
+#### 14.8.1 Global Search
+
+- Test search across multiple lists with different permissions
+- Test search in title, description, and comments
+- Test all filter combinations (assignee, status, date range, workspace, list)
+- Test permission boundaries (user can't see lists they don't have access to)
+- Test search history saving and retrieval
+- Test search history cleanup (50 entry limit)
+- Test empty results when no accessible lists
+- Test workspace and list filtering
+- Test case-insensitive search
+- Test partial matching (wildcards)
+
+#### 14.8.2 Quick Actions
+
+- Test quick task creation with minimal fields
+- Test automatic status selection (first status by orderIndex)
+- Test orderPosition calculation
+- Test quick list creation with minimal fields
+- Test automatic default status creation
+- Test activity tracking for quick task creation
+- Test real-time events for quick task creation
+- Test webhook delivery for quick task creation
+- Test error handling (missing list, missing workspace)
+
+---
+
+### 14.9 Performance Considerations
+
+#### 14.9.1 Search Performance
+
+- **Query Optimization:**
+  - Uses QueryBuilder with efficient joins
+  - Uses EXISTS subqueries for comment search (avoids duplicate rows)
+  - Uses Set for deduplication of accessible list IDs
+  - Selects only IDs when getting accessible lists (avoids loading full entities)
+
+- **Indexing Recommendations:**
+  - Index on `tasks.list_id` for list filtering
+  - Index on `tasks.is_archived` for archived filtering
+  - Index on `tasks.due_date` for date range filtering
+  - Index on `tasks.status_id` for status filtering
+  - Index on `assignments.task_id` and `assignments.user_id` for assignee filtering
+  - Index on `comments.task_id` for comment search
+  - Index on `lists.workspace_id` for workspace filtering
+  - Index on `lists.is_archived` for archived filtering
+  - Index on `search_history.user_id` and `search_history.created_at` for history retrieval
+
+- **Scalability:**
+  - Search history limited to 50 entries per user (prevents unbounded growth)
+  - Efficient list ID collection (avoids N+1 queries)
+  - Uses QueryBuilder for complex queries (better than multiple repository calls)
+
+#### 14.9.2 Quick Actions Performance
+
+- **Minimal Validation:**
+  - Only validates required fields (title/listId or name/workspaceId)
+  - Reduces validation overhead
+
+- **Smart Defaults:**
+  - Calculates defaults efficiently (single query for first status, single query for orderPosition)
+  - Avoids unnecessary database calls
+
+- **Response Time:**
+  - Returns full entities with relations for immediate use
+  - No additional queries needed after creation
+
+---
+
+### 14.10 Summary
+
+**Phase 14: Search & Discovery** implements comprehensive search and quick action capabilities:
+
+1. **Global Search:**
+   - Searches across all accessible lists and tasks
+   - Searches in titles, descriptions, and comments
+   - Supports multiple filters (assignee, status, date range, workspace, list)
+   - Automatically tracks search history
+   - Respects user permissions
+
+2. **Quick Actions:**
+   - Quick task creation with minimal fields and smart defaults
+   - Quick list creation with minimal fields and smart defaults
+   - Optimized for speed and keyboard shortcut workflows
+   - Full feature support (activity tracking, real-time events, webhooks)
+
+**Key Features:**
+- Permission-based access control
+- Efficient query optimization
+- Automatic search history management
+- Smart defaults for quick actions
+- Comprehensive error handling
+- Ready for frontend keyboard shortcut integration
+
+The implementation follows NestJS best practices, uses efficient database queries, and maintains consistency with the rest of the codebase.
+
+---
+
 ## Notes
 
 - All completed phases are marked with ✅
