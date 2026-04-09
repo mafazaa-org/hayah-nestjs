@@ -10,8 +10,14 @@ import { ListMemberEntity } from './entities/list-member.entity';
 import { CustomFieldEntity } from './entities/custom-field.entity';
 import { FilterPresetEntity } from './entities/filter-preset.entity';
 import { ViewEntity } from './entities/view.entity';
+import { IterationEntity } from './entities/iteration.entity';
+import { InviteLinkEntity } from './entities/invite-link.entity';
+import { TaskIterationEntity } from '../tasks/entities/task-iteration.entity';
+import { TaskEntity } from '../tasks/entities/task.entity';
 import { ListsController } from './lists.controller';
 import { ListsService } from './lists.service';
+import { IterationsController } from './iterations.controller';
+import { IterationsService } from './iterations.service';
 
 @Module({
   imports: [
@@ -24,12 +30,16 @@ import { ListsService } from './lists.service';
       CustomFieldEntity,
       FilterPresetEntity,
       ViewEntity,
-    ]    ),
+      IterationEntity,
+      TaskIterationEntity,
+      TaskEntity,
+      InviteLinkEntity,
+    ]),
     AuthModule,
     TasksModule,
   ],
-  controllers: [ListsController],
-  providers: [ListsService],
-  exports: [ListsService],
+  controllers: [ListsController, IterationsController],
+  providers: [ListsService, IterationsService],
+  exports: [ListsService, IterationsService],
 })
 export class ListsModule {}

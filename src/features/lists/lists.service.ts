@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 import { ListEntity } from './entities/list.entity';
 import { CreateListDto } from './dto/create-list.dto';
 import { UpdateListDto } from './dto/update-list.dto';
@@ -28,10 +29,12 @@ import { CreateViewDto } from './dto/create-view.dto';
 import { UpdateViewDto } from './dto/update-view.dto';
 import { ListMemberEntity } from './entities/list-member.entity';
 import { UserEntity } from '../users/entities/user.entity';
+import { InviteLinkEntity } from './entities/invite-link.entity';
 import { InviteUserToListDto } from './dto/invite-user-to-list.dto';
 import { UpdateListMemberRoleDto } from './dto/update-list-member-role.dto';
 import { ListMemberResponseDto } from './dto/list-member-response.dto';
 import { ListPermissionsResponseDto } from './dto/list-permissions-response.dto';
+import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
 import { TasksService } from '../tasks/tasks.service';
 import { FilterTasksDto } from '../tasks/dto/filter-tasks.dto';
 import { SortDirection } from '../tasks/dto/sort-tasks.dto';
@@ -56,6 +59,8 @@ export class ListsService {
     private readonly listMemberRepository: Repository<ListMemberEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(InviteLinkEntity)
+    private readonly inviteLinkRepository: Repository<InviteLinkEntity>,
     private readonly tasksService: TasksService,
   ) {}
 
@@ -1172,4 +1177,124 @@ export class ListsService {
 
     await this.listMemberRepository.remove(member);
   }
-}
+
+  // --- Features 5 & 6 Implementations ---
+
+  /**
+   * Reorder custom fields for a list
+   */
+  async reorderCustomFields(listId: string, orderedIds: string[]): Promise<void> {
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    // In a real application, consider using a transaction here
+    for (let i = 0; i < orderedIds.length; i++) {
+      await this.customFieldRepository.update(
+        { id: orderedIds[i], list: { id: listId } },
+        { position: i },
+      );
+    }
+  }
+
+  /**
+   * Generate an invite link for a list
+   */
+  async generateInviteLink(
+    listId: string,
+    userId: string,
+    role: string = 'viewer',
+  ): Promise<InviteLinkResponseDto> {
+    const list = await this.listRepository.findOne({ where: { id: listId } });
+    if (!list) {
+      throw new NotFoundException('List not found');
+    }
+
+    // Optional: check user permission to create invite links
+    const permission = await this.checkUserPermission(listId, userId);
+    if (permission.role !== 'owner' && permission.role !== 'editor') {
+      throw new ForbiddenException('You do not have permission to invite members');
+    }
+
+    const token = uuidv4();
+
+    // Invite links typically exist without an expiry by default, but you might want to expire them
+    const inviteLink = this.inviteLinkRepository.create({
+      token,
+      list: { id: listId } as any,
+      role,
+      createdBy: { id: userId } as any,
+    });
+
+    const saved = await this.inviteLinkRepository.save(inviteLink);
+
+    return {
+      id: saved.id,
+      token: saved.token,
+      listId: saved.list.id,
+      role: saved.role,
+      expiresAt: saved.expiresAt,
+      createdAt: saved.createdAt,
+    };
+  }
+
+  /**
+   * Join a list via invite link
+   */
+  async joinViaInviteLink(token: string, userId: string): Promise<ListMemberResponseDto> {
+    const inviteLink = await this.inviteLinkRepository.findOne({
+      where: { token },
+      relations: ['list'],
+    });
+
+    if (!inviteLink) {
+      throw new NotFoundException('Invalid or expired invite link');
+    }
+
+    if (inviteLink.expiresAt && inviteLink.expiresAt < new Date()) {
+      throw new BadRequestException('Invite link has expired');
+    }
+
+    const listId = inviteLink.list.id;
+
+    // Check if user is already a member
+    const existingMember = await this.listMemberRepository.findOne({
+      where: { list: { id: listId }, user: { id: userId } },
+      relations: ['list', 'user'],
+    });
+
+    if (existingMember) {
+       // Already a member, just return the membership
+       return {
+        id: existingMember.id,
+        userId: existingMember.user.id,
+        userEmail: existingMember.user.email,
+        userName: existingMember.user.name,
+        listId: existingMember.list.id,
+        role: existingMember.role,
+        createdAt: existingMember.createdAt,
+      };
+    }
+
+    // Add user to the list
+    const newMember = this.listMemberRepository.create({
+      list: { id: listId } as any,
+      user: { id: userId } as any,
+      role: inviteLink.role as 'owner' | 'editor' | 'viewer',
+    });
+
+    const savedMember = await this.listMemberRepository.save(newMember);
+    
+    // Optionally fetch the complete mapped user/list data, but we can return basic structure here:
+    return {
+      id: savedMember.id,
+      userId,
+      userEmail: '', // Usually we would join this from the real UserEntity query 
+      userName: '',
+      listId,
+      role: savedMember.role,
+      createdAt: savedMember.createdAt,
+    };
+  }
+}

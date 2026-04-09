@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Put,
@@ -22,6 +24,7 @@ import { CreateTemplateFromListDto } from './dto/create-template-from-list.dto';
 import { QuickCreateListDto } from '../search/dto/quick-create-list.dto';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
+import { ReorderCustomFieldsDto } from './dto/reorder-custom-fields.dto';
 import { CreateFilterPresetDto } from './dto/create-filter-preset.dto';
 import { UpdateFilterPresetDto } from './dto/update-filter-preset.dto';
 import { CreateViewDto } from './dto/create-view.dto';
@@ -37,6 +40,7 @@ import { InviteUserToListDto } from './dto/invite-user-to-list.dto';
 import { UpdateListMemberRoleDto } from './dto/update-list-member-role.dto';
 import { ListMemberResponseDto } from './dto/list-member-response.dto';
 import { ListPermissionsResponseDto } from './dto/list-permissions-response.dto';
+import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('lists')
@@ -356,5 +360,32 @@ export class ListsController {
       templateId,
       createFromTemplateDto,
     );
+  }
+
+  // --- Feature 5 & 6 Endpoints ---
+
+  @Put('custom-fields/reorder')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  reorderCustomFields(
+    @Body() dto: ReorderCustomFieldsDto,
+  ): Promise<void> {
+    return this.listsService.reorderCustomFields(dto.listId, dto.orderedIds);
+  }
+
+  @Post(':id/invite-link')
+  generateInviteLink(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string },
+    @Body('role') role?: string,
+  ): Promise<InviteLinkResponseDto> {
+    return this.listsService.generateInviteLink(id, user.userId, role);
+  }
+
+  @Post('join/:token')
+  joinViaInviteLink(
+    @Param('token') token: string,
+    @CurrentUser() user: { userId: string },
+  ): Promise<ListMemberResponseDto> {
+    return this.listsService.joinViaInviteLink(token, user.userId);
   }
 }
