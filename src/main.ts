@@ -58,10 +58,15 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
+  const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173', // or '*' for dev (not recommended in prod)
-    credentials: true, // if you use cookies/sessions
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: [
+      frontendOrigin,
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ].filter((o, i, a) => a.indexOf(o) === i),
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 

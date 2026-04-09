@@ -11,13 +11,19 @@ TypeORM is configured for development use. The configuration is located in `src/
 Create a `.env.local` or `.env` file in the project root with the following variables:
 
 ```env
-# Database Configuration
+# Database Configuration (development)
 DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 DB_NAME=hayah_db
+DB_SCHEMA=hayah_db
 DB_SSL=false
+
+# Optional: dedicated database/schema for tests
+# When running Jest (NODE_ENV=test), these are used if present.
+# DB_NAME_TEST=hayah_db_test
+# DB_SCHEMA_TEST=hayah_db_test
 
 # Application Configuration
 PORT=3000

@@ -6,6 +6,11 @@
 # tasks
 /tasks
 
+# cursor
+.cursor/
+
+.github/
+
 # Logs
 logs
 *.log
