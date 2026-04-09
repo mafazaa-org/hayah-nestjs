@@ -1,12 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { TaskEntity } from '../tasks/entities/task.entity';
 import { ListEntity } from '../lists/entities/list.entity';
 import { CommentEntity } from '../comments/entities/comment.entity';
 import { SearchHistoryEntity } from './entities/search-history.entity';
+import { SavedSearchEntity } from './entities/saved-search.entity';
 import { GlobalSearchDto } from './dto/global-search.dto';
 import { GlobalSearchResultDto } from './dto/global-search-result.dto';
+import { SavedSearchResponseDto } from './dto/saved-search-response.dto';
+import { CreateSavedSearchDto } from './dto/create-saved-search.dto';
 import { ListsService } from '../lists/lists.service';
 import { UserEntity } from '../users/entities/user.entity';
 import { ListMemberEntity } from '../lists/entities/list-member.entity';
@@ -23,6 +26,8 @@ export class SearchService {
     private readonly commentRepository: Repository<CommentEntity>,
     @InjectRepository(SearchHistoryEntity)
     private readonly searchHistoryRepository: Repository<SearchHistoryEntity>,
+    @InjectRepository(SavedSearchEntity)
+    private readonly savedSearchRepository: Repository<SavedSearchEntity>,
     @InjectRepository(ListMemberEntity)
     private readonly listMemberRepository: Repository<ListMemberEntity>,
     @InjectRepository(WorkspaceEntity)
@@ -263,5 +268,70 @@ export class SearchService {
       where: { user: { id: userId } },
     });
     await this.searchHistoryRepository.remove(searches);
+  }
+
+  /**
+   * Get saved searches for a user
+   */
+  async getSavedSearches(userId: string): Promise<SavedSearchResponseDto[]> {
+    const saved = await this.savedSearchRepository.find({
+      where: { user: { id: userId } },
+      order: { createdAt: 'DESC' },
+    });
+
+    return saved.map((s) => ({
+      id: s.id,
+      name: s.name,
+      query: s.query,
+      filters: s.filters,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+    }));
+  }
+
+  /**
+   * Save a search
+   */
+  async saveSearch(
+    userId: string,
+    dto: CreateSavedSearchDto,
+  ): Promise<SavedSearchResponseDto> {
+    const savedSearch = this.savedSearchRepository.create({
+      name: dto.name,
+      query: dto.query,
+      filters: dto.filters || null,
+      user: { id: userId } as any,
+    });
+
+    const saved = await this.savedSearchRepository.save(savedSearch);
+
+    return {
+      id: saved.id,
+      name: saved.name,
+      query: saved.query,
+      filters: saved.filters,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
+  /**
+   * Delete a saved search
+   */
+  async deleteSavedSearch(id: string, userId: string): Promise<void> {
+    const savedSearch = await this.savedSearchRepository.findOne({
+      where: { id },
+      relations: ['user'],
+    });
+
+    if (!savedSearch) {
+      throw new NotFoundException('Saved search not found');
+    }
+
+    if (savedSearch.user.id !== userId) {
+      throw new ForbiddenException('You do not have access to this saved search');
+    }
+
+    await this.savedSearchRepository.remove(savedSearch);
   }
 }

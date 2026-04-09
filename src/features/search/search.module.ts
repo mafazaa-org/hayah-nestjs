@@ -6,8 +6,10 @@ import { TaskEntity } from '../tasks/entities/task.entity';
 import { ListEntity } from '../lists/entities/list.entity';
 import { CommentEntity } from '../comments/entities/comment.entity';
 import { SearchHistoryEntity } from './entities/search-history.entity';
+import { SavedSearchEntity } from './entities/saved-search.entity';
 import { ListMemberEntity } from '../lists/entities/list-member.entity';
 import { WorkspaceEntity } from '../workspaces/entities/workspace.entity';
+import { UserEntity } from '../users/entities/user.entity';
 import { SearchController } from './search.controller';
 import { SearchService } from './search.service';
 
@@ -18,8 +20,10 @@ import { SearchService } from './search.service';
       ListEntity,
       CommentEntity,
       SearchHistoryEntity,
+      SavedSearchEntity,
       ListMemberEntity,
       WorkspaceEntity,
+      UserEntity,
     ]),
     AuthModule,
     ListsModule,
