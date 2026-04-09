@@ -39,6 +39,12 @@ export class CustomFieldEntity {
   })
   config: Record<string, any> | null;
 
+  @Column({
+    type: 'integer',
+    default: 0,
+  })
+  position: number;
+
   @ManyToOne('ListEntity', {
     onDelete: 'CASCADE',
   })
