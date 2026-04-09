@@ -2,10 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommentEntity } from './entities/comment.entity';
+import { CommentReactionEntity } from './entities/comment-reaction.entity';
 import { TaskEntity } from '../tasks/entities/task.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { ListEntity } from '../lists/entities/list.entity';
@@ -13,6 +15,7 @@ import { ListMemberEntity } from '../lists/entities/list-member.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { CommentResponseDto } from './dto/comment-response.dto';
+import { ReactionResponseDto } from './dto/reaction-response.dto';
 import { AttachmentsService } from '../attachments/attachments.service';
 import {
   NotificationsService,
@@ -28,6 +31,8 @@ export class CommentsService {
   constructor(
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
+    @InjectRepository(CommentReactionEntity)
+    private readonly reactionRepository: Repository<CommentReactionEntity>,
     @InjectRepository(TaskEntity)
     private readonly taskRepository: Repository<TaskEntity>,
     @InjectRepository(UserEntity)
@@ -425,5 +430,106 @@ export class CommentsService {
     } catch {
       // Real-time emit must not break delete
     }
+  }
+
+  /**
+   * Add a reaction to a comment
+   */
+  async addReaction(
+    commentId: string,
+    userId: string,
+    emoji: string,
+  ): Promise<ReactionResponseDto> {
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if reaction already exists
+    const existing = await this.reactionRepository.findOne({
+      where: {
+        comment: { id: commentId },
+        user: { id: userId },
+        emoji,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Reaction already exists');
+    }
+
+    const reaction = this.reactionRepository.create({
+      comment: { id: commentId } as CommentEntity,
+      user: { id: userId } as UserEntity,
+      emoji,
+    });
+
+    const saved = await this.reactionRepository.save(reaction);
+
+    return {
+      id: saved.id,
+      emoji: saved.emoji,
+      userId: user.id,
+      userName: user.name,
+      createdAt: saved.createdAt,
+    };
+  }
+
+  /**
+   * Remove a reaction from a comment
+   */
+  async removeReaction(
+    commentId: string,
+    userId: string,
+    emoji: string,
+  ): Promise<void> {
+    const reaction = await this.reactionRepository.findOne({
+      where: {
+        comment: { id: commentId },
+        user: { id: userId },
+        emoji,
+      },
+    });
+
+    if (!reaction) {
+      throw new NotFoundException('Reaction not found');
+    }
+
+    await this.reactionRepository.remove(reaction);
+  }
+
+  /**
+   * Get all reactions for a comment
+   */
+  async getReactions(commentId: string): Promise<ReactionResponseDto[]> {
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId },
+    });
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    const reactions = await this.reactionRepository.find({
+      where: { comment: { id: commentId } },
+      relations: ['user'],
+      order: { createdAt: 'ASC' },
+    });
+
+    return reactions.map((r) => ({
+      id: r.id,
+      emoji: r.emoji,
+      userId: r.user.id,
+      userName: r.user.name,
+      createdAt: r.createdAt,
+    }));
   }
 }

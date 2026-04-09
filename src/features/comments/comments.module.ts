@@ -5,6 +5,7 @@ import { AttachmentsModule } from '../attachments/attachments.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EventsModule } from '../events/events.module';
 import { CommentEntity } from './entities/comment.entity';
+import { CommentReactionEntity } from './entities/comment-reaction.entity';
 import { TaskEntity } from '../tasks/entities/task.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { ListEntity } from '../lists/entities/list.entity';
@@ -16,6 +17,7 @@ import { CommentsService } from './comments.service';
   imports: [
     TypeOrmModule.forFeature([
       CommentEntity,
+      CommentReactionEntity,
       TaskEntity,
       UserEntity,
       ListEntity,
