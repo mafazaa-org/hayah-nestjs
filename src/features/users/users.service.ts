@@ -3,10 +3,13 @@ import {
   NotFoundException,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
+import * as fs from 'fs';
+import * as path from 'path';
 import { UserEntity } from './entities/user.entity';
 import { UserSettingsEntity } from './entities/user-settings.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -45,6 +48,7 @@ export class UsersService {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -83,6 +87,7 @@ export class UsersService {
       id: updatedUser.id,
       email: updatedUser.email,
       name: updatedUser.name,
+      avatarUrl: updatedUser.avatarUrl,
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt,
     };
@@ -181,6 +186,95 @@ export class UsersService {
       notificationPreferences: updatedSettings.notificationPreferences,
       createdAt: updatedSettings.createdAt,
       updatedAt: updatedSettings.updatedAt,
+    };
+  }
+
+  /**
+   * Search users by name or email for @mentions
+   */
+  async searchUsers(
+    query: string,
+    limit: number = 10,
+  ): Promise<UserResponseDto[]> {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const users = await this.userRepository.find({
+      where: [
+        { name: ILike(`%${query}%`) },
+        { email: ILike(`%${query}%`) },
+      ],
+      take: limit,
+      order: { name: 'ASC' },
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
+  }
+
+  /**
+   * Upload user avatar
+   */
+  async uploadAvatar(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<UserResponseDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    // Create avatars directory if it doesn't exist
+    const avatarsDir = path.join(process.cwd(), 'uploads', 'avatars');
+    if (!fs.existsSync(avatarsDir)) {
+      fs.mkdirSync(avatarsDir, { recursive: true });
+    }
+
+    // Generate unique filename
+    const ext = path.extname(file.originalname) || '.png';
+    const filename = `${userId}-${Date.now()}${ext}`;
+    const filePath = path.join(avatarsDir, filename);
+
+    // Write file to disk
+    fs.writeFileSync(filePath, file.buffer);
+
+    // Delete old avatar file if exists
+    if (user.avatarUrl) {
+      const oldPath = path.join(process.cwd(), user.avatarUrl);
+      if (fs.existsSync(oldPath)) {
+        try {
+          fs.unlinkSync(oldPath);
+        } catch {
+          // Ignore deletion errors
+        }
+      }
+    }
+
+    // Store relative path
+    user.avatarUrl = `uploads/avatars/${filename}`;
+    const updatedUser = await this.userRepository.save(user);
+
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      avatarUrl: updatedUser.avatarUrl,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
     };
   }
 }

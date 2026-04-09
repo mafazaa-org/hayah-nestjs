@@ -41,6 +41,13 @@ export class UserEntity {
   name: string | null;
 
   @Column({
+    type: 'text',
+    name: 'avatar_url',
+    nullable: true,
+  })
+  avatarUrl: string | null;
+
+  @Column({
     type: 'boolean',
     name: 'is_email_verified',
     default: false,
