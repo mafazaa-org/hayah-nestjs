@@ -212,8 +212,8 @@ export class WebhooksService {
     delivery.nextRetryAt = new Date(Date.now() + ms);
   }
 
-  /** Retry failed deliveries that are due. Runs every minute via cron. */
-  @Cron('* * * * *')
+  /** Retry failed webhook deliveries that are due. Runs every 5 minutes to avoid log noise. */
+  @Cron('*/5 * * * *')
   async processRetries(): Promise<number> {
     const due = await this.deliveryRepository
       .createQueryBuilder('d')
