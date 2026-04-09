@@ -7,6 +7,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -17,11 +18,14 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { MailService } from '../mail/mail.service';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly mailService: MailService) { }
 
   @Post('register')
   register(@Body() createAuthDto: CreateAuthDto): Promise<AuthResponseDto> {
@@ -49,16 +53,27 @@ export class AuthController {
   }
 
   @Post('request-password-reset')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  requestPasswordReset(
+  @HttpCode(HttpStatus.OK)
+  async requestPasswordReset(
     @Body() requestPasswordResetDto: RequestPasswordResetDto,
-  ): Promise<void> {
-    return this.authService.requestPasswordReset(requestPasswordResetDto);
+  ): Promise<{ message: string }> {
+    try{
+      const passwordResetToken = await this.authService.requestPasswordReset(requestPasswordResetDto);
+      await this.authService.sendPasswordResetEmail(requestPasswordResetDto.email, passwordResetToken ?? '');
+      return { message: 'If an account exists for this email, you will receive a reset link shortly.' };
+    } catch (error) {
+      throw new BadRequestException('Failed to request password reset. Please try again.');
+    }
   }
 
   @Put('reset-password')
   @HttpCode(HttpStatus.NO_CONTENT)
-  resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<void> {
-    return this.authService.resetPassword(resetPasswordDto);
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+    try{
+      await this.authService.resetPassword(resetPasswordDto);
+      return { message: 'Password reset successfully.' };
+    } catch (error) {
+      throw new BadRequestException('Failed to reset password. Please try again.');
+    }
   }
 }

@@ -10,22 +10,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { UserEntity } from '../users/entities/user.entity';
-import { AuthEntity } from './entities/auth.entity';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { randomBytes } from 'crypto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    @InjectRepository(AuthEntity)
-    private readonly authRepository: Repository<AuthEntity>,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(createAuthDto: CreateAuthDto): Promise<AuthResponseDto> {
@@ -130,7 +129,7 @@ export class AuthService {
 
   async requestPasswordReset(
     requestPasswordResetDto: RequestPasswordResetDto,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     const { email } = requestPasswordResetDto;
 
     const user = await this.userRepository.findOne({
@@ -139,7 +138,7 @@ export class AuthService {
 
     // Don't reveal if email exists or not (security best practice)
     if (!user) {
-      return;
+      return undefined;
     }
 
     // Generate password reset token
@@ -154,8 +153,7 @@ export class AuthService {
 
     await this.userRepository.save(user);
 
-    // TODO: Send password reset email (requires email service integration)
-    // await this.sendPasswordResetEmail(user.email, passwordResetToken);
+    return passwordResetToken;
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
@@ -191,5 +189,15 @@ export class AuthService {
       email: user.email,
     };
     return this.jwtService.sign(payload);
+  }
+
+  /**
+   * Sends a password reset email. Delegates to requestPasswordReset so token
+   * generation, persistence, and email are handled in one place.
+   */
+  async sendPasswordResetEmail(email: string, passwordResetToken: string): Promise<void> {
+    // TODO: Send password reset email (requires email service integration)
+    await this.mailService.sendPasswordResetEmail(email, passwordResetToken);
+    // await this.requestPasswordReset({ email });
   }
 }
