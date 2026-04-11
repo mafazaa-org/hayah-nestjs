@@ -9,9 +9,9 @@ import {
 import { Type } from 'class-transformer';
 import { ViewConfigDto } from './view-config.dto';
 
-export type ViewType = 'kanban' | 'table' | 'calendar' | 'timeline';
+export type ViewType = 'kanban' | 'table' | 'calendar' | 'timeline' | 'gantt' | 'roadmap' | 'workload' | 'overview';
 
-const VIEW_TYPES: ViewType[] = ['kanban', 'table', 'calendar', 'timeline'];
+const VIEW_TYPES: ViewType[] = ['kanban', 'table', 'calendar', 'timeline', 'gantt', 'roadmap', 'workload', 'overview'];
 
 export class CreateViewDto {
   @IsNotEmpty()

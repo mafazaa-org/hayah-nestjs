@@ -28,6 +28,10 @@ export class UpdateTaskDto {
 
   @IsOptional()
   @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
   dueDate?: string | null;
 
   @IsOptional()

@@ -22,6 +22,7 @@ import { TaskDependencyEntity } from './task-dependency.entity';
 import { TaskIterationEntity } from './task-iteration.entity';
 import { TaskTagEntity } from './task-tag.entity';
 import { TaskPriorityEntity } from './task-priority.entity';
+import { TimeLogEntity } from './time-log.entity';
 
 /**
  * TaskEntity
@@ -44,6 +45,13 @@ export class TaskEntity {
     nullable: true,
   })
   description: string | null;
+
+  @Column({
+    type: 'date',
+    name: 'start_date',
+    nullable: true,
+  })
+  startDate: Date | null;
 
   @Column({
     type: 'date',
@@ -126,6 +134,9 @@ export class TaskEntity {
 
   @OneToMany(() => ActivityEntity, (activity) => activity.task)
   activities: ActivityEntity[];
+
+  @OneToMany(() => TimeLogEntity, (timeLog) => timeLog.task)
+  timeLogs: TimeLogEntity[];
 
   @Index()
   @ManyToOne(() => TaskPriorityEntity, {

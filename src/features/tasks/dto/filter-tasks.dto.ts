@@ -9,6 +9,7 @@ import {
   Min,
   ValidateIf,
   ValidateNested,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -80,6 +81,22 @@ export class FilterTasksDto {
   @ValidateNested()
   @Type(() => FilterGroupDto)
   filters?: FilterGroupDto;
+
+  @IsOptional()
+  @IsDateString()
+  startDateFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startDateTo?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dueDateFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dueDateTo?: string;
 
   @IsOptional()
   @IsBoolean()

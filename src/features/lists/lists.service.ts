@@ -79,8 +79,11 @@ export class ListsService {
       description: description || null,
       workspace: { id: workspaceId } as any,
       folder: folderId ? ({ id: folderId } as any) : null,
-      visibility: visibility || 'private',
-      defaultViewConfig: defaultViewConfig || null,
+      visibility: (visibility || 'private') as 'private' | 'shared',
+      defaultViewConfig: defaultViewConfig as {
+        type?: 'kanban' | 'table' | 'calendar' | 'timeline' | 'gantt' | 'roadmap' | 'workload' | 'overview';
+        [key: string]: any;
+      } || null,
       isArchived: false,
     });
 
@@ -104,7 +107,7 @@ export class ListsService {
       description: null,
       workspace: { id: workspaceId } as any,
       folder: folderId ? ({ id: folderId } as any) : null,
-      visibility: 'private',
+      visibility: 'private' as const,
       defaultViewConfig: null,
       isArchived: false,
     });
@@ -173,11 +176,11 @@ export class ListsService {
     }
 
     if (updateListDto.visibility !== undefined) {
-      list.visibility = updateListDto.visibility;
+      list.visibility = updateListDto.visibility as 'private' | 'shared';
     }
 
     if (updateListDto.defaultViewConfig !== undefined) {
-      list.defaultViewConfig = updateListDto.defaultViewConfig || null;
+      list.defaultViewConfig = (updateListDto.defaultViewConfig as any) || null;
     }
 
     return this.listRepository.save(list);
@@ -337,7 +340,8 @@ export class ListsService {
       workspace: workspaceId ? ({ id: workspaceId } as any) : null,
     });
 
-    return this.listTemplateRepository.save(template);
+    const savedTemplate = (await this.listTemplateRepository.save(template)) as ListTemplateEntity;
+    return savedTemplate;
   }
 
   async findAllTemplates(
@@ -497,7 +501,8 @@ export class ListsService {
       template.templateConfig = updateTemplateDto.templateConfig;
     }
 
-    return this.listTemplateRepository.save(template);
+    const savedTemplate = (await this.listTemplateRepository.save(template)) as ListTemplateEntity;
+    return savedTemplate;
   }
 
   async removeTemplate(id: string, userId: string): Promise<void> {
@@ -561,7 +566,8 @@ export class ListsService {
         : list.workspace ? ({ id: list.workspace.id } as any) : null,
     });
 
-    return this.listTemplateRepository.save(template);
+    const savedTemplate = (await this.listTemplateRepository.save(template)) as ListTemplateEntity;
+    return savedTemplate;
   }
 
   async findPublicTemplates(
@@ -1297,4 +1303,46 @@ export class ListsService {
       createdAt: savedMember.createdAt,
     };
   }
-}
+
+  // --- Phase 16: Additional Board Views Aggregations ---
+
+  async getWorkloadMetrics(listId: string): Promise<any[]> {
+    await this.findOne(listId); // Ensure list exists
+
+    return this.listRepository.manager.query(
+      `
+      SELECT 
+        u.id AS "userId", 
+        u.name AS "userName", 
+        u.email AS "userEmail",
+        COUNT(a.id)::int AS "taskCount"
+      FROM users u
+      JOIN assignments a ON a.user_id = u.id
+      JOIN tasks t ON t.id = a.task_id
+      WHERE t.list_id = $1 AND t.is_archived = false
+      GROUP BY u.id, u.name, u.email
+      ORDER BY "taskCount" DESC
+      `,
+      [listId]
+    );
+  }
+
+  async getStatusOverview(listId: string): Promise<any[]> {
+    await this.findOne(listId); // Ensure list exists
+
+    return this.listRepository.manager.query(
+      `
+      SELECT 
+        s.id AS "statusId", 
+        s.name AS "statusName", 
+        COUNT(t.id)::int AS "taskCount"
+      FROM statuses s
+      LEFT JOIN tasks t ON t.status_id = s.id AND t.list_id = $1 AND t.is_archived = false
+      WHERE s.list_id = $1
+      GROUP BY s.id, s.name
+      ORDER BY "taskCount" DESC
+      `,
+      [listId]
+    );
+  }
+}

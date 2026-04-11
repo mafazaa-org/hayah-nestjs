@@ -7463,3 +7463,39 @@ Phase 15 focuses on identifying bottlenecks and improving the overall efficiency
 - **Significant Request Reductions:** Caching cuts server computational costs on expensive folder tree generation.
 - **Client Render Stability:** The `{ data, meta }` pagination response enables frontend dynamic data-tables, infinite-scrolls, and virtual list windows to effectively manage massive volumes.
 - **DB Operations:** Database B-Tree indexing mitigates Table-Scanning operations internally allowing rapid sorting/filtering.
+
+---
+
+## Phase 16: Additional Board Views & Time Tracking
+
+**Status:** Completed
+**Date Completed:** April 2026
+
+### Overview
+
+Phase 16 expands the backend capabilities to support advanced visualization layouts such as Gantt charts, Product Roadmaps, and Workload distributions, while introducing a native Time Tracking system.
+
+### Objectives Completed
+
+#### 1. Foundation for Advanced Views ✅
+
+- **Scheduling Schema:** Added startDate to TaskEntity to allow duration tracking (Start -> Due Date) for Gantt visualizations.
+- **Extended View Types:** Updated ViewEntity and associated DTOs to support new layout types: gantt, oadmap, workload, and overview.
+- **Timeline Filtering:** Enhanced FilterTasksDto and TasksService with range filters (startDateFrom, startDateTo, etc.) to support scrolling time-window queries.
+
+#### 2. Team Workload & Status Aggregations ✅
+
+- **Workload API:** Implemented ListsService.getWorkloadMetrics to aggregate task distribution across team members within a list.
+- **Status Overview API:** Implemented ListsService.getStatusOverview for list-level status roll-ups and health tracking.
+
+#### 3. Native Time Tracking ✅
+
+- **TimeLog System:** Scaffolded TimeLogEntity to track duration-based work segments against tasks.
+- **Timer API:** Added TasksTimeController with start, stop, and history retrieval endpoints (GET /tasks/:id/time).
+- **Calculated Durations:** Implemented automatic second-level duration calculation upon stopping an active timer.
+
+### Benefits
+
+- **Temporal Awareness:** The backend can now store and query tasks based on scheduled windows rather than just single deadlines.
+- **Data-Driven Insights:** Manager-level aggregations provide immediate visibility into team capacity and project status.
+- **Audit Compliance:** Native time tracking allows for precision resource accounting and performance analytics.

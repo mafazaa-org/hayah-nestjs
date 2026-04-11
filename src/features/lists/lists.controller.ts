@@ -391,4 +391,14 @@ export class ListsController {
   ): Promise<ListMemberResponseDto> {
     return this.listsService.joinViaInviteLink(token, user.userId);
   }
+
+  @Get(':id/metrics/workload')
+  getWorkloadMetrics(@Param('id') id: string): Promise<any[]> {
+    return this.listsService.getWorkloadMetrics(id);
+  }
+
+  @Get(':id/metrics/overview')
+  getStatusOverview(@Param('id') id: string): Promise<any[]> {
+    return this.listsService.getStatusOverview(id);
+  }
 }

@@ -58,7 +58,7 @@ export class ListTemplateEntity {
     }>;
     // Default view configuration
     defaultViewConfig?: {
-      type?: 'kanban' | 'table' | 'calendar' | 'timeline';
+      type?: 'kanban' | 'table' | 'calendar' | 'timeline' | 'gantt' | 'roadmap' | 'workload' | 'overview';
       [key: string]: any;
     };
     // Default visibility

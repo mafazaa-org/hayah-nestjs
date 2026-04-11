@@ -15,7 +15,7 @@ import { Type } from 'class-transformer';
 import { FilterGroupDto } from '../../tasks/dto/filter-tasks.dto';
 import { SortField, SortDirection } from '../../tasks/dto/sort-tasks.dto';
 
-const VIEW_TYPES = ['kanban', 'table', 'calendar', 'timeline'] as const;
+const VIEW_TYPES = ['kanban', 'table', 'calendar', 'timeline', 'gantt', 'roadmap', 'workload', 'overview'] as const;
 
 /**
  * View configuration: columns (show/hide), filters, sorting, and view-type-specific options.

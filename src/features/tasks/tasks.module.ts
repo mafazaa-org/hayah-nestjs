@@ -24,6 +24,9 @@ import { ActivitiesService } from './services/activities.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EventsModule } from '../events/events.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { TimeLogEntity } from './entities/time-log.entity';
+import { TasksTimeService } from './tasks-time.service';
+import { TasksTimeController } from './tasks-time.controller';
 
 @Module({
   imports: [
@@ -45,14 +48,15 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
       TaskTemplateEntity,
       UserEntity,
       WorkspaceEntity,
+      TimeLogEntity,
     ]),
     AuthModule,
     NotificationsModule,
     EventsModule,
     WebhooksModule,
   ],
-  controllers: [TasksController],
-  providers: [TasksService, ActivitiesService],
-  exports: [TasksService, ActivitiesService],
+  controllers: [TasksController, TasksTimeController],
+  providers: [TasksService, ActivitiesService, TasksTimeService],
+  exports: [TasksService, ActivitiesService, TasksTimeService],
 })
 export class TasksModule {}
