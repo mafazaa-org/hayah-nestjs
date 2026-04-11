@@ -7499,3 +7499,34 @@ Phase 16 expands the backend capabilities to support advanced visualization layo
 - **Temporal Awareness:** The backend can now store and query tasks based on scheduled windows rather than just single deadlines.
 - **Data-Driven Insights:** Manager-level aggregations provide immediate visibility into team capacity and project status.
 - **Audit Compliance:** Native time tracking allows for precision resource accounting and performance analytics.
+
+---
+
+## Phase 16 Enhancements: Advanced Bulk Operations & Calendar Metadata
+
+**Status:** Completed
+**Date Completed:** April 2026
+
+### Overview
+
+Enhanced the backend to support more complex UI requirements for Table and Calendar views, specifically focusing on advanced bulk processing and view-state persistence.
+
+### Key Implementation Details
+
+#### 1. Advanced Table Bulk Actions ✅
+
+- **Bulk Assignment & Tagging:** Enhanced the `bulkUpdate` system to support adding, removing, or overriding assignees and tags across multiple tasks in a single operation.
+- **Bulk Operation Types:** Introduced `operationType` (`override`, `append`, `remove`) for granular control over many-to-many relationship updates.
+- **Heterogeneous Bulk Patch:** Implemented a new `bulkPatch` endpoint (`PATCH /export-import/tasks/bulk-patch`) that allows updating different tasks with different payloads in a single batch, significantly optimizing "Inline Editing" for large tables.
+
+#### 2. Calendar & View Persistence ✅
+
+- **Calendar Type Persistence:** Added `calendarType` to `ViewConfigDto` to store user preferences for Month, Week, or Day views.
+- **Customizable Columns:** Verified and refined the column visibility mapping for Table views, including support for custom field column persistence.
+
+### Benefits
+
+- **Efficiency:** Drastically reduced network overhead for mass-editing tasks by grouping disparate updates into a single "bulk patch" call.
+- **Consistency:** Standardized the behavior of multi-task edits with clear override/append/remove logic.
+- **Personalization:** View states now persist specific calendar granularities, providing a smoother transition between sessions.
+

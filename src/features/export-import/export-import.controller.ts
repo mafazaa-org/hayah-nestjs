@@ -23,6 +23,7 @@ import type { ExportFormat } from './export-import.service';
 import { BulkCreateTasksDto } from './dto/bulk-create-tasks.dto';
 import { BulkUpdateTasksDto } from './dto/bulk-update-tasks.dto';
 import { BulkDeleteTasksDto } from './dto/bulk-delete-tasks.dto';
+import { BulkPatchTasksDto } from './dto/bulk-patch-tasks.dto';
 
 @ApiTags('export-import')
 @ApiBearerAuth('access-token')
@@ -110,5 +111,13 @@ export class ExportImportController {
     @Body() dto: BulkDeleteTasksDto,
   ) {
     return this.exportImportService.bulkDelete(user.userId, dto);
+  }
+
+  @Patch('tasks/bulk-patch')
+  async bulkPatch(
+    @CurrentUser() user: { userId: string },
+    @Body() dto: BulkPatchTasksDto,
+  ) {
+    return this.exportImportService.bulkPatch(user.userId, dto);
   }
 }

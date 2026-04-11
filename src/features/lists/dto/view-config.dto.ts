@@ -55,6 +55,11 @@ export class ViewConfigDto {
   @Min(0)
   @Max(6)
   startOfWeek?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['month', 'week', 'day'])
+  calendarType?: 'month' | 'week' | 'day';
 }
 
 /**

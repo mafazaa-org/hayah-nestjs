@@ -18,6 +18,7 @@ import { SortDirection } from '../tasks/dto/sort-tasks.dto';
 import { BulkCreateTasksDto, BulkCreateTaskItemDto } from './dto/bulk-create-tasks.dto';
 import { BulkUpdateTasksDto } from './dto/bulk-update-tasks.dto';
 import { BulkDeleteTasksDto } from './dto/bulk-delete-tasks.dto';
+import { BulkPatchTasksDto } from './dto/bulk-patch-tasks.dto';
 
 const CSV_EXPORT_COLUMNS = [
   'title',
@@ -343,7 +344,71 @@ export class ExportImportService {
     let success = 0;
     for (const t of valid) {
       try {
-        await this.tasksService.update(t.id, updateDto, userId);
+        // Apply standard updates
+        if (Object.keys(updateDto).length > 0) {
+          await this.tasksService.update(t.id, updateDto, userId);
+        }
+
+        const operation = dto.operationType || 'override';
+
+        if (dto.assigneeIds && dto.assigneeIds.length > 0) {
+          const currentAssigneeIds = t.assignments?.map((a) => a.user.id) || [];
+          
+          if (operation === 'override') {
+            for (const id of currentAssigneeIds) {
+              if (!dto.assigneeIds.includes(id)) {
+                await this.tasksService.unassignUser(t.id, id, userId);
+              }
+            }
+            for (const id of dto.assigneeIds) {
+              if (!currentAssigneeIds.includes(id)) {
+                await this.tasksService.assignUser(t.id, { userId: id }, userId);
+              }
+            }
+          } else if (operation === 'append') {
+            for (const id of dto.assigneeIds) {
+              if (!currentAssigneeIds.includes(id)) {
+                await this.tasksService.assignUser(t.id, { userId: id }, userId);
+              }
+            }
+          } else if (operation === 'remove') {
+            for (const id of dto.assigneeIds) {
+              if (currentAssigneeIds.includes(id)) {
+                await this.tasksService.unassignUser(t.id, id, userId);
+              }
+            }
+          }
+        }
+
+        if (dto.tagIds && dto.tagIds.length > 0) {
+          const currentTagIds = t.taskTags?.map((tt) => tt.tag.id) || [];
+
+          if (operation === 'override') {
+            for (const id of currentTagIds) {
+              if (!dto.tagIds.includes(id)) {
+                await this.tasksService.removeTag(t.id, id, userId);
+              }
+            }
+            for (const id of dto.tagIds) {
+              if (!currentTagIds.includes(id)) {
+                await this.tasksService.addTag(t.id, { tagId: id }, userId);
+              }
+            }
+          } else if (operation === 'append') {
+            for (const id of dto.tagIds) {
+              if (!currentTagIds.includes(id)) {
+                await this.tasksService.addTag(t.id, { tagId: id }, userId);
+              }
+            }
+          } else if (operation === 'remove') {
+            for (const id of dto.tagIds) {
+              if (currentTagIds.includes(id)) {
+                await this.tasksService.removeTag(t.id, id, userId);
+              }
+            }
+          }
+        }
+
         success++;
       } catch (e) {
         errors.push({
@@ -352,6 +417,28 @@ export class ExportImportService {
         });
       }
     }
+    return { success, failed: errors.length, errors };
+  }
+
+  async bulkPatch(
+    userId: string,
+    dto: BulkPatchTasksDto,
+  ): Promise<BulkOperationResult> {
+    const errors: { taskId: string; message: string }[] = [];
+    let success = 0;
+
+    for (const patch of dto.patches) {
+      try {
+        await this.tasksService.update(patch.id, patch.data, userId);
+        success++;
+      } catch (e) {
+        errors.push({
+          taskId: patch.id,
+          message: e instanceof Error ? e.message : 'Patch failed',
+        });
+      }
+    }
+
     return { success, failed: errors.length, errors };
   }
 
@@ -365,6 +452,8 @@ export class ExportImportService {
       ),
     );
     const valid = tasks.filter((t): t is TaskEntity => t != null);
+    if (valid.length === 0) return { success: 0, failed: 0 };
+
     const listIds = [...new Set(valid.map((t) => (t.list as { id: string }).id))];
     if (listIds.length > 1) {
       throw new BadRequestException(
