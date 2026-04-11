@@ -83,8 +83,13 @@ export class TasksController {
     @Query('sortField') sortField?: SortField,
     @Query('sortDirection') sortDirection?: SortDirection,
     @Query('customFieldId') customFieldId?: string,
-  ): Promise<TaskEntity[]> {
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<{ data: TaskEntity[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
     const includeArchivedFlag = includeArchived === 'true';
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    
     return this.tasksService.findAll(
       listId,
       statusId,
@@ -92,6 +97,8 @@ export class TasksController {
       sortField,
       sortDirection || SortDirection.ASC,
       customFieldId,
+      pageNum,
+      limitNum,
     );
   }
 

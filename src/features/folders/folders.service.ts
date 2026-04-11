@@ -58,7 +58,7 @@ export class FoldersService {
     id: string,
     updateFolderDto: UpdateFolderDto,
   ): Promise<FolderEntity> {
-    const folder = await this.folderRepository.findOne({ where: { id } });
+    const folder = await this.folderRepository.findOne({ where: { id }, relations: ['workspace'] });
 
     if (!folder) {
       throw new NotFoundException('Folder not found');
@@ -74,7 +74,7 @@ export class FoldersService {
   async move(id: string, moveFolderDto: MoveFolderDto): Promise<FolderEntity> {
     const folder = await this.folderRepository.findOne({
       where: { id },
-      relations: ['parent'],
+      relations: ['parent', 'workspace'],
     });
 
     if (!folder) {
@@ -127,7 +127,7 @@ export class FoldersService {
   }
 
   async remove(id: string): Promise<void> {
-    const folder = await this.folderRepository.findOne({ where: { id } });
+    const folder = await this.folderRepository.findOne({ where: { id }, relations: ['workspace'] });
 
     if (!folder) {
       throw new NotFoundException('Folder not found');

@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -27,12 +28,14 @@ export class FolderEntity {
   })
   name: string;
 
+  @Index()
   @ManyToOne(() => WorkspaceEntity, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'workspace_id' })
   workspace: WorkspaceEntity;
 
+  @Index()
   @ManyToOne(() => FolderEntity, (folder) => folder.children, {
     onDelete: 'CASCADE',
     nullable: true,

@@ -7,7 +7,9 @@ import {
   Post,
   Put,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { CacheInterceptor } from '@nestjs/cache-manager';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FoldersService } from './folders.service';
@@ -55,6 +57,7 @@ export class FoldersController {
   }
 
   @Get('workspace/:workspaceId/tree')
+  @UseInterceptors(CacheInterceptor)
   getWorkspaceTree(
     @Param('workspaceId') workspaceId: string,
   ): Promise<FolderEntity[]> {

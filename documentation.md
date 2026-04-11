@@ -7424,3 +7424,42 @@ The implementation follows NestJS best practices, uses efficient database querie
 - Each phase builds upon previous phases
 - Implementation follows NestJS best practices
 - Code follows TypeScript strict typing conventions
+
+---
+
+## Phase 15: Performance & Optimization
+
+**Status:** Completed
+**Date Completed:** April 2026
+
+### Overview
+
+Phase 15 focuses on identifying bottlenecks and improving the overall efficiency of the backend system through database indexing, API response caching, and query optimization.
+
+### Objectives Completed
+
+#### 1. Database Indexing ✅
+
+- Added strategic indexing on heavily filtered and sorted columns.
+- **TaskEntity:** Added `@Index` to `list_id`, `status_id`, `priority_id`, `due_date`, `is_archived`, and `order_position`.
+- **FolderEntity:** Added `@Index` to `workspace_id` and `parent_folder_id` to improve the speed of recursive tree queries.
+
+#### 2. Pagination & Sorting ✅
+
+- Upgraded the API payload structures and optimized database-level querying for very large workspaces.
+- **FilterTasksDto:** Added `page` and `limit` fields using NestJS validation pipes structure.
+- **TasksService/TasksController:** Upgraded `findAll` to map into a `.take(limit).skip(offset)` pattern using `getManyAndCount()`, outputting a `{ data, meta }` format.
+- **Internal Usages:** Addressed downstream side-effects where tasks were extracted, ensuring data workflows like export/import could effectively grab larger chunks cleanly.
+
+#### 3. API Response Caching ✅
+
+- Delivered native route-caching to accelerate highly concurrent read-only queries with a 60-second TTL.
+- **AppModule:** Imported and registered the `@nestjs/cache-manager` module instance wrapper globally.
+- **Controllers:** Integrated `@UseInterceptors(CacheInterceptor)` on complex read operations such as `FoldersController.getWorkspaceTree` and `ListsController.findPublicTemplates`.
+- **Cache Invalidation:** Configured automated cache invalidation logic inside `FoldersService` mutating methods (Create, Update, Delete, Move) to purge stale cache records by matching the specific workspace URL path manually.
+
+### Benefits
+
+- **Significant Request Reductions:** Caching cuts server computational costs on expensive folder tree generation.
+- **Client Render Stability:** The `{ data, meta }` pagination response enables frontend dynamic data-tables, infinite-scrolls, and virtual list windows to effectively manage massive volumes.
+- **DB Operations:** Database B-Tree indexing mitigates Table-Scanning operations internally allowing rapid sorting/filtering.

@@ -71,14 +71,17 @@ export class ExportImportService {
     await this.ensureListAccess(listId, userId);
     const list = await this.listsService.findOne(listId);
     const listData = list as ListEntity & { statuses?: { id: string; name: string }[] };
-    const tasks = await this.tasksService.findAll(
+    const paginatedTasks = await this.tasksService.findAll(
       listId,
       undefined,
       true,
       undefined,
       SortDirection.ASC,
       undefined,
+      1,
+      10000
     );
+    const tasks = paginatedTasks.data;
     const statuses = await this.statusesService.findAll(listId);
     const statusMap = new Map(statuses.map((s) => [s.id, s.name]));
     const priorities = await this.priorityRepository.find({

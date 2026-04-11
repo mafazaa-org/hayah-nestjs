@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -49,6 +50,7 @@ export class TaskEntity {
     name: 'due_date',
     nullable: true,
   })
+  @Index()
   dueDate: Date | null;
 
   @Column({
@@ -56,6 +58,7 @@ export class TaskEntity {
     name: 'order_position',
     default: 0,
   })
+  @Index()
   orderPosition: number;
 
   @Column({
@@ -63,14 +66,17 @@ export class TaskEntity {
     name: 'is_archived',
     default: false,
   })
+  @Index()
   isArchived: boolean;
 
+  @Index()
   @ManyToOne('ListEntity', {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'list_id' })
   list: ListEntity;
 
+  @Index()
   @ManyToOne('StatusEntity', {
     onDelete: 'SET NULL',
     nullable: true,
@@ -121,6 +127,7 @@ export class TaskEntity {
   @OneToMany(() => ActivityEntity, (activity) => activity.task)
   activities: ActivityEntity[];
 
+  @Index()
   @ManyToOne(() => TaskPriorityEntity, {
     nullable: true,
   })

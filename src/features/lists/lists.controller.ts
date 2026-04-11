@@ -10,7 +10,9 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { CacheInterceptor } from '@nestjs/cache-manager';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ListsService } from './lists.service';
@@ -320,6 +322,7 @@ export class ListsController {
   }
 
   @Get('templates/public')
+  @UseInterceptors(CacheInterceptor)
   findPublicTemplates(
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,

@@ -5,6 +5,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsInt,
+  Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -82,4 +84,16 @@ export class FilterTasksDto {
   @IsOptional()
   @IsBoolean()
   includeArchived?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
 }

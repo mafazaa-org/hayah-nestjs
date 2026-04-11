@@ -305,7 +305,9 @@ export class TasksService {
     sortField?: SortField,
     sortDirection: SortDirection = SortDirection.ASC,
     customFieldId?: string,
-  ): Promise<TaskEntity[]> {
+    page: number = 1,
+    limit: number = 50,
+  ): Promise<{ data: TaskEntity[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
     // Use QueryBuilder for assignee sorting (complex - requires join)
     if (sortField === SortField.ASSIGNEE) {
       const queryBuilder = this.taskRepository
@@ -348,7 +350,13 @@ export class TasksService {
         .addOrderBy(assigneeOrderBy, sortDirection)
         .addOrderBy('task.orderPosition', SortDirection.ASC);
 
-      return queryBuilder.getMany();
+      
+      queryBuilder.skip((page - 1) * limit).take(limit);
+      const [data, total] = await queryBuilder.getManyAndCount();
+      return {
+        data,
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      };
     }
 
     // Use QueryBuilder for custom field sorting (complex - requires join)
@@ -423,7 +431,13 @@ export class TasksService {
         .addOrderBy(valueOrderBy, sortDirection)
         .addOrderBy('task.orderPosition', SortDirection.ASC);
 
-      return queryBuilder.getMany();
+      
+      queryBuilder.skip((page - 1) * limit).take(limit);
+      const [data, total] = await queryBuilder.getManyAndCount();
+      return {
+        data,
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      };
     }
 
     // Use simple find for other sort fields
@@ -487,7 +501,13 @@ export class TasksService {
           queryBuilder.addOrderBy('task.orderPosition', SortDirection.ASC);
         }
 
-        return queryBuilder.getMany();
+        
+      queryBuilder.skip((page - 1) * limit).take(limit);
+      const [data, total] = await queryBuilder.getManyAndCount();
+      return {
+        data,
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      };
       } else {
         order[actualSortField] = sortDirection;
         // Add secondary sort by orderPosition for consistency, unless sorting by orderPosition
@@ -501,11 +521,17 @@ export class TasksService {
       order.createdAt = SortDirection.ASC;
     }
 
-    return this.taskRepository.find({
+    const [data, total] = await this.taskRepository.findAndCount({
       where,
       relations: ['list', 'status', 'priority', 'assignments', 'taskTags'],
       order,
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findOne(id: string): Promise<TaskEntity> {
